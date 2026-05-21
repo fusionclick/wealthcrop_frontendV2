@@ -7,7 +7,7 @@ const MutualFundInvestPage = ({fundsList}) => {
   // Dummy values — replace with actual data later
   console.log("funddeatils from mfinvest", fundsList);
   
-  const schemeCode = "123456";
+  const schemeCode = fundsList?.bse_scheme_code;
   const  name  = fundsList?.name;
   const fundCategory = "Equity • Flexi Cap";
   const risk = fundsList?.name;
