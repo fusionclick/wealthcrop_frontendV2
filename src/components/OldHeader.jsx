@@ -160,6 +160,7 @@ const [fnoOpen, setFnoOpen] = useState(false);
 // const [isSearchOpen, setIsSearchOpen] = useState(false);
 const accounts = JSON.parse(localStorage.getItem("accounts")) || []
 const visibleAcounts = showAll ? accounts : accounts.slice(0,2)
+// const visibleAcounts = []
 const current = JSON.parse(localStorage.getItem("currentAccount"))
 const userName = current?.name
 const email = current?.email
@@ -276,10 +277,14 @@ const phone = current?.phone
   </div>
 
   {/* Switch Accounts */}
-  <div className="border-b border-gray-100 dark:border-gray-700">
+   {
+    visibleAcounts?.length > 0 && (
+        <div className="border-b border-gray-100 dark:border-gray-700">
   <p className="px-4 py-2 text-xs text-gray-500">Switch Account</p>
 
 <div className="h-26 overflow-y-auto">
+
+ 
   {visibleAcounts.map((acc) => (
     <div
       key={acc.userId}
@@ -307,14 +312,18 @@ const phone = current?.phone
     )
   }
 
-  {/* Add Account */}
+ 
+</div>
+    )
+  }
+   {/* Add Account */}
   <div
     onClick={() => navigate("/login")}
     className="px-4 py-2 text-blue-600 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 text-sm"
   >
     + Add Account
   </div>
-</div>
+
 
   {/* Balance */}
   <Link

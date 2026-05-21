@@ -265,11 +265,15 @@ const StockDetails = lazy(() => import("./components/StockDetails"));
 
 
   const { pathname } = useLocation();
+  const { token } = useSelector((state) => state.auth);
     // const [baskets] = useState(basketsData); // static for now
   const [basketDetails] = useState(basketDetailsData);
   const [baskets, setBaskets] = useState([]);
 
     useEffect(() => {
+
+      if(!token) return
+
       const fetchBasket = async () => {
         const url = `${import.meta.env.VITE_URL}/baskets`;
         // setLoading(true);
@@ -284,14 +288,13 @@ const StockDetails = lazy(() => import("./components/StockDetails"));
       };
 
       fetchBasket();
-    }, []);
+    }, [token]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [pathname]);
 
   const [activeCategory, setActiveCategory] = useState("stocks");
-  const { token } = useSelector((state) => state.auth);
 
   const [isLg, setIsLg] = useState(window.innerWidth >= 1024);
 
@@ -337,8 +340,10 @@ useEffect(() => {
     const dispatch = useDispatch();
 
     useEffect(() => {
-      dispatch(fetchInvestorData());
-    }, [dispatch]);
+  if (token) {
+    dispatch(fetchInvestorData());
+  }
+}, [dispatch, token]);
 
 
 

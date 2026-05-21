@@ -7,16 +7,16 @@ const MutualFundInvestPage = ({fundsList}) => {
   // Dummy values — replace with actual data later
   console.log("funddeatils from mfinvest", fundsList);
   
-  const schemeCode = fundsList?.bse_scheme_code;
+  const schemeCode = fundsList?.scheme_bse_code;
   const  name  = fundsList?.name;
   const fundCategory = "Equity • Flexi Cap";
-  const risk = fundsList?.name;
-  const rating = fundsList?.name;
-  const nav = 72.45;
-  const returns = { "1Y": 32.1, "3Y": 22.8, "5Y": 20.4 };
-  const minLumpsum = 1000;
-  const minSip = 1000;
-  const expenseRatio = 0.89;
+  const risk = fundsList?.risk;
+  const rating = fundsList?.rating;
+  const nav = fundsList?.nav;
+  const returns = { "1Y": fundsList?.returns?.["1Y"], "3Y": fundsList?.returns?.["3Y"], "5Y": fundsList?.returns?.["5Y"] };
+  const minLumpsum = fundsList?.minLumpsum;
+  const minSip = fundsList?.minSip;
+  const expenseRatio = fundsList?.expense;
   const exitLoad = "1% if redeemed within 365 days";
 
   const [investType, setInvestType] = useState("LUMPSUM");
@@ -64,7 +64,23 @@ console.log("Investor Data from mutualfundinvest page", data);
   };
 };
 
+  //! Generate Order Ref Id
+  const generateOrderRefId = () => {
+    const prefix = "ORD"
+    const timeStamp = Date.now().toString().slice(-5)
+    const random = Math.floor(100 + Math.random() * 900);
+    return `${prefix}${timeStamp}${random}`
+  }
+
   const handleInvest = async () => {
+
+//     const encrypted =
+//   "eyJpdiI6IlJUajUyaU5TL3pLYWNNRVpmZVVLUUE9PSIsInZhbHVlIjoiWm9DeXpNUUtlbEN4WmtQT1lXRWlTUT09IiwibWFjIjoiZGM5Yjg1OTFjMmRhZjczMzA2YzgzNmIxZjQyMWRmYTg3NTNmNzhkMWViNTU2ZGFjZWNhOWYyYWUxZmNiMDg2YyIsInRhZyI6IiJ9";
+
+// const decoded = atob(encrypted);
+
+// console.log("decode",decoded);
+
     // const payload = {
     //   schemeCode,
     //   schemeName: name,
@@ -94,116 +110,221 @@ console.log("Investor Data from mutualfundinvest page", data);
     //       : null,
     // };
 
+    // const payload = {
+    //   data: {
+    //     orders: [
+    //       {
+    //         type: "p",
+    //         // mem_ord_ref_id: "ORD20260518001",
+    //         mem_ord_ref_id: generateOrderRefId(),
+    //         investor: {
+    //           // ucc: "UCC00078",
+    //           ucc: data?.kyc?.ucc_code,
+    //         },
+    //         member: "91010",
+    //         mem_details: {
+    //           euin: "E999999",
+    //           euin_flag: true,
+    //           sub_br_code: "SUB001",
+    //           sub_br_arn: "ARN-123456",
+    //           partner_id: "PART001",
+    //         },
+    //         scheme: schemeCode,
+    //         amount: amount,
+    //         cur: "INR",
+    //         is_units: false,
+    //         all_units: false,
+    //         min_redeem_flag: false,
+    //         dest_scheme: "",
+    //         folio: "",
+    //         dest_folio: "",
+    //         bank_ref_id: "",
+    //         payment_ref_id: "",
+    //         parent_client_code: "",
+    //         is_fresh: true,
+    //         phys_or_demat: "P",
+    //         src: investType.toLowerCase(),
+    //         reg_no: "",
+    //         // holder: [
+    //         //   {
+    //         //     holder_rank: "1",
+    //         //     email: data?.email,
+    //         //     mobnum: data?.phone,
+    //         //     is_nomination_opted: false,
+    //         //     nomination_auth_mode: "UNKNOWN",
+    //         //   },
+    //         // ],
+
+    //         holder:  data?.nominees?.length 
+    //         ?  data?.nominees?.map((holder, index) => (
+    //           {
+    //             holder_rank: `${index + 1}`,
+    //             email: "investor1@example.com",
+    //             mobnum: "9999999999",
+    //             is_nomination_opted: false,
+    //             nomination_auth_mode: "UNKNOWN",
+    //           }
+    //         )) : [],
+             
+            
+    //         email: data?.email,
+    //         mobnum: data?.phone,
+    //         kyc_passed: true,
+    //         depository_acct: {},
+    //         bank_acct: {
+    //           ifsc: data?.bank_accounts?.[0]?.ifsc_code,
+    //           no: data?.bank_accounts?.[0]?.account_number,
+    //           // no: "123456789012",
+    //           type: "SB",
+    //           name: data?.bank_accounts?.[0]?.bank_name,
+    //         },
+    //         dpc: true,
+    //         is_nomination_opted: true,
+    //         nomination_auth_mode: 0,
+    //         // nomination: [
+
+    //         //   {
+    //         //     first_name: "NomineeOne",
+    //         //     middle_name: "",
+    //         //     last_name: "Test",
+    //         //     dob: "01-Jan-2000",
+    //         //     nomination_percent: 100,
+    //         //     nomination_relation: "18",
+    //         //     is_pan_exempt: true,
+    //         //     pan_exempt_category: "01",
+    //         //     is_minor: false,
+    //         //     identifier: [
+    //         //       {
+    //         //         identifier_type: "pan_exempt_ref_no",
+    //         //         identifier_number: "EXEMPT1234"
+    //         //       }
+    //         //     ]
+    //         //   }
+    //         // ],
+    //         nomination: data?.nominees?.length
+    //           ? data?.nominees?.map((nominee) => {
+
+    //             const nameParts = getNameParts(nominee?.name);
+    //             return {
+    //               ...nameParts,
+    //               dob: "01-Jan-2000",
+    //               nomination_percent: nominee?.percentage,
+    //               nomination_relation: nominee?.relation,
+    //               is_pan_exempt: true,
+    //               pan_exempt_category: "01",
+    //               is_minor: false,
+    //               identifier: [
+    //                 {
+    //                   identifier_type: "pan_exempt_ref_no",
+    //                   identifier_number: "EXEMPT1234",
+    //                 },
+    //               ],
+    //             };
+    //           })
+    //         : [],
+    //         special_product: {
+    //           special_prod_type: "",
+    //           special_prod_name: "",
+    //           target_scheme: "",
+    //           target_amt: 0,
+    //           goal_type: "",
+    //           goal_amt: 0,
+    //           sip_tenure: 0,
+    //         },
+    //       },
+    //     ],
+    //   },
+
     const payload = {
-      data: {
-        orders: [
-          {
-            type: "p",
-            mem_ord_ref_id: "ORD20260518001",
-            investor: {
-              ucc: "UCC00001",
+      data:{
+    "orders": [
+        {
+            "type": "p",
+            "mem_ord_ref_id": "ORD58351333",
+            "investor": {
+                "ucc": "UCC00001"
             },
-            member: "91010",
-            mem_details: {
-              euin: "E999999",
-              euin_flag: true,
-              sub_br_code: "SUB001",
-              sub_br_arn: "ARN-123456",
-              partner_id: "PART001",
+            "member": "91010",
+            "mem_details": {
+                "euin": "E999999",
+                "euin_flag": true,
+                "sub_br_code": "SUB001",
+                "sub_br_arn": "ARN-123456",
+                "partner_id": "PART001"
             },
-            scheme: "ABC1234-GR",
-            amount: 5000,
-            cur: "INR",
-            is_units: false,
-            all_units: false,
-            min_redeem_flag: false,
-            dest_scheme: "",
-            folio: "",
-            dest_folio: "",
-            bank_ref_id: "",
-            payment_ref_id: "",
-            parent_client_code: "",
-            is_fresh: true,
-            phys_or_demat: "P",
-            src: "lumpsum",
-            reg_no: "",
-            holder: [
-              {
-                holder_rank: "1",
-                email: "investor1@example.com",
-                mobnum: "9999999999",
-                is_nomination_opted: false,
-                nomination_auth_mode: "UNKNOWN",
-              },
+            "scheme": "007-DP",
+            "amount": 500,
+            "cur": "INR",
+            "is_units": false,
+            "all_units": false,
+            "min_redeem_flag": false,
+            "dest_scheme": "",
+            "folio": "",
+            "dest_folio": "",
+            "bank_ref_id": "",
+            "payment_ref_id": "",
+            "parent_client_code": "",
+            "is_fresh": true,
+            "phys_or_demat": "P",
+            "src": "lumpsum",
+            "reg_no": "",
+            "holder": [
+                {
+                    "holder_rank": "1",
+                    "email": "investor1@example.com",
+                    "mobnum": "9999999999",
+                    "is_nomination_opted": false,
+                    "nomination_auth_mode": "UNKNOWN"
+                }
             ],
-            email: data?.email,
-            mobnum: data?.phone,
-            kyc_passed: true,
-            depository_acct: {},
-            bank_acct: {
-              ifsc: data?.bank_accounts?.[0]?.ifsc_code,
-              no: data?.bank_accounts?.[0]?.bank_accounts,
-              type: "SB",
-              name: data?.bank_accounts?.[0]?.bank_name,
+            "email": "test6@gmail.com",
+            "mobnum": "9932936568",
+            "kyc_passed": true,
+            "depository_acct": {},
+            "bank_acct": {
+                "ifsc": "SBIN0011374",
+                "no": "90510000984",
+                "type": "SB",
+                "name": "bank of india"
             },
-            dpc: true,
-            is_nomination_opted: true,
-            nomination_auth_mode: 0,
-            // nomination: [
+            "dpc": true,
+            "is_nomination_opted": true,
+            "nomination_auth_mode": 0,
+            "nomination": [
+                {
+                    "first_name": "RIYA",
+                    "middle_name": "",
+                    "last_name": "GHOSH",
+                    "dob": "01-Jan-2000",
+                    "nomination_percent": 50,
+                    "nomination_relation": "18",
+                    "is_pan_exempt": true,
+                    "pan_exempt_category": "01",
+                    "is_minor": false,
+                    "identifier": [
+                        {
+                            "identifier_type": "pan_exempt_ref_no",
+                            "identifier_number": "EXEMPT1234"
+                        }
+                    ]
+                }
+            ],
+            "special_product": {
+                "special_prod_type": "",
+                "special_prod_name": "",
+                "target_scheme": "",
+                "target_amt": 0,
+                "goal_type": "",
+                "goal_amt": 0,
+                "sip_tenure": 0
+            }
+        }
+    ]
+}
+    }
 
-            //   {
-            //     first_name: "NomineeOne",
-            //     middle_name: "",
-            //     last_name: "Test",
-            //     dob: "01-Jan-2000",
-            //     nomination_percent: 100,
-            //     nomination_relation: "18",
-            //     is_pan_exempt: true,
-            //     pan_exempt_category: "01",
-            //     is_minor: false,
-            //     identifier: [
-            //       {
-            //         identifier_type: "pan_exempt_ref_no",
-            //         identifier_number: "EXEMPT1234"
-            //       }
-            //     ]
-            //   }
-            // ],
-            nomination: data?.nominees?.length
-              ? data?.nominees?.map((nominee) => {
 
-                const nameParts = getNameParts(nominee?.name);
-                return {
-                  ...nameParts,
-                  dob: "01-Jan-2000",
-                  nomination_percent: nominee?.percentage,
-                  nomination_relation: nominee?.relation,
-                  is_pan_exempt: true,
-                  pan_exempt_category: "01",
-                  is_minor: false,
-                  identifier: [
-                    {
-                      identifier_type: "pan_exempt_ref_no",
-                      identifier_number: "EXEMPT1234",
-                    },
-                  ],
-                };
-              })
-            : [],
-            special_product: {
-              special_prod_type: "",
-              special_prod_name: "",
-              target_scheme: "",
-              target_amt: 0,
-              goal_type: "",
-              goal_amt: 0,
-              sip_tenure: 0,
-            },
-          },
-        ],
-      },
-    };
-const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_FUND_ORDER_PLACE}`
+const url = `${import.meta.env.VITE_NODE_URL}${import.meta.env.VITE_FUND_ORDER_PLACE}`
     try {
       const res = await postApiWithToken(url, payload)
       console.log("Order", res);
@@ -217,7 +338,7 @@ const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_FUND_ORDER_PLACE}
     
     console.log("MF Invest Payload:", payload);
 
-    alert(`${investType} order placed for ₹${amount} in ${name} (${planType})`);
+    // alert(`${investType} order placed for ₹${amount} in ${name} (${planType})`);
   };
 
   
@@ -333,7 +454,7 @@ const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_FUND_ORDER_PLACE}
             text-sm font-semibold
             text-slate-900 dark:text-[var(--text-primary)]
           ">
-            ₹{nav.toFixed(2)}
+            ₹{nav?.toFixed(2)}
           </p>
           <p className="
             text-[11px] mt-0.5
@@ -638,7 +759,7 @@ const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_FUND_ORDER_PLACE}
                 {[
                   ["Category", fundCategory],
                   ["Risk", risk],
-                  ["Expense ratio", expenseRatio + "%"],
+                  ["Expense ratio", expenseRatio + ""],
                   ["Exit load", exitLoad],
                 ].map(([k, v]) => (
                   <div className="flex justify-between" key={k}>

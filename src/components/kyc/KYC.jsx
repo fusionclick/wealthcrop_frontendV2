@@ -466,7 +466,8 @@ useEffect(() => {
 
         bank: {
           ifsc: userData?.bank_accounts?.[0]?.ifsc_code,
-          acc_no: userData?.bank_accounts?.[0]?.account_number,
+          // acc_no: userData?.bank_accounts?.[0]?.account_number,
+          acc_no: "123456789012",
           acc_type: "CB",
         },
       };
@@ -484,9 +485,11 @@ useEffect(() => {
       );
 
       console.log("UCC response",res);
-      if(res.status === "success"){
+      if(res?.status === "success" || res?.status === 200 ){
         setIsUccCreated(true) 
-        setUccResponseData(res?.data)
+        // setUccResponseData(res?.data)
+        console.log("Client code after ucc add",res?.data?.data?.client_code)
+        sendUcc(res?.data?.data?.client_code)
       }
     } catch (error) {
       console.error(error.response?.data || error.message);
@@ -497,13 +500,16 @@ useEffect(() => {
 }, [step, userData]);
 
 
-const sendUcc = async () => {
+const sendUcc = async (ucc) => {
   const url= `${import.meta.env.VITE_URL}/kyc/ucc_add`
   try {
 
     const res = await postApiWithToken(url,  {
-        "ucc_code" : "FOFTest201"
+        "ucc_code" : ucc
     },)
+
+    console.log("Ucc send response", res);
+    
 
     if(res?.status === 200 || res?.status === true){
       toastSuccess(res?.message)
