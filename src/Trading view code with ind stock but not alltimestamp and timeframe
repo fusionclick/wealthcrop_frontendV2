@@ -1,0 +1,128 @@
+// TradingViewWidget.jsx
+import React, { useEffect, useRef, memo } from "react";
+
+/**
+ * Props:
+ * - symbol: e.g. "NASDAQ:AAPL"
+ * - height: number (px)
+ * - width: number | "100%" (px or percent)  (ignored if autosize=true)
+ * - autosize: boolean (if true, TradingView will autosize)
+ * - theme: "dark" | "light"
+ * - hideVolume: boolean
+ * - showIndicators: boolean (if false we pass empty studies)
+ * - containerId: optional string to make the widget unique on the page
+ */
+function TradingViewWidget({
+  symbol = "TATAPOWER",
+  height = 500,
+  width = "100%",
+  autosize = false,
+  theme = "light",
+  hideVolume = false,
+  showIndicators = false,
+  containerId = "tv-widget",
+}) {
+  const containerRef = useRef(null);
+  const scriptRef = useRef(null);
+
+  useEffect(() => {
+    // Ensure container has an explicit size BEFORE initializing widget
+    // If autosize=false TradingView will use width/height from config.
+    // If you want responsive, set autosize=true and control the parent container sizing with CSS.
+    if (!containerRef.current) return;
+    containerRef.current.style.width = typeof width === "number" ? `${width}px` : width;
+    containerRef.current.style.height = `${height}px`;
+
+    // Clean up any previous widget content to avoid duplicates
+    containerRef.current.innerHTML = "";
+
+    // Create script element with widget config JSON as innerHTML (TradingView requires it)
+    const script = document.createElement("script");
+    script.type = "text/javascript";
+    script.async = true;
+    script.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
+
+    // Build config object
+    const config = {
+      allow_symbol_change: true,
+      calendar: false,
+      details: true,
+      hide_side_toolbar: false,
+      hide_top_toolbar: false,
+      hide_legend: false,
+      hide_volume: hideVolume,
+      hotlist: false,
+      interval: "D",
+      locale: "en",
+      save_image: true,
+      style: "1",
+      symbol: symbol,
+      theme: theme === "dark" ? "dark" : "light",
+    //   timezone: "Etc/UTC",
+      timezone: "Asia/Kolkata",
+      gridColor: "rgba(242, 242, 242, 0.06)",
+      watchlist: [],
+      withdateranges: false,
+      compareSymbols: [],
+      // studies controls indicators. empty array => no indicators
+      studies: showIndicators ? ["MACD@tv-basicstudies"] : [],
+      // autosize or explicit dimensions:
+      autosize: !!autosize,
+      container_id: "tv-chart-container",
+    };
+
+    // When autosize=false provide explicit width/height numbers (TradingView expects numbers)
+    if (!autosize) {
+      // If width passed as "100%" we still need numeric width for widget config — in that case skip width and let CSS handle it,
+      // but often giving a px width is simpler. We'll only set height explicitly (widget respects numeric height).
+      if (typeof width === "number") config.width = width;
+      config.height = height;
+    }
+
+    script.innerHTML = JSON.stringify(config);
+
+    // Append widget script inside a wrapper div. TradingView will inject the iframe/widget into the wrapper.
+    const wrapper = document.createElement("div");
+    wrapper.className = "tradingview-widget-container__widget";
+    wrapper.style.width = "100%";
+    wrapper.style.height = "100%";
+    containerRef.current.appendChild(wrapper);
+    containerRef.current.appendChild(script);
+
+    // store ref for cleanup
+    scriptRef.current = { script, wrapper };
+
+    // Cleanup function (important to avoid duplicates on re-render)
+    return () => {
+      try {
+        // remove appended nodes
+        if (scriptRef.current) {
+          if (scriptRef.current.script && scriptRef.current.script.parentNode) {
+            scriptRef.current.script.parentNode.removeChild(scriptRef.current.script);
+          }
+          if (scriptRef.current.wrapper && scriptRef.current.wrapper.parentNode) {
+            scriptRef.current.wrapper.parentNode.removeChild(scriptRef.current.wrapper);
+          }
+        }
+        // clear container just in case
+        if (containerRef.current) containerRef.current.innerHTML = "";
+        scriptRef.current = null;
+      } catch (err) {
+        // ignore cleanup errors
+      }
+    };
+    // Re-run effect if any of these props change so widget is re-created
+  }, [symbol, height, width, autosize, theme, hideVolume, showIndicators, containerId]);
+
+  // Expose the container
+  return (
+    <div
+      id={containerId}
+      ref={containerRef}
+      className="tradingview-widget-container"
+      style={{ width: typeof width === "number" ? `${width}px` : "100%", height: `${height}px` }}
+    />
+  );
+}
+
+export default memo(TradingViewWidget);

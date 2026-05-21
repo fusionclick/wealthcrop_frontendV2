@@ -1,0 +1,233 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+
+/*  Override Tailwind base styles */
+@layer base {
+  body {
+    /* font-family: 'Poppins', sans-serif; */
+  }
+} 
+
+/* Custom font utility */
+@layer utilities {
+  .font-heading {
+    font-family: 'Poppins', sans-serif;
+  }
+}
+
+
+@keyframes marquee {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.animate-marquee {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: marquee 65s linear infinite;
+}
+
+html, body {
+  overflow-x: hidden;
+}
+
+@layer base {
+
+  html,
+  body {
+    background-color: var(--app-bg);
+    color: var(--text-primary);
+  }
+
+  /* :root {
+    --app-bg: #f8fafc;        
+    --card-bg: #ffffff;
+    --border-color: #e5e7eb;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+  } */
+
+  .dark {
+    /* DARK THEME */
+    /* --app-bg: #121212;       */
+    --app-bg: #020617;         /*  your main dark color */
+    --card-bg: #020617;
+    --border-color: rgba(255, 255, 255, 0.1);
+    --gray-800: #1f2937;  /* same as tailwind gray-800 */
+    --gray-900: #020617;  /* your dark surface */
+    --white-5: rgba(255, 255, 255, 0.05);
+    --white-10: rgba(255, 255, 255, 0.10);
+    --text-primary: #ffffff;
+    --text-secondary: #94a3b8;
+    --vol-up: rgba(16, 185, 129, 0.55);   /* emerald-500 */
+    --vol-down: rgba(239, 68, 68, 0.55);  /* red-500 */
+
+    --chart-up: #22c55e;   /* emerald-500 */
+    --chart-down: #ef4444; /* red-500 */
+    --chart-line: #38bdf8; /* sky-400 */
+  }
+}
+
+select option {
+  background-color: #ffffff;
+  color: #000000;
+}
+
+.dark select option {
+  background-color: #0f172a; /* dark slate */
+  color: #e5e7eb;            /* light text */
+}
+
+
+/* For header hover */
+/* @keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fadeIn {
+  animation: fadeIn 0.25s ease-out;
+} */
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.25s ease-out forwards;
+}
+
+
+/* For search popup */
+@keyframes fadeInn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(40px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.animate-fadeInn {
+  animation: fadeInn 0.3s ease-out;
+}
+
+.animate-slideUp {
+  animation: slideUp 0.3s ease-out;
+}
+
+/* For marque top header */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee 18s linear infinite;
+}
+
+
+
+
+/* For Toast */
+/* ✅ Common Toast Style Base */
+.toast-success-custom,
+.toast-error-custom,
+.toast-warn-custom,
+.toast-info-custom {
+  color: white !important;
+  border-radius: 4px;
+  width: 350px;
+  min-height: 50px !important;
+  padding: 10px 16px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+  /* margin-right: 26px !important; ✅ Adds space from right edge */
+  /* margin-top: 10px; Optional: space between multiple toasts */
+}
+
+/* Shift the entire toast container away from the right */
+.Toastify__toast-container.Toastify__toast-container--top-right {
+  right: 8px !important;
+ top: 2px !important;    /*  Optional: adjust top position */
+  position: fixed !important;
+  width: auto !important;
+}
+
+
+/* Make the progress bar white for all toast types */
+.toast-success-custom .Toastify__progress-bar,
+.toast-error-custom .Toastify__progress-bar,
+.toast-warn-custom .Toastify__progress-bar,
+.toast-info-custom .Toastify__progress-bar {
+  background-color: white !important;
+}
+
+/* ✅ Individual Background Colors */
+.toast-success-custom {
+  background-color: #269654 !important; /* Deep green */
+}
+
+.toast-error-custom {
+  background-color: #d32f2f !important; /* Red */
+}
+
+.toast-warn-custom {
+  background-color: #f57c00 !important; /* Orange */
+}
+
+.toast-info-custom {
+  background-color: #1976d2 !important; /* Blue */
+}
+
+/* ✅ Toast body style (same for all) */
+.toast-success-custom .Toastify__toast-body,
+.toast-error-custom .Toastify__toast-body,
+.toast-warn-custom .Toastify__toast-body,
+.toast-info-custom .Toastify__toast-body {
+  margin: 0 !important;
+  padding: 0 !important;
+  display: flex;
+  align-items: center;
+  flex-grow: 1;
+  font-size: 14px;
+}
+
+/* ✅ Close button style */
+.toast-success-custom .Toastify__close-button,
+.toast-error-custom .Toastify__close-button,
+.toast-warn-custom .Toastify__close-button,
+.toast-info-custom .Toastify__close-button {
+  font-weight: 900 !important;      /* Force bold */
+  font-size: 22px !important;       /* Force font size */
+  align-self: center !important;
+  margin: 0 !important;
+  padding: 0 12px 0 6px !important;
+  color: white !important;
+  opacity: 1 !important;
+}
+
+
+/* ✅ Responsive on Mobile */
+@media (max-width: 768px) {
+  .toast-success-custom,
+  .toast-error-custom,
+  .toast-warn-custom,
+  .toast-info-custom {
+    width: 65% !important;
+    margin-left: auto;
+    margin-top: 12px;
+    border-radius: 4px;
+
+  }
+} 
