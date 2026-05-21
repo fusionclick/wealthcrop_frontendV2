@@ -495,24 +495,7 @@ useEffect(() => {
 
   createUCC();
 }, [step, userData]);
-  
-  const sendUcc = async () => {
-  const url = `${import.meta.env.VITE_URL}/kyc/ucc_add`
-    try {
-      const res = await postApiWithToken(url, {
-    "ucc_code" : "FOFTest201"
-})
-      if(res?.status === 200 || res?.status === true){
-        toastSuccess(res?.message)
-      }
-    } catch (error) {
-      toastError(error?.message)
-    }
-  }
-  
-  useEffect(() => {
-    sendUcc()
-  },[])
+
 
 const sendUcc = async () => {
   const url= `${import.meta.env.VITE_URL}/kyc/ucc_add`
