@@ -237,89 +237,89 @@ console.log("Investor Data from mutualfundinvest page", data);
 
     const payload = {
       data:{
-    "orders": [
+    orders: [
+    {
+      type: "p",
+      mem_ord_ref_id: "ORD58351333",
+      investor: {
+        ucc: "UCC00001"
+      },
+      member: "91010",
+      mem_details: {
+        euin: "E999999",
+        euin_flag: true,
+        sub_br_code: "SUB001",
+        sub_br_arn: "ARN-123456",
+        partner_id: "PART001"
+      },
+      scheme: "007-DP",
+      amount: 500,
+      cur: "INR",
+      is_units: false,
+      all_units: false,
+      min_redeem_flag: false,
+      dest_scheme: "",
+      folio: "",
+      dest_folio: "",
+      bank_ref_id: "",
+      payment_ref_id: "",
+      parent_client_code: "",
+      is_fresh: true,
+      phys_or_demat: "P",
+      src: "lumpsum",
+      reg_no: "",
+      holder: [
         {
-            "type": "p",
-            "mem_ord_ref_id": "ORD58351333",
-            "investor": {
-                "ucc": "UCC00001"
-            },
-            "member": "91010",
-            "mem_details": {
-                "euin": "E999999",
-                "euin_flag": true,
-                "sub_br_code": "SUB001",
-                "sub_br_arn": "ARN-123456",
-                "partner_id": "PART001"
-            },
-            "scheme": "007-DP",
-            "amount": 500,
-            "cur": "INR",
-            "is_units": false,
-            "all_units": false,
-            "min_redeem_flag": false,
-            "dest_scheme": "",
-            "folio": "",
-            "dest_folio": "",
-            "bank_ref_id": "",
-            "payment_ref_id": "",
-            "parent_client_code": "",
-            "is_fresh": true,
-            "phys_or_demat": "P",
-            "src": "lumpsum",
-            "reg_no": "",
-            "holder": [
-                {
-                    "holder_rank": "1",
-                    "email": "investor1@example.com",
-                    "mobnum": "9999999999",
-                    "is_nomination_opted": false,
-                    "nomination_auth_mode": "UNKNOWN"
-                }
-            ],
-            "email": "test6@gmail.com",
-            "mobnum": "9932936568",
-            "kyc_passed": true,
-            "depository_acct": {},
-            "bank_acct": {
-                "ifsc": "SBIN0011374",
-                "no": "90510000984",
-                "type": "SB",
-                "name": "bank of india"
-            },
-            "dpc": true,
-            "is_nomination_opted": true,
-            "nomination_auth_mode": 0,
-            "nomination": [
-                {
-                    "first_name": "RIYA",
-                    "middle_name": "",
-                    "last_name": "GHOSH",
-                    "dob": "01-Jan-2000",
-                    "nomination_percent": 50,
-                    "nomination_relation": "18",
-                    "is_pan_exempt": true,
-                    "pan_exempt_category": "01",
-                    "is_minor": false,
-                    "identifier": [
-                        {
-                            "identifier_type": "pan_exempt_ref_no",
-                            "identifier_number": "EXEMPT1234"
-                        }
-                    ]
-                }
-            ],
-            "special_product": {
-                "special_prod_type": "",
-                "special_prod_name": "",
-                "target_scheme": "",
-                "target_amt": 0,
-                "goal_type": "",
-                "goal_amt": 0,
-                "sip_tenure": 0
-            }
+          holder_rank: "1",
+          email: "investor1@example.com",
+          mobnum: "9999999999",
+          is_nomination_opted: false,
+          nomination_auth_mode: "UNKNOWN"
         }
-    ]
+      ],
+      email: "test6@gmail.com",
+      mobnum: "9932936568",
+      kyc_passed: true,
+      depository_acct: {},
+      bank_acct: {
+        ifsc: "SBIN0011374",
+        no: "90510000984",
+        type: "SB",
+        name: "bank of india"
+      },
+      dpc: true,
+      is_nomination_opted: true,
+      nomination_auth_mode: 0,
+      nomination: [
+        {
+          first_name: "RIYA",
+          middle_name: "",
+          last_name: "GHOSH",
+          dob: "01-Jan-2000",
+          nomination_percent: 50,
+          nomination_relation: "18",
+          is_pan_exempt: true,
+          pan_exempt_category: "01",
+          is_minor: false,
+          identifier: [
+            {
+              identifier_type: "pan_exempt_ref_no",
+              identifier_number: "EXEMPT1234"
+            }
+          ]
+        }
+      ],
+      special_product: {
+        special_prod_type: "",
+        special_prod_name: "",
+        target_scheme: "",
+        target_amt: 0,
+        goal_type: "",
+        goal_amt: 0,
+        sip_tenure: 0
+      }
+    }
+  ]
 }
     }
 
