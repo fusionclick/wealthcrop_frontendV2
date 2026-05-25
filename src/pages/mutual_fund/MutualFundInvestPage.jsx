@@ -22,7 +22,7 @@ const MutualFundInvestPage = ({fundsList}) => {
   const [investType, setInvestType] = useState("LUMPSUM");
   const [planType, setPlanType] = useState("GROWTH");
   const [amount, setAmount] = useState(5000);
-  const [sipDay, setSipDay] = useState("05");
+  const [sipDay, setSipDay] = useState("05"); 
 
   const [recurringFrequency, setRecurringFrequency] = useState("DAILY");
   const [confirmAutoDebit, setConfirmAutoDebit] = useState(true);
