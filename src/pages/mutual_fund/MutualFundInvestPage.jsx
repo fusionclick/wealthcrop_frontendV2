@@ -65,13 +65,7 @@ console.log("Investor Data from mutualfundinvest page", data);
 };
 
   //! Generate Order Ref Id
-  const generateOrderRefId = () => {
-    const prefix = "ORD"
-    const timeStamp = Date.now().toString().slice(-5)
-    const random = Math.floor(100 + Math.random() * 900);
-    return `${prefix}${timeStamp}${random}`
-  }
-
+  const generateOrderRefId = () => Math.floor(100000 + Math.random() * 900000)
   const handleInvest = async () => {
 
 //     const encrypted =
@@ -236,92 +230,99 @@ console.log("Investor Data from mutualfundinvest page", data);
     //   },
 
     const payload = {
-      data:{
-    orders: [
-    {
-      type: "p",
-      mem_ord_ref_id: "ORD58351333",
-      investor: {
-        ucc: "UCC00001"
+      data: {
+        orders: [
+          {
+            type: "p",
+            mem_ord_ref_id: String(generateOrderRefId()),
+
+            investor: {
+              ucc: data?.kyc?.ucc_code,
+              // ucc: "USRWC003",
+            },
+
+            member: "91010",
+
+            // "mem_details": {
+            //     "euin": "E123456",
+            //     "euin_flag": true,
+            //     "sub_br_code": "123456",
+            //     "sub_br_arn": "ARN-12345",
+            //     "partner_id": "partner id"
+            // },
+
+            scheme: schemeCode,
+            amount: amount,
+            cur: "INR",
+            is_units: false,
+            all_units: false,
+            min_redeem_flag: false,
+
+            folio: "",
+            is_fresh: true,
+            phys_or_demat: "d",
+
+            //"reg_no": "202500000002194",
+
+            // "info": {
+            // "min_redeem_flag": true,
+            // // "src": investType.toLowerCase(),
+            // // "reg_no": "123",
+            // },
+
+            holder: [
+              {
+                holder_rank: "1",
+                email: data?.email,
+                mobnum: data?.phone,
+              },
+            ],
+            // holder: data?.nominees?.length
+            //   ? data.nominees.map((holder, index) => ({
+            //       holder_rank: `${index + 1}`,
+            //       email: data?.email,
+            //       mobnum: data?.phone,
+            //     }))
+            //   : [
+            //       {
+            //         holder_rank: "1",
+            //         email: data?.email,
+            //         mobnum: data?.phone,
+            //       },
+            //     ],
+
+            // is_nomination_opted: data?.nominees?.length > 0,
+            is_nomination_opted: false,
+            nomination_auth_mode: "",
+            payment_ref_id: "",
+
+            email: data?.email,
+            mobnum: data?.phone,
+
+            //"exch_mandate_id": 12,
+
+            kyc_passed: true,
+
+            depository_acct: {
+              depository: "C",
+              dp_id: data?.kyc?.dp_id,
+              client_id: data?.kyc?.client_id,
+              // dp_id: "12345678",
+              // client_id: "12345678",
+            },
+
+            // "bank_acct": {
+            //     "ifsc": data?.bank_accounts?.[0]?.ifsc_code,
+            //     "no": data?.bank_accounts?.[0]?.account_number,
+            //     "type": "SB",
+            //     "name": data?.bank_accounts?.[0]?.bank_name
+            // },
+
+            dpc: true,
+          },
+        ],
       },
-      member: "91010",
-      mem_details: {
-        euin: "E999999",
-        euin_flag: true,
-        sub_br_code: "SUB001",
-        sub_br_arn: "ARN-123456",
-        partner_id: "PART001"
-      },
-      scheme: "007-DP",
-      amount: 500,
-      cur: "INR",
-      is_units: false,
-      all_units: false,
-      min_redeem_flag: false,
-      dest_scheme: "",
-      folio: "",
-      dest_folio: "",
-      bank_ref_id: "",
-      payment_ref_id: "",
-      parent_client_code: "",
-      is_fresh: true,
-      phys_or_demat: "P",
-      src: "lumpsum",
-      reg_no: "",
-      holder: [
-        {
-          holder_rank: "1",
-          email: "investor1@example.com",
-          mobnum: "9999999999",
-          is_nomination_opted: false,
-          nomination_auth_mode: "UNKNOWN"
-        }
-      ],
-      email: "test6@gmail.com",
-      mobnum: "9932936568",
-      kyc_passed: true,
-      depository_acct: {},
-      bank_acct: {
-        ifsc: "SBIN0011374",
-        no: "90510000984",
-        type: "SB",
-        name: "bank of india"
-      },
-      dpc: true,
-      is_nomination_opted: true,
-      nomination_auth_mode: 0,
-      nomination: [
-        {
-          first_name: "RIYA",
-          middle_name: "",
-          last_name: "GHOSH",
-          dob: "01-Jan-2000",
-          nomination_percent: 50,
-          nomination_relation: "18",
-          is_pan_exempt: true,
-          pan_exempt_category: "01",
-          is_minor: false,
-          identifier: [
-            {
-              identifier_type: "pan_exempt_ref_no",
-              identifier_number: "EXEMPT1234"
-            }
-          ]
-        }
-      ],
-      special_product: {
-        special_prod_type: "",
-        special_prod_name: "",
-        target_scheme: "",
-        target_amt: 0,
-        goal_type: "",
-        goal_amt: 0,
-        sip_tenure: 0
-      }
-    }
-  ]
-}
-    }
+    };
 
 
 const url = `${import.meta.env.VITE_NODE_URL}${import.meta.env.VITE_FUND_ORDER_PLACE}`

@@ -10,6 +10,9 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { postApi } from "../../api/api";
 import { useEffect, useState } from "react";
+import FundHeaderSkeleton from "../../components/ui/skeleton/FundHeaderSkeleton";
+import RatioCardSkeleton from "../../components/ui/skeleton/RatioCardSkeleton";
+import FundListSkeleton from "../../components/ui/skeleton/main/FundListSkeleton";
 
 
 const ExploreMF = () => {
@@ -70,6 +73,7 @@ const ExploreMF = () => {
     { name: "ICICI Bluechip Fund", return: "+22.9%", years: "3Y", img: parag },
   ];
 
+
   return (
     <div className="w-full py-6 px-5 md:px-10 lg:px-14">
       {/* GRID — RIGHT SIDE FIRST ON MOBILE */}
@@ -98,35 +102,39 @@ const ExploreMF = () => {
           <h2 className="text-xl font-semibold">Popular Funds</h2>
 
           <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-4 overflow-x-auto">
-            {fundsList?.slice(0, 5).map((fund, index) => (
-              <div
-                key={index}
-                className="rounded-xl p-4 gap-4 bg-white dark:bg-[var(--card-bg)] dark:border-[var(--border-color)] border border-gray-200 hover:bg-gray-50 dark:hover:bg-[var(--white-10)] hover:shadow  transition"
-                onClick={() =>
-                  showFundPage(fund?.scheme_isin, fund?.scheme_bse_code)
-                }
-              >
-                <div className="flex gap-3 flex-col text-left h-38">
-                  <img
-                    src={fund.img}
-                    alt="fund"
-                    className="w-10 h-10 rounded-md"
-                  />
-                  <p className="text-sm font-medium">
-                    {fund?.name || "No Name"}
-                  </p>
-                </div>
+            {isLoading
+              ? FundListSkeleton()
+              : fundsList?.slice(0, 5).map((fund, index) => (
+                  <div
+                    key={index}
+                    className="rounded-xl p-4 gap-4 bg-white dark:bg-[var(--card-bg)] dark:border-[var(--border-color)] border border-gray-200 hover:bg-gray-50 dark:hover:bg-[var(--white-10)] hover:shadow transition"
+                    onClick={() =>
+                      showFundPage(fund?.scheme_isin, fund?.scheme_bse_code)
+                    }
+                  >
+                    <div className="flex gap-3 flex-col text-left h-38">
+                      <img
+                        src={fund.img}
+                        alt="fund"
+                        className="w-10 h-10 rounded-md"
+                      />
 
-                <div className="flex justify-between mt-4">
-                  <p className="text-green-600 font-semibold">
-                      {fund.returns["3Y"] ?? "--"}
-                  </p>
-                  <p className="text-gray-500 dark:text-[var(--text-secondary)] text-sm">
-                    {fund.years || "3Y"}
-                  </p>
-                </div>
-              </div>
-            ))}
+                      <p className="text-sm font-medium">
+                        {fund?.name || "No Name"}
+                      </p>
+                    </div>
+
+                    <div className="flex justify-between mt-4">
+                      <p className="text-green-600 font-semibold">
+                        {fund?.returns?.["3Y"] ?? "--"}
+                      </p>
+
+                      <p className="text-gray-500 dark:text-[var(--text-secondary)] text-sm">
+                        {fund?.years || "3Y"}
+                      </p>
+                    </div>
+                  </div>
+                ))}
           </div>
 
           {/* Collections */}
@@ -173,7 +181,7 @@ const ExploreMF = () => {
                 </div>
                 <div className="flex justify-between mt-4">
                   <p className="text-green-600 font-semibold">
-                   {fund.returns["3Y"] ?? "--"}
+                    {fund.returns["3Y"] ?? "--"}
                   </p>
                   <p className="text-gray-500 text-sm">{fund.years || "3Y"}</p>
                 </div>
@@ -185,18 +193,28 @@ const ExploreMF = () => {
           <h2 className="text-xl font-semibold mt-10">Trending Funds</h2>
 
           <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-4 overflow-x-auto">
-            {fundsList?.slice(0,5).map((fund, index) => (
+            {fundsList?.slice(0, 5).map((fund, index) => (
               <div
                 key={index}
-                onClick={() => showFundPage(fund?.scheme_isin, fund?.scheme_bse_code)}
+                onClick={() =>
+                  showFundPage(fund?.scheme_isin, fund?.scheme_bse_code)
+                }
                 className="rounded-xl p-4 bg-white dark:border-[var(--border-color)] dark:bg-[var(--card-bg)] dark:hover:bg-[var(--white-10)]  hover:bg-gray-50 hover:shadow border border-gray-200 transition"
               >
                 <div className="flex flex-col text-left gap-3 h-38">
-                  <img src={fund.img} alt="fund" className="w-10 h-10 rounded-md" />
-                  <p className="text-sm font-medium">{fund.name || "No Name"}</p>
+                  <img
+                    src={fund.img}
+                    alt="fund"
+                    className="w-10 h-10 rounded-md"
+                  />
+                  <p className="text-sm font-medium">
+                    {fund.name || "No Name"}
+                  </p>
                 </div>
                 <div className="flex justify-between mt-4">
-                  <p className="text-green-600 font-semibold">{fund.returns["3Y"] ?? "--"}</p>
+                  <p className="text-green-600 font-semibold">
+                    {fund.returns["3Y"] ?? "--"}
+                  </p>
                   <p className="text-gray-500 text-sm">{fund.years || "3Y"}</p>
                 </div>
               </div>

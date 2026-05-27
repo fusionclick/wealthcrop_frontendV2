@@ -19,11 +19,12 @@ import { toastError, toastSuccess } from "../../utils/notifyCustom";
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import {banks} from "../../utils/bank"
+import { useNavigate } from "react-router-dom";
 
 const steps = ["Personal", "Bank", "Docs", "Nominee", "Video", "Review"];
 
 export default function KYCFlow() {
-  const [step, setStep] = useState(5);
+  const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [stepError, setStepError] = useState("");
   const [completedSteps, setCompletedSteps] = useState({});
@@ -33,6 +34,7 @@ const [isUccCreated, setIsUccCreated] = useState(false)
 const [uccResponseData, setUccResponseData] = useState()
 const [customBank, setCustomBank] = useState("");
 
+const navigate = useNavigate()
 
 
 const current = JSON.parse(localStorage.getItem("currentAccount"))
@@ -65,27 +67,27 @@ const [docUploaded, setDocUploaded] = useState({
     queryFn: fetchUser,
   });
 
+//! this is to check user kyc step and redirect diretly to that step
+    useEffect(() => {
 
-    // useEffect(() => {
+      const currentStep = userData?.kyc_steps
+      if(!currentStep) return
 
-    //   const currentStep = userData?.kyc_steps
-    //   if(!currentStep) return
+      setStep(currentStep < 5 ? currentStep + 1 : currentStep);
+      setUserStep(currentStep +1 )
 
-    //   setStep(currentStep < 5 ? currentStep + 1 : currentStep);
-    //   setUserStep(currentStep +1 )
-
-    //   setCompletedSteps((prev) => {
-    //     const updated = {...prev}
+      setCompletedSteps((prev) => {
+        const updated = {...prev}
         
-    //     for (let i = 0; i <= (currentStep < 5 ? currentStep : currentStep - 1); i++) {
-    //      updated[i] = true;
-    //   }
-    //     return updated
-    //   })
+        for (let i = 0; i <= (currentStep < 5 ? currentStep : currentStep - 1); i++) {
+         updated[i] = true;
+      }
+        return updated
+      })
 
-    //   console.log("KYC Step", userData?.kyc_steps);
+      console.log("KYC Step", userData?.kyc_steps);
       
-    // },[userData])
+    },[userData])
 
     const {data} = useQuery({
       queryKey: ["ucc"],
@@ -267,11 +269,11 @@ const stepApiConfig = {
       dob: data.dob,
       gender: data.gender,
       occupation: data.occupation,
-      marital_status: data.mStatus,
+      marital_status: data.mStatus?.toLowerCase(),
       fName: data.fName,
       address_line1: data.addrss1,
       address_line2: data.addrss2,
-      income: data.income,
+      income: Number(data.income),
       city: data.city,
       state: data.state,
       pincode: data.pin,
@@ -442,6 +444,16 @@ useEffect(() => {
   if (step !== 5 || !userData) return;
 
   const createUCC = async () => {
+
+    const generate10Digit = () =>
+      Math.floor(10000000 + Math.random() * 90000000);
+
+    const dp_id = generate10Digit();
+    const client_id = generate10Digit();
+
+    console.log(dp_id);
+    console.log(client_id);
+    
     try {
       console.log("userData", userData);
 
@@ -454,14 +466,21 @@ useEffect(() => {
         mobile: phone,
         email: email,
         pan: userData?.profile?.pan_number,
+        dp_id: String(dp_id),
+        client_id: String(client_id),
 
         address: {
-          line1: userData?.profile?.address_line1,
-          line2: userData?.profile?.address_line2,
-          line3: "",
-          pincode: userData?.profile?.pincode,
-          city: userData?.profile?.city,
-          state: userData?.profile?.state,
+          // line1: userData?.profile?.address_line1,
+          // line2: userData?.profile?.address_line2,
+          // line3: userData?.profile?.state,
+          // pincode: userData?.profile?.pincode,
+          // city: userData?.profile?.city,
+          // state: userData?.profile?.state,
+
+            line1: "Salt Lake Sector 5",
+        line2: "Kolkata",
+        line3: "West Bengal",
+        pincode: "700091"
         },
 
         bank: {
@@ -489,7 +508,8 @@ useEffect(() => {
         setIsUccCreated(true) 
         // setUccResponseData(res?.data)
         console.log("Client code after ucc add",res?.data?.data?.client_code)
-        sendUcc(res?.data?.data?.client_code)
+        sendUcc(res?.data?.data?.client_code, dp_id, client_id)
+        navigate("/")
       }
     } catch (error) {
       console.error(error.response?.data || error.message);
@@ -500,12 +520,14 @@ useEffect(() => {
 }, [step, userData]);
 
 
-const sendUcc = async (ucc) => {
+const sendUcc = async (ucc, dp_id, client_id) => {
   const url= `${import.meta.env.VITE_URL}/kyc/ucc_add`
   try {
 
     const res = await postApiWithToken(url,  {
-        "ucc_code" : ucc
+      "ucc_code": ucc,
+      dp_id,
+      client_id
     },)
 
     console.log("Ucc send response", res);
@@ -971,7 +993,7 @@ function PersonalStep({ data, onChange }) {
           value={data.mStatus}
           onChange={(v) => onChange("mStatus", v)}
           placeholder="Married"
-          options={["Married", "Unmarried"]}
+          options={["Married", "Single"]}
         />
         <Field
           label="Father's Name"
