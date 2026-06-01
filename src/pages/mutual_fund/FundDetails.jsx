@@ -1246,7 +1246,7 @@ pt-5 p-4
       ×
     </button>
 
-    <MutualFundInvestPage fundsList={fundsList} />
+              <MutualFundInvestPage fundsList={fundsList} setBuyModal={setBuyModal}  />
   </div>
 </div>
 

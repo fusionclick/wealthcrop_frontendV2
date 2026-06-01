@@ -112,10 +112,10 @@ dispatch(login(newAccount.token));
     
     console.log("Password Login:", data);
     // localStorage.setItem("token","123456kjhhikk111")
-    // ✅ Dispatch event to update App state
+    // Dispatch event to update App state
     window.dispatchEvent(new Event("storage"));
 
-    // ✅ Instantly redirect without reload
+    // Instantly redirect without reload
     navigate("/");
     // window.location.reload()
 reset();
@@ -148,7 +148,7 @@ console.log("Otp response", res);
 }
  else {
       
-      // ✅ Step 2: Verify OTP
+      //  Step 2: Verify OTP
       const enteredOtp = otp.join("");
       console.log(enteredOtp);
 //       const otpMatch = enteredOtp === String(saveOTP);

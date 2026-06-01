@@ -39,14 +39,49 @@ export default function Register() {
       const res = await postApi(url, formData)
       console.log("Response data:", res);
         if(res?.status === 200 || res?.status === true){
-
           const expiryTime = Date.now() + 30 * 60 * 1000;
-          localStorage.setItem("pin_expiry", expiryTime)
-          localStorage.setItem("token", res?.token)
-          localStorage.setItem("username", res?.data?.name)
-          localStorage.setItem("phone", res?.data?.phone)
-          localStorage.setItem("email", res?.data?.email)
-          
+          localStorage.setItem("pin_expiry", expiryTime);
+          localStorage.setItem("token", res?.token);
+          localStorage.setItem("username", res?.data?.name);
+          localStorage.setItem("phone", res?.data?.phone);
+          localStorage.setItem("email", res?.data?.email);
+
+          const newAccount = {
+            userId: res?.data?.id,
+            name: res?.data?.name,
+            phone: res?.data?.phone,
+            email: res?.data?.email,
+            token: res?.token,
+          };
+
+          // Get existing accounts
+          let accounts = [];
+
+          try {
+            accounts = JSON.parse(localStorage.getItem("accounts")) || [];
+          } catch (e) {
+            accounts = [];
+          }
+
+          // Check if account already exists
+          const existingIndex = accounts.findIndex(
+            (acc) => acc.userId === newAccount.userId,
+          );
+
+          if (existingIndex !== -1) {
+            // Update existing account
+            accounts[existingIndex] = newAccount;
+          } else {
+            // Add new account
+            accounts.push(newAccount);
+          }
+
+          // Save all accounts
+          localStorage.setItem("accounts", JSON.stringify(accounts));
+
+          // Set current active account
+          localStorage.setItem("currentAccount", JSON.stringify(newAccount));
+
           // toastSuccess("Form submitted successfully! ");
           toastSuccess(res?.message);
           setPinOpen(true);

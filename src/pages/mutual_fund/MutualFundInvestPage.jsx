@@ -2,18 +2,25 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { postApiWithToken } from "../../api/api";
 import { useSelector } from "react-redux";
+import { toastError, toastSuccess } from "../../utils/notifyCustom";
+import PageLoader from "../../components/PageLoader";
+import InvestLoader from "../../components/InvestLoader";
 
-const MutualFundInvestPage = ({fundsList}) => {
+const MutualFundInvestPage = ({ fundsList, setBuyModal }) => {
   // Dummy values — replace with actual data later
   console.log("funddeatils from mfinvest", fundsList);
-  
+
   const schemeCode = fundsList?.scheme_bse_code;
-  const  name  = fundsList?.name;
+  const name = fundsList?.name;
   const fundCategory = "Equity • Flexi Cap";
   const risk = fundsList?.risk;
   const rating = fundsList?.rating;
   const nav = fundsList?.nav;
-  const returns = { "1Y": fundsList?.returns?.["1Y"], "3Y": fundsList?.returns?.["3Y"], "5Y": fundsList?.returns?.["5Y"] };
+  const returns = {
+    "1Y": fundsList?.returns?.["1Y"],
+    "3Y": fundsList?.returns?.["3Y"],
+    "5Y": fundsList?.returns?.["5Y"],
+  };
   const minLumpsum = fundsList?.minLumpsum;
   const minSip = fundsList?.minSip;
   const expenseRatio = fundsList?.expense;
@@ -22,19 +29,21 @@ const MutualFundInvestPage = ({fundsList}) => {
   const [investType, setInvestType] = useState("LUMPSUM");
   const [planType, setPlanType] = useState("GROWTH");
   const [amount, setAmount] = useState(5000);
-  const [sipDay, setSipDay] = useState("05"); 
+  const [sipDay, setSipDay] = useState("05");
 
   const [recurringFrequency, setRecurringFrequency] = useState("DAILY");
   const [confirmAutoDebit, setConfirmAutoDebit] = useState(true);
   const [confirmNoAdvisor, setConfirmNoAdvisor] = useState(true);
   const [confirmTerms, setConfirmTerms] = useState(true);
+
+  const[loading, setLoading] = useState(false)
   // const [estimatedUnits, setEstimatedUnits] = useState(0);
 
-  const {data, loading} = useSelector((state) => state.investorData)
+  const { data } = useSelector((state) => state.investorData);
 
   useEffect(() => {
-console.log("Investor Data from mutualfundinvest page", data);
-  },[data])
+    console.log("Investor Data from mutualfundinvest page", data);
+  }, [data]);
 
   const estimatedUnits = useMemo(() => {
     if (!amount || nav <= 0) return 0;
@@ -55,25 +64,27 @@ console.log("Investor Data from mutualfundinvest page", data);
 
   //! for nominee name
   const getNameParts = (fullName = "") => {
-  const parts = fullName.trim().split(/\s+/); // split by spaces
+    const parts = fullName.trim().split(/\s+/); // split by spaces
 
-  return {
-    first_name: parts[0] || "",
-    middle_name: parts.length > 2 ? parts.slice(1, -1).join(" ") : "",
-    last_name: parts.length > 1 ? parts[parts.length - 1] : "",
+    return {
+      first_name: parts[0] || "",
+      middle_name: parts.length > 2 ? parts.slice(1, -1).join(" ") : "",
+      last_name: parts.length > 1 ? parts[parts.length - 1] : "",
+    };
   };
-};
 
   //! Generate Order Ref Id
-  const generateOrderRefId = () => Math.floor(100000 + Math.random() * 900000)
+  const generateOrderRefId = () => Math.floor(100000 + Math.random() * 900000);
+
   const handleInvest = async () => {
 
-//     const encrypted =
-//   "eyJpdiI6IlJUajUyaU5TL3pLYWNNRVpmZVVLUUE9PSIsInZhbHVlIjoiWm9DeXpNUUtlbEN4WmtQT1lXRWlTUT09IiwibWFjIjoiZGM5Yjg1OTFjMmRhZjczMzA2YzgzNmIxZjQyMWRmYTg3NTNmNzhkMWViNTU2ZGFjZWNhOWYyYWUxZmNiMDg2YyIsInRhZyI6IiJ9";
+    setLoading(true)
+    //     const encrypted =
+    //   "eyJpdiI6IlJUajUyaU5TL3pLYWNNRVpmZVVLUUE9PSIsInZhbHVlIjoiWm9DeXpNUUtlbEN4WmtQT1lXRWlTUT09IiwibWFjIjoiZGM5Yjg1OTFjMmRhZjczMzA2YzgzNmIxZjQyMWRmYTg3NTNmNzhkMWViNTU2ZGFjZWNhOWYyYWUxZmNiMDg2YyIsInRhZyI6IiJ9";
 
-// const decoded = atob(encrypted);
+    // const decoded = atob(encrypted);
 
-// console.log("decode",decoded);
+    // console.log("decode",decoded);
 
     // const payload = {
     //   schemeCode,
@@ -149,7 +160,7 @@ console.log("Investor Data from mutualfundinvest page", data);
     //         //   },
     //         // ],
 
-    //         holder:  data?.nominees?.length 
+    //         holder:  data?.nominees?.length
     //         ?  data?.nominees?.map((holder, index) => (
     //           {
     //             holder_rank: `${index + 1}`,
@@ -159,8 +170,7 @@ console.log("Investor Data from mutualfundinvest page", data);
     //             nomination_auth_mode: "UNKNOWN",
     //           }
     //         )) : [],
-             
-            
+
     //         email: data?.email,
     //         mobnum: data?.phone,
     //         kyc_passed: true,
@@ -324,25 +334,54 @@ console.log("Investor Data from mutualfundinvest page", data);
       },
     };
 
-
-const url = `${import.meta.env.VITE_NODE_URL}${import.meta.env.VITE_FUND_ORDER_PLACE}`
+    const url = `${import.meta.env.VITE_NODE_URL}${import.meta.env.VITE_FUND_ORDER_PLACE}`;
     try {
-      const res = await postApiWithToken(url, payload)
+      const res = await postApiWithToken(url, payload);
       console.log("Order", res);
-      if(res?.status === 200 || res?.status === true){
-        toastSuccess(res?.message)
-        
+      console.log("Order status", res?.status);
+      console.log("Order data", res?.data);
+      if (res?.status === 200 || res?.status === true || res?.status === "success") {
+        setLoading(false)
+        setBuyModal(false)
+        toastSuccess("Order placed successfully");
+        sendOrderDetails(
+          res.data.items[0].id,
+          res.data.items[0].mem_ord_ref_id,
+        );
       }
     } catch (error) {
-      toastError(error?.message)
+      toastError(error?.message);
     }
-    
+
     console.log("MF Invest Payload:", payload);
 
     // alert(`${investType} order placed for ₹${amount} in ${name} (${planType})`);
   };
 
-  
+  const sendOrderDetails = async (bse_order_id, mem_ord_ref_id) => {
+    const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_SEND_FUND_ORDER_DETAILS}`;
+    try {
+      const res = await postApiWithToken(url, {
+        bse_order_id,
+        mem_ord_ref_id,
+        scheme_name: name,
+        inv_amo: amount,
+        ret_percentage: fundsList?.returns?.["1Y"] ?? 0.00,
+      });
+
+      console.log("order details send response", res);
+
+      if (res?.status === 200 || res?.status === true) {
+        toastSuccess(res?.message, "from send order fn");
+      }
+    } catch (error) {
+      console.log(error?.message);
+    }
+  };
+
+ if (loading) {
+   return <InvestLoader />;
+ }
 
   return (
     <div
@@ -416,28 +455,33 @@ const url = `${import.meta.env.VITE_NODE_URL}${import.meta.env.VITE_FUND_ORDER_P
                 className="
             text-sm font-semibold
             text-slate-900 dark:text-[var(--text-primary)]
-          ">
-            {name}
-          </p>
-          <p className="
+          "
+              >
+                {name}
+              </p>
+              <p
+                className="
             text-[11px]
             text-slate-500 dark:text-[var(--text-secondary)]
-          ">
-            {fundCategory}
-          </p>
+          "
+              >
+                {fundCategory}
+              </p>
 
-          <div className="flex items-center gap-2 mt-1 text-[11px]">
-            <Stars rating={rating} />
-            <span className="
+              <div className="flex items-center gap-2 mt-1 text-[11px]">
+                <Stars rating={rating} />
+                <span
+                  className="
               px-2 py-0.5 rounded-full
               bg-slate-100 text-slate-600
               dark:bg-[var(--white-5)] dark:text-[var(--text-secondary)]
-            ">
-              {risk} risk
-            </span>
+            "
+                >
+                  {risk} risk
+                </span>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
           {/* NAV + returns */}
           <div className="flex items-end gap-6 text-xs">
@@ -454,10 +498,12 @@ const url = `${import.meta.env.VITE_NODE_URL}${import.meta.env.VITE_FUND_ORDER_P
                 className="
             text-sm font-semibold
             text-slate-900 dark:text-[var(--text-primary)]
-          ">
-            ₹{nav?.toFixed(2)}
-          </p>
-          <p className="
+          "
+              >
+                ₹{nav?.toFixed(2)}
+              </p>
+              <p
+                className="
             text-[11px] mt-0.5
             text-slate-500 dark:text-[var(--text-secondary)]
           "
@@ -479,14 +525,14 @@ const url = `${import.meta.env.VITE_NODE_URL}${import.meta.env.VITE_FUND_ORDER_P
                 className="
             text-[11px] font-medium
             text-emerald-600 dark:text-emerald-400
-          ">
-            {formatReturn(returns["1Y"])} •{" "}
-            {formatReturn(returns["3Y"])} •{" "}
-            {formatReturn(returns["5Y"])}
-          </p>
+          "
+              >
+                {formatReturn(returns["1Y"])} • {formatReturn(returns["3Y"])} •{" "}
+                {formatReturn(returns["5Y"])}
+              </p>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
 
         {/* Main content */}
         <div className="grid md:grid-cols-[1.5fr,1fr] gap-4 items-start">

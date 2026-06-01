@@ -1,7 +1,10 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import emptyDashboardImg from "../../assets/mutualFund/emptyDashboard.svg";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { getApiWithToken } from "../../api/api";
+import FundDashboardSkeleton from "../../components/ui/skeleton/main/FundDashboardSkeleton";
 
 // --------------------------------------
 //  DUMMY USER PORTFOLIO DATA (Replace later)
@@ -31,6 +34,8 @@ const FUNDS = [
 ];
 
 
+
+
 const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#6366f1"];
 
 const DashBoardMF = () => {
@@ -38,6 +43,20 @@ const DashBoardMF = () => {
   const [sortBy, setSortBy] = useState("name");
 
   const navigate = useNavigate()
+
+  const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_GET_FUNDLIST}`;
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["investedFunds"],
+    queryFn: () => getApiWithToken(url),
+    select: (res) => res?.data?.data,
+  });
+
+
+  useEffect(() => {
+console.log("Invested Funds List", data);
+
+  },[data])
+ 
 
   // -----------------------------
   // Portfolio Calculations
@@ -68,23 +87,33 @@ const DashBoardMF = () => {
   // -----------------------------
   // Sorting
   // -----------------------------
-  const sortedFunds = useMemo(() => {
-    return [...FUNDS].sort((a, b) => {
-      if (sortBy === "name") return a.name.localeCompare(b.name);
-      if (sortBy === "amount") return b.amount - a.amount;
-      if (sortBy === "returns") return b.returns - a.returns;
-      return 0;
-    });
-  }, [sortBy]);
+ const sortedFunds = useMemo(() => {
+   if (!Array.isArray(data)) return [];
+
+   return [...data].sort((a, b) => {
+     if (sortBy === "name") return a.scheme_name.localeCompare(b.scheme_name);
+
+     if (sortBy === "amount") return b.inv_amo - a.inv_amo;
+
+     if (sortBy === "returns") return b.ret_percentage - a.ret_percentage;
+
+     return 0;
+   });
+ }, [data, sortBy]);
 
   const handleExternal = () => alert("External Funds Imported!");
+
+   const showSkeleton = false; // testing
+
+if (showSkeleton || isLoading) {
+  return <FundDashboardSkeleton />;
+}
 
   // =====================================================================
   // UI START
   // =====================================================================
   return (
     <div className="p-4 min-h-screen bg-slate-50 dark:bg-[var(--app-bg)]">
-
       {/* ------------------------------------------------------ */}
       {/*  EMPTY DASHBOARD */}
       {/* ------------------------------------------------------ */}
@@ -114,7 +143,9 @@ const DashBoardMF = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
             {/* Current Value */}
             <div className="bg-white dark:bg-[var(--white-10)] p-4 rounded-xl border shadow-sm dark:border-[var(--border-color)]">
-              <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">Current Value</p>
+              <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">
+                Current Value
+              </p>
               <p className="text-lg font-semibold text-blue-900 dark:text-[var(--text-prmary)]">
                 ₹{currentValue.toLocaleString()}
               </p>
@@ -122,7 +153,9 @@ const DashBoardMF = () => {
 
             {/* Total Invested */}
             <div className="bg-white dark:bg-[var(--white-10)] dark:border-[var(--border-color)] p-4 rounded-xl border shadow-sm">
-              <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] ">Invested</p>
+              <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] ">
+                Invested
+              </p>
               <p className="text-lg font-semibold text-slate-900 dark:text-[var(--text-prmary)]">
                 ₹{totalInvested.toLocaleString()}
               </p>
@@ -130,23 +163,30 @@ const DashBoardMF = () => {
 
             {/* Profit/Loss */}
             <div className="bg-white dark:bg-[var(--white-10)] p-4 rounded-xl border dark:border-[var(--border-color)] shadow-sm">
-              <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">Profit / Loss</p>
+              <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">
+                Profit / Loss
+              </p>
               <p
                 className={`text-lg font-semibold ${
-                  totalReturns >= 0 ? "text-emerald-600 dark:text-green-400" : "text-red-500 dark:text-red-400"
+                  totalReturns >= 0
+                    ? "text-emerald-600 dark:text-green-400"
+                    : "text-red-500 dark:text-red-400"
                 }`}
               >
-                {totalReturns >= 0 ? "+" : ""}
-                ₹{totalReturns.toFixed(0)}
+                {totalReturns >= 0 ? "+" : ""}₹{totalReturns.toFixed(0)}
               </p>
             </div>
 
             {/* XIRR */}
             <div className="bg-white dark:bg-[var(--white-10)] p-4 rounded-xl border dark:border-[var(--border-color)] shadow-sm">
-              <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">XIRR</p>
+              <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">
+                XIRR
+              </p>
               <p
                 className={`text-lg font-semibold ${
-                  xirr >= 0 ? "text-emerald-600 dark:text-green-400" : "text-red-500"
+                  xirr >= 0
+                    ? "text-emerald-600 dark:text-green-400"
+                    : "text-red-500"
                 }`}
               >
                 {xirr}%
@@ -187,10 +227,14 @@ const DashBoardMF = () => {
           {/* SIP Summary */}
           {/* ------------------------------------------------------ */}
           <div className="bg-white dark:bg-[var(--white-10)] border dark:border-[var(--border-color)] shadow-sm rounded-xl p-4 mb-5">
-            <p className="text-sm font-semibold text-blue-900 dark:text-[var(--text-prmary)] mb-1">Active SIPs</p>
+            <p className="text-sm font-semibold text-blue-900 dark:text-[var(--text-prmary)] mb-1">
+              Active SIPs
+            </p>
             <p className="text-gray-600 dark:text-[var(--text-secondary)] text-sm mb-2">
               You have{" "}
-              <span className="font-bold text-teal-600 dark:text-teal-400">{activeSipCount}</span>{" "}
+              <span className="font-bold text-teal-600 dark:text-teal-400">
+                {activeSipCount}
+              </span>{" "}
               active SIPs.
             </p>
 
@@ -206,7 +250,9 @@ const DashBoardMF = () => {
           {/* Fund List + Sorting */}
           {/* ------------------------------------------------------ */}
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-semibold text-blue-900 dark:text-[var(--text-prmary)]">Your Funds</p>
+            <p className="text-sm font-semibold text-blue-900 dark:text-[var(--text-prmary)]">
+              Your Funds
+            </p>
 
             <select
               value={sortBy}
@@ -226,19 +272,23 @@ const DashBoardMF = () => {
                 className="p-4 rounded-lg shadow-sm border border-gray-200 bg-white dark:bg-[var(--white-10)] dark:border-[var(--border-color)] flex items-center justify-between"
               >
                 <div>
-                  <p className="font-semibold text-blue-900 dark:text-[var(--text-prmary)]">{fund.name}</p>
+                  <p className="font-semibold text-blue-900 dark:text-[var(--text-prmary)]">
+                    {fund.scheme_name}
+                  </p>
                   <p className="text-sm text-gray-500 dark:text-[var(--text-secondary)]">
-                    Invested: ₹{fund.amount.toLocaleString()}
+                    Invested: ₹{fund.inv_amo}
                   </p>
                 </div>
 
                 <p
                   className={`font-semibold ${
-                    fund.returns >= 0 ? "text-green-600 dark:text-green-400" : "text-red-500 dark:text-rose -500"
+                    fund.ret_percentage >= 0
+                      ? "text-green-600 dark:text-green-400"
+                      : "text-red-500 dark:text-rose -500"
                   }`}
                 >
-                  {fund.returns >= 0 ? "+" : ""}
-                  {fund.returns}%
+                  {fund.ret_percentage >= 0 ? "" : ""}
+                  {fund.ret_percentage}%
                 </p>
               </div>
             ))}
