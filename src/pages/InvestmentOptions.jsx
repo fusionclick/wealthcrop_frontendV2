@@ -8,7 +8,7 @@ import {
   FaBookmark,
   FaLock,
   FaChartPie,
-  FaChartBar,   // ✅ Replace invalid icon with this
+  FaChartBar,   //  Replace invalid icon with this
 } from "react-icons/fa";
 
 

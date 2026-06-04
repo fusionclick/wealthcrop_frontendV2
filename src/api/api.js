@@ -67,7 +67,9 @@ export const postApiWithToken = async (url, data) => {
       },
     });
 
+    // console.log("response from post api", res);
     return res?.data;
+    
   } catch (error) {
     toastError(error.response?.data?.message || "API Error");
     return null;

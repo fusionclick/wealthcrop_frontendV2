@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { postApiWithToken } from "../../api/api";
 import { useSelector } from "react-redux";
 import { toastError, toastSuccess } from "../../utils/notifyCustom";
 import PageLoader from "../../components/PageLoader";
 import InvestLoader from "../../components/InvestLoader";
+import PaymentPromptModal from "../../components/PaymentPromptModal";
 
 const MutualFundInvestPage = ({ fundsList, setBuyModal }) => {
   // Dummy values — replace with actual data later
@@ -32,9 +33,19 @@ const MutualFundInvestPage = ({ fundsList, setBuyModal }) => {
   const [sipDay, setSipDay] = useState("05");
 
   const [recurringFrequency, setRecurringFrequency] = useState("DAILY");
+  
   const [confirmAutoDebit, setConfirmAutoDebit] = useState(true);
   const [confirmNoAdvisor, setConfirmNoAdvisor] = useState(true);
   const [confirmTerms, setConfirmTerms] = useState(true);
+  const [inSearch, setInSearch] = useState(false)
+  const [filteredFund, setFilteredFund] = useState()
+  const [bseOrderId, setBseOrderId] = useState("")
+  const [memberRefId, setMemberRefId] = useState("")
+  const [paymentLink, setPaymentLink] = useState("")
+  const [isPaymentLink, setIsPaymentLink] = useState(false)
+
+
+  const [showPaymentPopup, setShowPaymentPopup] = useState(false)
 
   const[loading, setLoading] = useState(false)
   // const [estimatedUnits, setEstimatedUnits] = useState(0);
@@ -342,12 +353,15 @@ const MutualFundInvestPage = ({ fundsList, setBuyModal }) => {
       console.log("Order data", res?.data);
       if (res?.status === 200 || res?.status === true || res?.status === "success") {
         setLoading(false)
-        setBuyModal(false)
+        // setBuyModal(false)
         toastSuccess("Order placed successfully");
+        setBseOrderId(res.data.items[0].id)
+        setMemberRefId(res.data.items[0].mem_ord_ref_id)
         sendOrderDetails(
           res.data.items[0].id,
           res.data.items[0].mem_ord_ref_id,
         );
+        setShowPaymentPopup(true)
       }
     } catch (error) {
       toastError(error?.message);
@@ -379,17 +393,100 @@ const MutualFundInvestPage = ({ fundsList, setBuyModal }) => {
     }
   };
 
+
+  const startPayment = async () => {
+
+    setLoading(true)
+     const url = `${import.meta.env.VITE_NODE_URL}${import.meta.env.VITE_GET_PAYMENT_LINK}`;
+
+    const payload = {
+      data: {
+        mem_details: {
+            euin: "",
+            euin_flag: false,
+            sub_br_code: "",
+            sub_br_arn: "",
+            partner_id: ""
+        },
+        investor: {
+            ucc: data?.kyc?.ucc_code
+        },
+        order_ids: [
+          bseOrderId
+        ],
+     requested_method: "exch_pg_page",
+    //   "requested_method": "payment_info_data",
+        payment_mode: [
+            "upi",
+            "netbanking",
+            "mandate"
+        ],
+    redirection_url: "https://wealthcrop.netlify.app/"
+    }
+    }
+
+    try {
+      const res = await postApiWithToken(url, payload)
+      console.log("payment link generate res", res);
+      console.log("payment link", res?.response?.data?.exch_pg_page_link);
+      
+        if (res?.status === 200 || res?.status === true || res?.status === "success") {
+       if (res?.response?.data?.exch_pg_page_link) {
+  // window.open(
+  //   res.response.data.exch_pg_page_link,
+  //   "_blank",
+  //   "noopener,noreferrer"
+  // );
+  setPaymentLink(res?.response?.data?.exch_pg_page_link)
+  setIsPaymentLink(true)
+}
+      }
+
+    } catch (error) {
+      toastError(error?.message)
+    }finally{
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+     window.open(
+    paymentLink,
+    "_blank",
+    "noopener,noreferrer"
+  );
+  },[isPaymentLink])
+
+  const navigate = useNavigate()
+
  if (loading) {
    return <InvestLoader />;
  }
 
+ if (showPaymentPopup) {
+  return (
+    
+    <PaymentPromptModal
+      open={showPaymentPopup}
+      onClose={() => setShowPaymentPopup(false)}
+      onSkip={() => {
+        navigate("/user/mutual_fund/investments");
+      }}
+      onProceed={() => {
+        startPayment();
+      }}
+    />
+  );
+}
+
   return (
     <div
-      className="
+      className={`
+        ${showPaymentPopup ? "hidden" : ""}
   min-h-screen rounded-2xl
   bg-slate-100 dark:bg-[var(--app-bg)]
   flex justify-center px-4 py-6
-"
+      `}
     >
       <div className="w-full max-w-4xl">
         {/* Header */}
@@ -572,26 +669,19 @@ const MutualFundInvestPage = ({ fundsList, setBuyModal }) => {
                 Plan
               </p>
 
-              <div
-                className="
-            flex gap-1 rounded-xl p-1
-            bg-slate-50 dark:bg-[var(--white-5)]
-          "
-              >
-                {["GROWTH", "IDCW"].map((type) => (
-                  <button
-                    key={type}
-                    onClick={() => setPlanType(type)}
-                    className={`flex-1 py-1.5 rounded-lg text-[11px] transition ${
-                      planType === type
-                        ? "bg-slate-900 text-white dark:bg-[var(--text-primary)] dark:text-[var(--app-bg)]"
-                        : "text-slate-600 dark:text-[var(--text-secondary)]"
-                    }`}
+            <select
+                    value={recurringFrequency}
+                    onChange={(e) => setRecurringFrequency(e.target.value)}
+                    className="
+          w-full rounded-xl px-3 py-2 outline-none text-xs
+          border border-slate-200 dark:border-[var(--border-color)]
+          bg-slate-50 dark:bg-[var(--white-5)]
+          text-slate-900 dark:text-[var(--text-primary)]
+        "
                   >
-                    {type === "GROWTH" ? "Growth" : "IDCW"}
-                  </button>
-                ))}
-              </div>
+                    <option value="Growth">Growth</option>
+                    <option value="IDCW">IDCW</option>
+                  </select>
             </div>
 
             {/* Amount */}
@@ -615,7 +705,7 @@ const MutualFundInvestPage = ({ fundsList, setBuyModal }) => {
                 <input
                   type="number"
                   value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
+                  onChange={(e) => setAmount(Number(e.target.value))}
                   className="
                 w-full bg-transparent py-2 outline-none text-sm
                 text-slate-900 dark:text-[var(--text-primary)]
@@ -851,6 +941,19 @@ const MutualFundInvestPage = ({ fundsList, setBuyModal }) => {
           </div>
         </div>
       </div>
+
+      {/* {
+        showPaymentPopup && <PaymentPromptModal
+  open={showPaymentPopup}
+  onClose={() => setShowPaymentPopup(false)}
+  onSkip={() => {
+    navigate("/orders");
+  }}
+  onProceed={() => {
+    startPayment();
+  }}
+/>
+      } */}
     </div>
   );
 };

@@ -124,6 +124,24 @@ select option {
   animation: slideUp 0.3s ease-out;
 }
 
+/* For loading while search in searchpopup */
+.loading-bar {
+  height: 100%;
+  width: 30%;
+  background: #22c55e;
+  animation: loading-slide 1.2s ease-in-out infinite;
+}
+
+@keyframes loading-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(430%);
+  }
+}
+
 /* For marque top header */
 @keyframes marquee {
   0% { transform: translateX(0); }
