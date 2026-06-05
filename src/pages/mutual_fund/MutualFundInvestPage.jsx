@@ -48,6 +48,7 @@ const MutualFundInvestPage = ({ fundsList, setBuyModal }) => {
   const [showPaymentPopup, setShowPaymentPopup] = useState(false)
 
   const[loading, setLoading] = useState(false)
+  const[linkLoading, setLinkLoading] = useState(false)
   // const [estimatedUnits, setEstimatedUnits] = useState(0);
 
   const { data } = useSelector((state) => state.investorData);
@@ -346,26 +347,33 @@ const MutualFundInvestPage = ({ fundsList, setBuyModal }) => {
     };
 
     const url = `${import.meta.env.VITE_NODE_URL}${import.meta.env.VITE_FUND_ORDER_PLACE}`;
-    try {
-      const res = await postApiWithToken(url, payload);
-      console.log("Order", res);
-      console.log("Order status", res?.status);
-      console.log("Order data", res?.data);
-      if (res?.status === 200 || res?.status === true || res?.status === "success") {
-        setLoading(false)
-        // setBuyModal(false)
-        toastSuccess("Order placed successfully");
-        setBseOrderId(res.data.items[0].id)
-        setMemberRefId(res.data.items[0].mem_ord_ref_id)
-        sendOrderDetails(
-          res.data.items[0].id,
-          res.data.items[0].mem_ord_ref_id,
-        );
-        setShowPaymentPopup(true)
-      }
-    } catch (error) {
-      toastError(error?.message);
-    }
+    // try {
+    //   const res = await postApiWithToken(url, payload);
+    //   console.log("Order", res);
+    //   console.log("Order status", res?.status);
+    //   console.log("Order data", res?.data);
+    //   if (res?.status === 200 || res?.status === true || res?.status === "success") {
+    //     setLoading(false)
+    //     setLinkLoading(true)
+    //     // setBuyModal(false)
+    //     toastSuccess("Order placed successfully");
+    //     setBseOrderId(res.data.items[0].id)
+    //     setMemberRefId(res.data.items[0].mem_ord_ref_id)
+    //     sendOrderDetails(
+    //       res.data.items[0].id,
+    //       res.data.items[0].mem_ord_ref_id,
+    //     );
+    //     startPayment(res.data.items[0].id)
+    //     setShowPaymentPopup(true)
+    //   }
+    // } catch (error) {
+    //   toastError(error?.message);
+    // }
+
+     setLoading(false)
+       setLinkLoading(true)
+    setShowPaymentPopup(true);
+    startPayment(5001174473);
 
     console.log("MF Invest Payload:", payload);
 
@@ -394,49 +402,47 @@ const MutualFundInvestPage = ({ fundsList, setBuyModal }) => {
   };
 
 
-  const startPayment = async () => {
+  const startPayment = async (orderId) => {
 
     setLoading(true)
      const url = `${import.meta.env.VITE_NODE_URL}${import.meta.env.VITE_GET_PAYMENT_LINK}`;
 
     const payload = {
       data: {
-        mem_details: {
-            euin: "",
-            euin_flag: false,
-            sub_br_code: "",
-            sub_br_arn: "",
-            partner_id: ""
-        },
-        investor: {
-            ucc: data?.kyc?.ucc_code
-        },
-        order_ids: [
-          bseOrderId
-        ],
-     requested_method: "exch_pg_page",
-    //   "requested_method": "payment_info_data",
-        payment_mode: [
-            "upi",
-            "netbanking",
-            "mandate"
-        ],
-    redirection_url: "https://wealthcrop.netlify.app/"
-    }
-    }
+        mem_details: {
+          euin: "",
+          euin_flag: false,
+          sub_br_code: "",
+          sub_br_arn: "",
+          partner_id: "",
+        },
+        investor: {
+          ucc: data?.kyc?.ucc_code,
+        },
+        order_ids: [orderId],
+        requested_method: "exch_pg_page", //   "requested_method": "payment_info_data",
+        payment_mode: ["upi", "netbanking", "mandate"],
+        redirection_url: "https://wealthcrop.netlify.app/",
+      },
+    };
 
     try {
       const res = await postApiWithToken(url, payload)
       console.log("payment link generate res", res);
       console.log("payment link", res?.response?.data?.exch_pg_page_link);
       
-        if (res?.status === 200 || res?.status === true || res?.status === "success") {
+        if (res?.response?.status === 200 || res?.response?.status === true || res?.response?.status === "success") {
        if (res?.response?.data?.exch_pg_page_link) {
   // window.open(
   //   res.response.data.exch_pg_page_link,
   //   "_blank",
   //   "noopener,noreferrer"
-  // );
+         // );
+         console.log("linkLoading before", linkLoading);
+
+         setLinkLoading(false);
+
+         console.log("payment link", res?.response?.data?.exch_pg_page_link);
   setPaymentLink(res?.response?.data?.exch_pg_page_link)
   setIsPaymentLink(true)
 }
@@ -449,40 +455,49 @@ const MutualFundInvestPage = ({ fundsList, setBuyModal }) => {
     }
   }
 
-  useEffect(() => {
-     window.open(
-    paymentLink,
-    "_blank",
-    "noopener,noreferrer"
-  );
-  },[isPaymentLink])
+  // useEffect(() => {
+  //    window.open(
+  //   paymentLink,
+  //   "_blank",
+  //   "noopener,noreferrer"
+  // );
+  // },[isPaymentLink])
 
   const navigate = useNavigate()
+  
+   useEffect(() => {
+    document.body.style.overflow = showPaymentPopup
+      ? "hidden"
+      : "auto";
+  
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, [showPaymentPopup]);
 
  if (loading) {
    return <InvestLoader />;
  }
 
- if (showPaymentPopup) {
-  return (
+//  if (showPaymentPopup) {
+//   return (
     
-    <PaymentPromptModal
-      open={showPaymentPopup}
-      onClose={() => setShowPaymentPopup(false)}
-      onSkip={() => {
-        navigate("/user/mutual_fund/investments");
-      }}
-      onProceed={() => {
-        startPayment();
-      }}
-    />
-  );
-}
+//     <PaymentPromptModal
+//       open={showPaymentPopup}
+//       onClose={() => setShowPaymentPopup(false)}
+//       onSkip={() => {
+//         navigate("/user/mutual_fund/investments");
+//       }}
+//       paymentLink={paymentLink}
+//       linkLoading={linkLoading}
+//     />
+//   );
+// }
 
   return (
     <div
       className={`
-        ${showPaymentPopup ? "hidden" : ""}
+        
   min-h-screen rounded-2xl
   bg-slate-100 dark:bg-[var(--app-bg)]
   flex justify-center px-4 py-6
@@ -942,18 +957,17 @@ const MutualFundInvestPage = ({ fundsList, setBuyModal }) => {
         </div>
       </div>
 
-      {/* {
-        showPaymentPopup && <PaymentPromptModal
-  open={showPaymentPopup}
-  onClose={() => setShowPaymentPopup(false)}
-  onSkip={() => {
-    navigate("/orders");
-  }}
-  onProceed={() => {
-    startPayment();
-  }}
-/>
-      } */}
+      {
+        showPaymentPopup &&  <PaymentPromptModal
+      open={showPaymentPopup}
+      onClose={() => setShowPaymentPopup(false)}
+      onSkip={() => {
+        navigate("/user/mutual_fund/investments");
+      }}
+      paymentLink={paymentLink}
+      linkLoading={linkLoading}
+    />
+      }
     </div>
   );
 };

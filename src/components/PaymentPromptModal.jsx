@@ -1,17 +1,35 @@
 import { X, CreditCard, Clock3 } from "lucide-react";
+import { useEffect } from "react";
 
 export default function PaymentPromptModal({
   open,
   onClose,
-  onProceed,
+  linkLoading,
+  paymentLink,
   onSkip,
 }) {
   if (!open) return null;
 
+
+  //  useEffect(() => {
+  //    document.body.style.overflow = "hidden";
+
+  //    return () => {
+  //      document.body.style.overflow = "auto";
+  //    };
+  //  }, []);
+
+
+  const Loader = () => (
+    <div className="flex justify-center">
+      <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+    </div>
+  );
+
   return (
     <div
       className="
-        fixed inset-0 z-[99999]
+        fixed inset-0 z-[99999] 
         flex items-center justify-center
         bg-black/50 backdrop-blur-sm
         px-4
@@ -85,8 +103,8 @@ export default function PaymentPromptModal({
               dark:text-[var(--text-secondary)]
             "
           >
-            Your order has been submitted successfully.
-            Complete the payment now to process your investment.
+            Your order has been submitted successfully. Complete the payment now
+            to process your investment.
           </p>
 
           {/* Info Box */}
@@ -136,15 +154,15 @@ export default function PaymentPromptModal({
                 dark:hover:bg-[var(--gray-800)]
               "
             >
-              Skip for Now
+              {linkLoading ? <Loader /> : "Skip for Now"}
             </button>
 
             <button
-            //   onClick={onProceed}
-            onClick={() => {
-  const w = window.open("https://google.com", "_blank");
-  console.log("window", w);
-}}
+              //   onClick={onProceed}
+              onClick={() => {
+                const w = window.open(paymentLink, "_blank");
+                console.log("window", w);
+              }}
               className="
                 flex-1
                 py-3
@@ -159,7 +177,7 @@ export default function PaymentPromptModal({
                 shadow-green-600/20
               "
             >
-              Proceed to Payment
+              {linkLoading ? <Loader /> : "Proceed to Payment"}
             </button>
           </div>
         </div>

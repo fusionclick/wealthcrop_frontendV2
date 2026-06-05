@@ -24,6 +24,8 @@ const HeroSection = () => {
       </span>
     </h1>
 
+    
+
     <p className="text-lg text-blue-900 dark:text-gray-300 max-w-2xl mx-auto mb-8">
       Invest confidently with India’s most user-friendly mutual fund and
       wealth management platform.
