@@ -520,7 +520,72 @@ useEffect(() => {
 }, [step, userData]);
 
 
-const sendUcc = async (ucc, dp_id, client_id) => {
+  const mandateCreation = async (ucc, dp_id, client_id) => {
+  
+    const payload = {
+      data: {
+        member: "91010",
+        investor: {
+            ucc: "TAN46280959"
+        },
+        mem_details: {
+            euin: "E234123",
+            sub_br_arn: "ARN-873456",
+            sub_br_code: ""
+        },
+        // mem_mandate_info: {
+        // member_mandate_id: "MM123456789",
+        // mandate_status_date: "2024-02-12T10:30:00Z",
+        // umrn_number: "UMRN987654321",
+        // utility_code: "UTL000123",
+        // sponsor_code: "SPN456789"
+        // },
+        investor_bank_details: {
+          ifsc: "SBIN0011856",
+            no: "40584578524",
+            type: "SB",
+            name: "State Bank of India",
+            branch: "BHARUCH",
+            vpa: [
+                "tanmoy@sbi"
+            ]
+        },
+        amount: 15000,
+        start_date: "2026-06-08",
+        valid_till: "2035-11-19",
+        reg_date: "2026-06-08",
+        type: "U",
+        redirect_url: "",
+        mode: "DD",
+        frequency: "AS AND WHEN PRESENTED",
+        request_type: "REGISTRATION"
+      }
+      
+    }
+
+  const url= `${import.meta.env.VITE_URL}/kyc/ucc_add`
+  try {
+
+    const res = await postApiWithToken(url,  {
+      "ucc_code": ucc,
+      dp_id,
+      client_id
+    },)
+
+    console.log("Ucc send response", res);
+    
+
+    if(res?.status === 200 || res?.status === true){
+      toastSuccess(res?.message)
+    }
+    
+  } catch (error) {
+    console.log(error?.message);
+    
+  }
+}
+
+  const sendUcc = async (ucc, dp_id, client_id) => {
   const url= `${import.meta.env.VITE_URL}/kyc/ucc_add`
   try {
 
