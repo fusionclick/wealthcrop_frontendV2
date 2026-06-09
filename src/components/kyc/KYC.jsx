@@ -24,7 +24,7 @@ import { useNavigate } from "react-router-dom";
 const steps = ["Personal", "Bank", "Docs", "Nominee", "Video", "Review"];
 
 export default function KYCFlow() {
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(5);
   const [submitting, setSubmitting] = useState(false);
   const [stepError, setStepError] = useState("");
   const [completedSteps, setCompletedSteps] = useState({});
@@ -236,7 +236,7 @@ if (!/^\d{4}-\d{2}-\d{2}$/.test(data.dob)) {
   }
   return null;
 
-    case 3: // Video
+    case 3: // Nominee
       if (!data.nomineeName) return "Please enter nominee name";
       if (!data.nomineeRelation) return "Please enter relation with nominee";
       if (!data.nomineePercentage) return "Please enter percentage";
@@ -470,17 +470,17 @@ useEffect(() => {
         client_id: String(client_id),
 
         address: {
-          // line1: userData?.profile?.address_line1,
-          // line2: userData?.profile?.address_line2,
-          // line3: userData?.profile?.state,
-          // pincode: userData?.profile?.pincode,
+          line1: userData?.profile?.address_line1,
+          line2: userData?.profile?.address_line2,
+          line3: userData?.profile?.state,
+          pincode: userData?.profile?.pincode,
           // city: userData?.profile?.city,
           // state: userData?.profile?.state,
 
-            line1: "Salt Lake Sector 5",
-        line2: "Kolkata",
-        line3: "West Bengal",
-        pincode: "700091"
+        //     line1: "Salt Lake Sector 5",
+        // line2: "Kolkata",
+        // line3: "West Bengal",
+        // pincode: "700091"
         },
 
         bank: {
@@ -493,97 +493,99 @@ useEffect(() => {
       console.log("Payload", payload);
 
 
-      const res = await axios.post(
-        "http://65.2.121.33:3000/v2/add_ucc",
-        payload,
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      // const res = await axios.post(
+      //   "http://65.2.121.33:3000/v2/add_ucc",
+      //   payload,
+      //   {
+      //     headers: {
+      //       "Content-Type": "application/json",
+      //     },
+      //   }
+      // );
 
-      console.log("UCC response",res);
-      if(res?.status === "success" || res?.status === 200 ){
-        setIsUccCreated(true) 
-        // setUccResponseData(res?.data)
-        console.log("Client code after ucc add",res?.data?.data?.client_code)
-        sendUcc(res?.data?.data?.client_code, dp_id, client_id)
-        navigate("/")
-      }
+      // console.log("UCC response",res);
+      // if(res?.status === "success" || res?.status === 200 ){
+      //   setIsUccCreated(true) 
+      //   // setUccResponseData(res?.data)
+      //   console.log("Client code after ucc add",res?.data?.data?.client_code)
+      //   sendUcc(res?.data?.data?.client_code, dp_id, client_id)
+      //   mandateCreation(res?.data?.data?.client_code)
+      //   navigate("/")
+      // }
     } catch (error) {
       console.error(error.response?.data || error.message);
     }
   };
 
   createUCC();
+  mandateCreation("TAN46280959")
 }, [step, userData]);
 
 
-  const mandateCreation = async (ucc, dp_id, client_id) => {
-  
-    const payload = {
-      data: {
-        member: "91010",
-        investor: {
-            ucc: "TAN46280959"
-        },
-        mem_details: {
-            euin: "E234123",
-            sub_br_arn: "ARN-873456",
-            sub_br_code: ""
-        },
-        // mem_mandate_info: {
-        // member_mandate_id: "MM123456789",
-        // mandate_status_date: "2024-02-12T10:30:00Z",
-        // umrn_number: "UMRN987654321",
-        // utility_code: "UTL000123",
-        // sponsor_code: "SPN456789"
-        // },
-        investor_bank_details: {
-          ifsc: "SBIN0011856",
-            no: "40584578524",
-            type: "SB",
-            name: "State Bank of India",
-            branch: "BHARUCH",
-            vpa: [
-                "tanmoy@sbi"
-            ]
-        },
-        amount: 15000,
-        start_date: "2026-06-08",
-        valid_till: "2035-11-19",
-        reg_date: "2026-06-08",
-        type: "U",
-        redirect_url: "",
-        mode: "DD",
-        frequency: "AS AND WHEN PRESENTED",
-        request_type: "REGISTRATION"
-      }
-      
-    }
+            const mandateCreation = async (ucc) => {
+            
+              const payload = {
+                data: {
+                  member: "91010",
+                  investor: {
+                    ucc,
+                  },
+                  mem_details: {
+                    euin: "E234123",
+                    sub_br_arn: "ARN-873456",
+                    sub_br_code: "",
+                  },
+                  // mem_mandate_info: {
+                  // member_mandate_id: "MM123456789",
+                  // mandate_status_date: "2024-02-12T10:30:00Z",
+                  // umrn_number: "UMRN987654321",
+                  // utility_code: "UTL000123",
+                  // sponsor_code: "SPN456789"
+                  // },
+                  investor_bank_details: {
+                    ifsc: userData?.bank_accounts?.[0]?.ifsc_code,
+                    no: userData?.bank_accounts?.[0]?.account_number,
+                    type: "SB",
+                    name: userData?.bank_accounts?.[0]?.bank_name,
+                    branch: "BHARUCH",
+                    // ifsc: "SBIN0011856",
+                    //   no: "40584578524",
+                    //   type: "SB",
+                    //   name: "State Bank of India",
+                    //   branch: "BHARUCH",
+                    vpa: ["tanmoy@sbi"],
+                  },
+                  amount: 15000,
+                  start_date: "2026-07-08",
+                  valid_till: "2035-11-19",
+                  reg_date: "2026-06-08",
+                  type: "U",
+                  redirect_url: "",
+                  mode: "DD",
+                  frequency: "AS AND WHEN PRESENTED",
+                  request_type: "REGISTRATION",
+                },
+              };
 
-  const url= `${import.meta.env.VITE_URL}/kyc/ucc_add`
-  try {
+              console.log(import.meta.env.VITE_NODE_URL);
 
-    const res = await postApiWithToken(url,  {
-      "ucc_code": ucc,
-      dp_id,
-      client_id
-    },)
+            const url = `${import.meta.env.VITE_NODE_URL}${import.meta.env.VITE_MANDATE_REGISTRATION}`;
+            try {
 
-    console.log("Ucc send response", res);
-    
+              const res = await postApiWithToken(url, payload)
 
-    if(res?.status === 200 || res?.status === true){
-      toastSuccess(res?.message)
-    }
-    
-  } catch (error) {
-    console.log(error?.message);
-    
-  }
-}
+              console.log("mandate creation response", res);
+              
+
+              // if(res?.status === 200 || res?.status === true){
+              //   toastSuccess(res?.message)
+              // }
+              
+            } catch (error) {
+              console.log(error?.message);
+              
+            }
+          }
 
   const sendUcc = async (ucc, dp_id, client_id) => {
   const url= `${import.meta.env.VITE_URL}/kyc/ucc_add`

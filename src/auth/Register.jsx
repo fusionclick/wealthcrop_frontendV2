@@ -257,7 +257,7 @@ export default function Register() {
 }
 
 // -------------------------
-// 🔐 SET PIN COMPONENT (with confirm PIN)
+//  SET PIN COMPONENT (with confirm PIN)
 // -------------------------
 function SetPin() {
   const [pin, setPin] = useState(["", "", "", ""]);
