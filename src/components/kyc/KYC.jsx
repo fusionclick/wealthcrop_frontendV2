@@ -544,8 +544,9 @@ useEffect(() => {
                   // },
                   investor_bank_details: {
                     ifsc: userData?.bank_accounts?.[0]?.ifsc_code,
-                    no: userData?.bank_accounts?.[0]?.account_number,
-                    type: "SB",
+                    no: "123456789012",
+                    // no: userData?.bank_accounts?.[0]?.account_number,
+                    type: "CB",
                     name: userData?.bank_accounts?.[0]?.bank_name,
                     branch: "BHARUCH",
                     // ifsc: "SBIN0011856",
