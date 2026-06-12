@@ -21,10 +21,10 @@ import { useQuery } from "@tanstack/react-query";
 import {banks} from "../../utils/bank"
 import { useNavigate } from "react-router-dom";
 
-const steps = ["Personal", "Bank", "Docs", "Nominee", "Video", "Review"];
+const steps = ["Personal", "Bank", "Docs", "Nominee", "Review"];
 
 export default function KYCFlow() {
-  const [step, setStep] = useState(5);
+  const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [stepError, setStepError] = useState("");
   const [completedSteps, setCompletedSteps] = useState({});
@@ -73,13 +73,13 @@ const [docUploaded, setDocUploaded] = useState({
       const currentStep = userData?.kyc_steps
       if(!currentStep) return
 
-      setStep(currentStep < 5 ? currentStep + 1 : currentStep);
+      setStep(currentStep < 4 ? currentStep + 1 : currentStep);
       setUserStep(currentStep +1 )
 
       setCompletedSteps((prev) => {
         const updated = {...prev}
         
-        for (let i = 0; i <= (currentStep < 5 ? currentStep : currentStep - 1); i++) {
+        for (let i = 0; i <= (currentStep < 4 ? currentStep : currentStep - 1); i++) {
          updated[i] = true;
       }
         return updated
@@ -118,7 +118,7 @@ const [docUploaded, setDocUploaded] = useState({
     nomineePercentage: "",
     documentA: null,
     documentP: null,
-    video: null,
+    // video: null,
   });
 
   // pan Image,
@@ -170,7 +170,7 @@ const handlePrimaryAction = async () => {
       }));
 
       //  move to next step
-      if (step < 5) {
+      if (step < 4) {
         setStep(step + 1);
       } else {
         submitKYC();
@@ -398,7 +398,7 @@ const getNameParts = (fullName = "") => {
       // Replace with real API
       await new Promise((r) => setTimeout(r, 2000));
       console.log("KYC SUBMITTED", kycData);
-      setStep(5);
+      setStep(4);
     } catch (e) {
       toastError("KYC submission failed");
     } finally {
@@ -412,14 +412,14 @@ const getNameParts = (fullName = "") => {
   const generateClientCode = (name = "") => {
 
     const prefix = name.replace(/\s+/g, "").toUpperCase().slice(0, 3) || "USR"
-    const timeStamp = Date.now().toString().slice(-5)
+    const timeStamp = Date.now().toString().slice(-4)
     const random = Math.floor(100 + Math.random() * 900);
     return `${prefix}${timeStamp}${random}`
   }
 
 
 useEffect(() => {
-  if (step !== 5) return; // only run on step 5
+  if (step !== 4) return; // only run on step 5
 
     //! To send kyc step
   const sendStep = async () => {
@@ -441,7 +441,7 @@ useEffect(() => {
 }, [step]);
 
 useEffect(() => {
-  if (step !== 5 || !userData) return;
+  if (step !== 4 || !userData) return;
 
   const createUCC = async () => {
 
@@ -559,7 +559,7 @@ useEffect(() => {
                   amount: 15000,
                   start_date: "2026-07-08",
                   valid_till: "2035-11-19",
-                  reg_date: "2026-06-08",
+                  reg_date: "2026-06-11",
                   type: "U",
                   redirect_url: "",
                   mode: "DD",
@@ -568,7 +568,6 @@ useEffect(() => {
                 },
               };
 
-              console.log(import.meta.env.VITE_NODE_URL);
 
             const url = `${import.meta.env.VITE_NODE_URL}${import.meta.env.VITE_MANDATE_REGISTRATION}`;
             try {
@@ -704,13 +703,13 @@ useEffect(() => {
               {step === 1 && <BankStep data={kycData} onChange={update} customBank={customBank} setCustomBank={setCustomBank} setKycData={setKycData} />}
               {step === 2 && <DocsStep data={kycData} onChange={update} uploadDocument={uploadDocument} />}
               {step === 3 && <NomineeStep data={kycData} onChange={update} />}
-              {step === 4 && <VideoKYCStep data={kycData} onChange={update} uploadDocument={uploadDocument} />}
-              {step === 5 && <ReviewStep isUccCreated={isUccCreated} />}
+              {/* {step === 4 && <VideoKYCStep data={kycData} onChange={update} uploadDocument={uploadDocument} />} */}
+              {step === 4 && <ReviewStep isUccCreated={isUccCreated} />}
             </motion.div>
           </AnimatePresence>
 
        {/* FOOTER */}
-{step < 5 && (
+{step < 4 && (
   <div className="mt-6">
     {stepError && (
       <p className="mb-3 text-sm text-red-600 dark:text-red-500">
@@ -738,7 +737,7 @@ useEffect(() => {
         Back
       </button>
 
-      {step < 5 ? (
+      {step < 4 ? (
         // <button
         //   onClick={handlePrimaryAction}
         //   className="text-sm px-5 py-2 rounded-lg bg-blue-950 text-white hover:bg-blue-900"
