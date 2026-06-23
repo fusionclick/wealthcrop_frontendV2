@@ -347,35 +347,29 @@ const MutualFundInvestPage = ({ fundsList, setBuyModal }) => {
     };
 
     const url = `${import.meta.env.VITE_NODE_URL}${import.meta.env.VITE_FUND_ORDER_PLACE}`;
-    // try {
-    //   const res = await postApiWithToken(url, payload);
-    //   console.log("Order", res);
-    //   console.log("Order status", res?.status);
-    //   console.log("Order data", res?.data);
-    //   if (res?.status === 200 || res?.status === true || res?.status === "success") {
-    //     setLoading(false)
-    //     setLinkLoading(true)
-    //     // setBuyModal(false)
-    //     toastSuccess("Order placed successfully");
-    //     setBseOrderId(res.data.items[0].id)
-    //     setMemberRefId(res.data.items[0].mem_ord_ref_id)
-    //     sendOrderDetails(
-    //       res.data.items[0].id,
-    //       res.data.items[0].mem_ord_ref_id,
-    //     );
-    //     startPayment(res.data.items[0].id)
-    //     setShowPaymentPopup(true)
-    //   }
-    // } catch (error) {
-    //   toastError(error?.message);
-    // }
-
-     setLoading(false)
-       setLinkLoading(true)
-    setShowPaymentPopup(true);
-    startPayment(5001174473);
-
     console.log("MF Invest Payload:", payload);
+    try {
+      const res = await postApiWithToken(url, payload);
+      console.log("Order response", res);
+      if (res?.status === 200 || res?.status === true || res?.status === "success") {
+        setLoading(false);
+        setLinkLoading(true);
+        toastSuccess("Order placed successfully");
+        const orderId = res.data?.items?.[0]?.id;
+        const memberRefId = res.data?.items?.[0]?.mem_ord_ref_id;
+        setBseOrderId(orderId);
+        setMemberRefId(memberRefId);
+        sendOrderDetails(orderId, memberRefId);
+        startPayment(orderId);
+        setShowPaymentPopup(true);
+      } else {
+        setLoading(false);
+        toastError(res?.message || "Order placement failed");
+      }
+    } catch (error) {
+      setLoading(false);
+      toastError(error?.response?.data?.error || error?.message || "Order placement failed");
+    }
 
     // alert(`${investType} order placed for ₹${amount} in ${name} (${planType})`);
   };

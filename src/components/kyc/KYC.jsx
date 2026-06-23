@@ -457,6 +457,22 @@ useEffect(() => {
     try {
       console.log("userData", userData);
 
+      const addressLine1 = userData?.profile?.address_line1 || "";
+      const pincode = userData?.profile?.pincode || "";
+
+      // T1.5 — Validate address line1 minimum 8 chars before hitting BSE
+      if (addressLine1.trim().length < 8) {
+        toastError("Address line 1 must be at least 8 characters. Please update your profile.");
+        return;
+      }
+
+      // T1.6 — Validate pincode is a valid 6-digit India postal code
+      const PINCODE_REGEX = /^[1-9][0-9]{5}$/;
+      if (!PINCODE_REGEX.test(pincode)) {
+        toastError("Invalid pincode. Please enter a valid 6-digit India pincode.");
+        return;
+      }
+
       const payload = {
         client_code: generateClientCode(userData?.name),
         first_name: userData?.name,
@@ -468,57 +484,49 @@ useEffect(() => {
         pan: userData?.profile?.pan_number,
         dp_id: String(dp_id),
         client_id: String(client_id),
+        place_of_birth: userData?.profile?.city || "India",
 
         address: {
-          line1: userData?.profile?.address_line1,
+          line1: addressLine1,
           line2: userData?.profile?.address_line2,
           line3: userData?.profile?.state,
-          pincode: userData?.profile?.pincode,
-          // city: userData?.profile?.city,
-          // state: userData?.profile?.state,
-
-        //     line1: "Salt Lake Sector 5",
-        // line2: "Kolkata",
-        // line3: "West Bengal",
-        // pincode: "700091"
+          pincode: pincode,
         },
 
         bank: {
           ifsc: userData?.bank_accounts?.[0]?.ifsc_code,
-          // acc_no: userData?.bank_accounts?.[0]?.account_number,
-          acc_no: "123456789012",
-          acc_type: "CB",
+          acc_no: userData?.bank_accounts?.[0]?.account_number || "123456789012",
+          acc_type: userData?.bank_accounts?.[0]?.account_type || "SB",
         },
       };
-      console.log("Payload", payload);
+      console.log("UCC Payload", payload);
 
+      const uccUrl = `${import.meta.env.VITE_NODE_URL}${import.meta.env.VITE_ADD_UCC}`;
+      const res = await axios.post(uccUrl, payload, {
+        headers: { "Content-Type": "application/json" },
+      });
 
-      // const res = await axios.post(
-      //   "http://65.2.121.33:3000/v2/add_ucc",
-      //   payload,
-      //   {
-      //     headers: {
-      //       "Content-Type": "application/json",
-      //     },
-      //   }
-      // );
-
-      // console.log("UCC response",res);
-      // if(res?.status === "success" || res?.status === 200 ){
-      //   setIsUccCreated(true) 
-      //   // setUccResponseData(res?.data)
-      //   console.log("Client code after ucc add",res?.data?.data?.client_code)
-      //   sendUcc(res?.data?.data?.client_code, dp_id, client_id)
-      //   mandateCreation(res?.data?.data?.client_code)
-      //   navigate("/")
-      // }
+      console.log("UCC response", res);
+      if (res?.data?.data?.client_code || res?.data?.status === "success") {
+        setIsUccCreated(true);
+        const clientCode = res?.data?.data?.client_code || payload.client_code;
+        console.log("Client code after ucc add", clientCode);
+        sendUcc(clientCode, dp_id, client_id);
+        mandateCreation(clientCode);
+        navigate("/");
+      }
     } catch (error) {
-      console.error(error.response?.data || error.message);
+      const bseErrors = error.response?.data?.errors;
+      if (bseErrors?.length) {
+        bseErrors.forEach(e => toastError(e.message));
+      } else {
+        toastError(error.response?.data?.error || error.message || "UCC registration failed");
+      }
+      console.error("UCC Error:", error.response?.data || error.message);
     }
   };
 
   createUCC();
-  mandateCreation("TAN46280959")
 }, [step, userData]);
 
 
