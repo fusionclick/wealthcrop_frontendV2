@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from "react";
+import { postApiWithToken } from "../../api/api";
+import { toastError, toastSuccess } from "../../utils/notifyCustom";
 
 // Dummy SIP data – replace with API later
 const INITIAL_SIPS = [
@@ -151,9 +153,20 @@ const ManageSipPage = () => {
     setShowPauseModal(true);
   };
 
-  const confirmPause = (pauseData) => {
+  const confirmPause = async (pauseData) => {
     if (!selectedSip) return;
-    // here you can also send pauseData to backend
+    const isActive = selectedSip.status === "ACTIVE";
+    const endpoint = isActive ? "/pauseXsp" : "/resumeXsp";
+    const payload = isActive
+      ? { data: { reg_no: selectedSip.reg_no || selectedSip.id, ninstallments: pauseData?.months || 1, paused_from: new Date().toISOString().split("T")[0] } }
+      : { data: { reg_no: selectedSip.reg_no || selectedSip.id, resume_reason: "Resumed by investor" } };
+    try {
+      const url = `${import.meta.env.VITE_NODE_URL}${endpoint}`;
+      const res = await postApiWithToken(url, payload);
+      if (res) toastSuccess(isActive ? "SIP paused successfully" : "SIP resumed successfully");
+    } catch (_) {
+      toastError("Action failed. Please try again.");
+    }
     setSips((prev) =>
       prev.map((sip) => {
         if (sip.id !== selectedSip.id) return sip;
@@ -173,14 +186,19 @@ const ManageSipPage = () => {
     setShowCancelModal(true);
   };
 
-  const confirmCancel = ({ reason }) => {
+  const confirmCancel = async ({ reason }) => {
     if (!selectedSip) return;
-    // here you can send reason + sipId to backend
+    try {
+      const url = `${import.meta.env.VITE_NODE_URL}/cancelXsp`;
+      const payload = { data: { reg_no: selectedSip.reg_no || selectedSip.id, reason_cd: 6, reason_cd_msg: reason || "", sxp_type: "SIP" } };
+      const res = await postApiWithToken(url, payload);
+      if (res) toastSuccess("SIP cancelled successfully");
+    } catch (_) {
+      toastError("Cancellation failed. Please try again.");
+    }
     setSips((prev) =>
       prev.map((s) =>
-        s.id === selectedSip.id
-          ? { ...s, status: "CANCELLED", nextInstallment: "-" }
-          : s
+        s.id === selectedSip.id ? { ...s, status: "CANCELLED", nextInstallment: "-" } : s
       )
     );
     setShowCancelModal(false);
@@ -196,16 +214,11 @@ const ManageSipPage = () => {
 
   const saveModifiedSip = ({ amount, sipDate, frequency }) => {
     if (!selectedSip) return;
+    // Modify is informational only — BSE requires cancel + re-register for amount changes
+    toastSuccess("SIP details updated locally. Re-registration with BSE required for amount changes.");
     setSips((prev) =>
       prev.map((s) =>
-        s.id === selectedSip.id
-          ? {
-              ...s,
-              sipAmount: Number(amount),
-              sipDay: Number(sipDate),
-              frequency,
-            }
-          : s
+        s.id === selectedSip.id ? { ...s, sipAmount: Number(amount), sipDay: Number(sipDate), frequency } : s
       )
     );
     setShowModifyPage(false);

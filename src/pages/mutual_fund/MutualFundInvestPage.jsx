@@ -89,6 +89,16 @@ const MutualFundInvestPage = ({ fundsList, setBuyModal }) => {
   const generateOrderRefId = () => Math.floor(100000 + Math.random() * 900000);
 
   const handleInvest = async () => {
+    // T2.2 — Pre-order validation gate
+    if (!data?.kyc?.ucc_code) {
+      toastError("KYC not complete. Please finish your KYC before investing.");
+      return;
+    }
+    const minRequired = investType === "SIP" ? (minSip || 500) : (minLumpsum || 1000);
+    if (!amount || Number(amount) < minRequired) {
+      toastError(`Minimum investment is ₹${minRequired}`);
+      return;
+    }
 
     setLoading(true)
     //     const encrypted =
@@ -362,6 +372,8 @@ const MutualFundInvestPage = ({ fundsList, setBuyModal }) => {
         sendOrderDetails(orderId, memberRefId);
         startPayment(orderId);
         setShowPaymentPopup(true);
+        // T2.9 — Poll order status until ALLOTTED or REJECTED
+        if (orderId) pollOrderStatus(orderId);
       } else {
         setLoading(false);
         toastError(res?.message || "Order placement failed");
@@ -372,6 +384,27 @@ const MutualFundInvestPage = ({ fundsList, setBuyModal }) => {
     }
 
     // alert(`${investType} order placed for ₹${amount} in ${name} (${planType})`);
+  };
+
+  // T2.9 — Poll BSE order status every 10s until terminal state
+  const pollOrderStatus = (orderId) => {
+    const pollUrl = `${import.meta.env.VITE_NODE_URL}/api/getOrder`;
+    let attempts = 0;
+    const interval = setInterval(async () => {
+      attempts++;
+      try {
+        const statusRes = await postApiWithToken(pollUrl, { data: { id: orderId } });
+        const status = statusRes?.data?.items?.[0]?.status;
+        if (status === "ALLOTTED") {
+          clearInterval(interval);
+          toastSuccess("Order allotted successfully!");
+        } else if (status === "REJECTED" || status === "FAILED") {
+          clearInterval(interval);
+          toastError(`Order ${status.toLowerCase()}. Please try again.`);
+        }
+      } catch (_) { /* silent — polling */ }
+      if (attempts >= 18) clearInterval(interval); // stop after 3 min
+    }, 10000);
   };
 
   const sendOrderDetails = async (bse_order_id, mem_ord_ref_id) => {

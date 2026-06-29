@@ -39,7 +39,6 @@ const FUNDS = [
 const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#6366f1"];
 
 const DashBoardMF = () => {
-  const hasInvestments = FUNDS.length > 0;
   const [sortBy, setSortBy] = useState("name");
 
   const navigate = useNavigate()
@@ -59,30 +58,31 @@ console.log("Invested Funds List", data);
  
 
   // -----------------------------
-  // Portfolio Calculations
+  // Portfolio Calculations — real API data
   // -----------------------------
-  const totalInvested = FUNDS.reduce((acc, f) => acc + f.amount, 0);
-  const totalReturns = FUNDS.reduce(
-    (acc, f) => acc + (f.amount * f.returns) / 100,
+  const funds = Array.isArray(data) ? data : [];
+  const hasInvestments = funds.length > 0;
+
+  const totalInvested = funds.reduce((acc, f) => acc + (Number(f.inv_amo) || 0), 0);
+  const totalReturns = funds.reduce(
+    (acc, f) => acc + ((Number(f.inv_amo) || 0) * (Number(f.ret_percentage) || 0)) / 100,
     0
   );
   const currentValue = totalInvested + totalReturns;
-  const xirr = ((totalReturns / totalInvested) * 100).toFixed(2);
-  const activeSipCount = FUNDS.filter((f) => f.sip).length;
+  const xirr = totalInvested > 0 ? ((totalReturns / totalInvested) * 100).toFixed(2) : "0.00";
+  const activeSipCount = funds.filter((f) => f.sip_status === "ACTIVE").length;
 
   // -----------------------------
   // Asset Allocation (Pie Chart)
   // -----------------------------
   const allocation = useMemo(() => {
     const map = {};
-    FUNDS.forEach((f) => {
-      map[f.category] = (map[f.category] || 0) + f.amount;
+    funds.forEach((f) => {
+      const cat = f.scheme_category || f.category || "Other";
+      map[cat] = (map[cat] || 0) + (Number(f.inv_amo) || 0);
     });
-    return Object.entries(map).map(([category, value]) => ({
-      name: category,
-      value,
-    }));
-  }, []);
+    return Object.entries(map).map(([category, value]) => ({ name: category, value }));
+  }, [funds]);
 
   // -----------------------------
   // Sorting
