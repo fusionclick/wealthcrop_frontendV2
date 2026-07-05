@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { postApi } from "../../api/api";
 import PageLoader from "../../components/PageLoader";
 import SmallLoader from "../../components/SmallLoader";
+import { nodeUrl } from "../../utils/nodeApi";
 
 /* ---------------------------------------------
    DEMO FUND DATA FOR ALL COLLECTIONS
@@ -228,7 +229,7 @@ const FundCategorySection = () => {
   const [page, setPage] = useState(0);
   const limit = 10;
 
-  const url = `${import.meta.env.VITE_NODE_URL}${import.meta.env.VITE_GET_ALL_FUNDS}`;
+  const url = nodeUrl(import.meta.env.VITE_GET_ALL_FUNDS || "/master-scheme-list");
 
  const { data, isLoading, error, isFetching } = useQuery({
   queryKey: ["FUNDS", categorySlug, currentPage, limit],
@@ -283,7 +284,7 @@ const FundCategorySection = () => {
   const filterCount = Object.values(filters).flat().length;
 
   const funds = useMemo(() => {
-    let list = [...baseFunds];
+    let list = fundsList.length ? [...fundsList] : [];
 
     Object.entries(filters).forEach(([key, values]) => {
       if (!values.length) return;
@@ -315,7 +316,7 @@ const FundCategorySection = () => {
     }
 
     return list;
-  }, [baseFunds, filters, sort]);
+  }, [fundsList, filters, sort]);
 
   const slugify = (text = "") =>
     text

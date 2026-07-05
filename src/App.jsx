@@ -98,6 +98,7 @@ import RiskProfilingPage from "./pages/riskProfile/RiskProfilingPage";
 import MutualFundInvestPage from "./pages/mutual_fund/MutualFundInvestPage";
 import SIPSetupPage from "./pages/mutual_fund/SIPSetupPage";
 import RedeemMF from "./pages/mutual_fund/RedeemMF";
+import SwitchMF from "./pages/mutual_fund/SwitchMF";
 import ExploreFO from "./pages/future_&_options/ExploreFO";
 import PositionsFO from "./pages/future_&_options/PositionsFO";
 import OrdersFO from "./pages/future_&_options/OrdersFO";
@@ -417,6 +418,7 @@ useEffect(() => {
               <Route path="/mutual_fund/manage-sip" element={<ManageSipPage />} />
               <Route path="/mutual_fund/sip-setup" element={<SIPSetupPage />} />
               <Route path="/mutual_fund/redeem" element={<RedeemMF />} />
+              <Route path="/mutual_fund/switch" element={<SwitchMF />} />
               <Route
                 path="mutual_fund/collections/:categorySlug"
                 element={<FundCategorySection />}

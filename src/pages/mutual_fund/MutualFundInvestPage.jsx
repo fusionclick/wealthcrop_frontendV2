@@ -6,6 +6,7 @@ import { toastError, toastSuccess } from "../../utils/notifyCustom";
 import PageLoader from "../../components/PageLoader";
 import InvestLoader from "../../components/InvestLoader";
 import PaymentPromptModal from "../../components/PaymentPromptModal";
+import { nodeUrl, laravelUrl, validateInvestorReady } from "../../utils/nodeApi";
 
 const MutualFundInvestPage = ({ fundsList, setBuyModal }) => {
   // Dummy values — replace with actual data later
@@ -46,6 +47,7 @@ const MutualFundInvestPage = ({ fundsList, setBuyModal }) => {
 
 
   const [showPaymentPopup, setShowPaymentPopup] = useState(false)
+  const [orderConfirmed, setOrderConfirmed] = useState(null)
 
   const[loading, setLoading] = useState(false)
   const[linkLoading, setLinkLoading] = useState(false)
@@ -89,14 +91,13 @@ const MutualFundInvestPage = ({ fundsList, setBuyModal }) => {
   const generateOrderRefId = () => Math.floor(100000 + Math.random() * 900000);
 
   const handleInvest = async () => {
-    // T2.2 — Pre-order validation gate
-    if (!data?.kyc?.ucc_code) {
-      toastError("KYC not complete. Please finish your KYC before investing.");
-      return;
-    }
     const minRequired = investType === "SIP" ? (minSip || 500) : (minLumpsum || 1000);
-    if (!amount || Number(amount) < minRequired) {
-      toastError(`Minimum investment is ₹${minRequired}`);
+    const err = validateInvestorReady(data, minRequired, amount, {
+      risk: fundsList?.risk,
+      category: fundsList?.category || fundsList?.subType,
+    });
+    if (err) {
+      toastError(err);
       return;
     }
 
@@ -356,7 +357,7 @@ const MutualFundInvestPage = ({ fundsList, setBuyModal }) => {
       },
     };
 
-    const url = `${import.meta.env.VITE_NODE_URL}${import.meta.env.VITE_FUND_ORDER_PLACE}`;
+    const url = nodeUrl(import.meta.env.VITE_FUND_ORDER_PLACE || "/purchaseNewOrder");
     console.log("MF Invest Payload:", payload);
     try {
       const res = await postApiWithToken(url, payload);
@@ -369,6 +370,7 @@ const MutualFundInvestPage = ({ fundsList, setBuyModal }) => {
         const memberRefId = res.data?.items?.[0]?.mem_ord_ref_id;
         setBseOrderId(orderId);
         setMemberRefId(memberRefId);
+        setOrderConfirmed({ orderId, memberRefId, amount, schemeName: name, nav });
         sendOrderDetails(orderId, memberRefId);
         startPayment(orderId);
         setShowPaymentPopup(true);
@@ -388,7 +390,7 @@ const MutualFundInvestPage = ({ fundsList, setBuyModal }) => {
 
   // T2.9 — Poll BSE order status every 10s until terminal state
   const pollOrderStatus = (orderId) => {
-    const pollUrl = `${import.meta.env.VITE_NODE_URL}/api/getOrder`;
+    const pollUrl = nodeUrl(import.meta.env.VITE_GET_ORDER || "/getOrder");
     let attempts = 0;
     const interval = setInterval(async () => {
       attempts++;
@@ -398,6 +400,7 @@ const MutualFundInvestPage = ({ fundsList, setBuyModal }) => {
         if (status === "ALLOTTED") {
           clearInterval(interval);
           toastSuccess("Order allotted successfully!");
+          setOrderConfirmed((prev) => prev ? { ...prev, status: "ALLOTTED" } : prev);
         } else if (status === "REJECTED" || status === "FAILED") {
           clearInterval(interval);
           toastError(`Order ${status.toLowerCase()}. Please try again.`);
@@ -408,14 +411,17 @@ const MutualFundInvestPage = ({ fundsList, setBuyModal }) => {
   };
 
   const sendOrderDetails = async (bse_order_id, mem_ord_ref_id) => {
-    const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_SEND_FUND_ORDER_DETAILS}`;
+    const url = laravelUrl(import.meta.env.VITE_SEND_FUND_ORDER_DETAILS);
     try {
       const res = await postApiWithToken(url, {
         bse_order_id,
         mem_ord_ref_id,
         scheme_name: name,
+        scheme_bse_code: schemeCode,
         inv_amo: amount,
-        ret_percentage: fundsList?.returns?.["1Y"] ?? 0.00,
+        ret_percentage: fundsList?.returns?.["1Y"] ?? 0.0,
+        order_type: "purchase",
+        scheme_category: fundsList?.category,
       });
 
       console.log("order details send response", res);
@@ -432,7 +438,7 @@ const MutualFundInvestPage = ({ fundsList, setBuyModal }) => {
   const startPayment = async (orderId) => {
 
     setLoading(true)
-     const url = `${import.meta.env.VITE_NODE_URL}${import.meta.env.VITE_GET_PAYMENT_LINK}`;
+     const url = nodeUrl(import.meta.env.VITE_GET_PAYMENT_LINK || "/get-payment-link");
 
     const payload = {
       data: {
@@ -983,6 +989,18 @@ const MutualFundInvestPage = ({ fundsList, setBuyModal }) => {
           </div>
         </div>
       </div>
+
+      {
+        orderConfirmed && (
+          <div className="fixed bottom-4 right-4 z-50 max-w-sm bg-white dark:bg-[var(--card-bg)] border border-emerald-200 dark:border-emerald-800 rounded-xl shadow-lg p-4">
+            <p className="font-semibold text-emerald-700 dark:text-emerald-400">Order Placed ✓</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{orderConfirmed.schemeName}</p>
+            <p className="text-sm">₹{Number(orderConfirmed.amount).toLocaleString()} · BSE #{orderConfirmed.orderId}</p>
+            {orderConfirmed.nav && <p className="text-xs text-gray-500 mt-1">NAV: ₹{orderConfirmed.nav} · Est. units: {(orderConfirmed.amount / orderConfirmed.nav).toFixed(3)}</p>}
+            <p className="text-xs mt-1 capitalize">{orderConfirmed.status || "Pending payment"}</p>
+          </div>
+        )
+      }
 
       {
         showPaymentPopup &&  <PaymentPromptModal

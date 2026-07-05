@@ -2,6 +2,7 @@ import { useRef, useEffect, useState } from "react";
 import { Search, ArrowLeft, Bookmark } from "lucide-react";
 import { postApiWithToken } from "../api/api";
 import { useNavigate } from "react-router-dom";
+import { nodeUrl } from "../utils/nodeApi";
 
 export default function SearchPopup({ onClose }) {
   const containerRef = useRef(null);
@@ -60,7 +61,7 @@ export default function SearchPopup({ onClose }) {
       };
 
 
-    const url = `${import.meta.env.VITE_NODE_URL}/master-scheme-list`;
+    const url = nodeUrl(import.meta.env.VITE_GET_ALL_FUNDS || "/master-scheme-list");
     try {
       const res = await postApiWithToken(url, payload);
 

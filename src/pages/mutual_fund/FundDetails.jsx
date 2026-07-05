@@ -31,6 +31,7 @@ import { postApi } from "../../api/api";
 import { useQuery } from "@tanstack/react-query";
 import PageLoader from "../../components/PageLoader";
 import FundDetailsPageSkeleton from "../../components/ui/skeleton/main/FundDetailsPageSkeleton";
+import { nodeUrl } from "../../utils/nodeApi";
 
 ChartJS.register(LineElement, CategoryScale, LinearScale, PointElement, Tooltip);
 
@@ -66,22 +67,24 @@ const FundDetails = () => {
     const [page, setPage] = useState(0)
     const limit = 10;
   
-    const url = `${import.meta.env.VITE_NODE_URL}${import.meta.env.VITE_GET_ALL_FUNDS}`;
-    // const url2 = `${import.meta.env.VITE_NODE_URL}/nav-master-list`;
+    const url = nodeUrl(import.meta.env.VITE_GET_ALL_FUNDS || "/master-scheme-list");
+    const detailsUrl = nodeUrl(import.meta.env.VITE_SCHEME_DETAILS || "/scheme-details");
   
   const { data: details, isLoading } = useQuery({
     queryKey: ["FUND_FULL_DETAILS", isin, code],
     queryFn: async () => 
         postApi(url, {isin: isin }),
     enabled: !!isin && !!code,
-    staleTime: 1000 * 60 * 2, // 2 min
+    staleTime: 1000 * 60 * 2,
+    refetchInterval: 1000 * 60 * 5,
+    refetchOnWindowFocus: true,
   });
 
 
     const { data: chartData, isLoading: loading2 } = useQuery({
     queryKey: ["CHART_DETAILS", isin, code],
     queryFn: async () => 
-        postApi("http://65.2.121.33:3000/api/scheme-details", {isin: isin }),
+        postApi(detailsUrl, { isin: isin, scheme_code: code }),
     enabled: !!isin && !!code,
     // staleTime: 1000 * 60 * 2, // 2 min
   });

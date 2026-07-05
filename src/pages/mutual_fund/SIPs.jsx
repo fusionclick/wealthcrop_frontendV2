@@ -1,170 +1,100 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import emptySip from "../../assets/mutualFund/sipEmpty2.svg";
-
-/* ---------------- SAMPLE STATIC SIP DATA ---------------- */
-const SIP_DATA = [
-  {
-    id: 1,
-    name: "Parag Parikh Flexi Cap Fund Direct Growth",
-    category: "Equity • Flexi Cap",
-    amount: 2000,
-    nextInstallment: "10 Jan 2026",
-    invested: 84000,
-    current: 101200,
-    status: "ACTIVE",
-  },
-  {
-    id: 2,
-    name: "Axis Bluechip Fund Direct Growth",
-    category: "Equity • Large Cap",
-    amount: 3000,
-    nextInstallment: "05 Jan 2026",
-    invested: 108000,
-    current: 122500,
-    status: "ACTIVE",
-  },
-];
-/* -------------------------------------------------------- */
-
+import { useNavigate } from "react-router-dom";
+import { postApiWithToken } from "../../api/api";
+import { useSelector } from "react-redux";
+import { nodeUrl, mapXspToSip } from "../../utils/nodeApi";
 
 const SIPs = () => {
-  // TO TEST EMPTY PAGE → change []  
-  const [sips] = useState(SIP_DATA);
+  const navigate = useNavigate();
+  const { data: investorData } = useSelector((state) => state.investorData);
+  const [sips, setSips] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchSips = async () => {
+      const ucc = investorData?.kyc?.ucc_code;
+      if (!ucc) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const url = nodeUrl(import.meta.env.VITE_GET_ALL_XSP || "/getAllXsp");
+        const res = await postApiWithToken(url, {
+          data: {
+            fields: ["ALL"],
+            start: 0,
+            length: 50,
+            filter_param: { sxp_type: ["SIP"], ucc: [ucc] },
+          },
+        });
+        const items = res?.data?.items || res?.response?.data?.items || res?.items || [];
+        if (Array.isArray(items)) {
+          setSips(items.map((item, i) => mapXspToSip(item, i)).filter((s) => s.status === "ACTIVE"));
+        }
+      } catch (_) {
+        /* empty */
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSips();
+  }, [investorData?.kyc?.ucc_code]);
+
+  if (loading) {
+    return (
+      <div className="w-full max-w-5xl mx-auto px-4 py-10 text-center text-gray-400">
+        Loading SIPs…
+      </div>
+    );
+  }
 
   return (
-    <div
-  className="
-    w-full max-w-5xl mx-auto px-4 py-10
-    bg-transparent
-    text-slate-900
-    dark:text-[var(--text-primary)]
-  "
->
-  {/* ==== EMPTY SIP VIEW ==== */}
-  {sips.length === 0 ? (
-    <div className="min-h-[400px] flex flex-col justify-center items-center space-y-5">
-      <img src={emptySip} className="w-72 opacity-90" />
-
-      <h1 className="text-2xl font-semibold dark:text-[var(--text-primary)]">
-        No active SIPs
-      </h1>
-
-      <p className="text-slate-500 dark:text-[var(--text-secondary)] text-sm">
-        When you start an SIP, it will appear here.
-      </p>
-    </div>
-  ) : (
-    <>
-      {/* ==== HEADER ==== */}
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold dark:text-[var(--text-primary)]">
-          Your SIPs
-        </h1>
-
-        <p className="text-sm text-slate-500 dark:text-[var(--text-secondary)] mt-1">
-          Tracking all your ongoing SIP investments
-        </p>
-      </div>
-
-      {/* ==== SIP LIST ==== */}
-      <div className="space-y-4">
-        {sips.map((sip) => {
-          const pnl = sip.current - sip.invested;
-          const pnlPercent = (pnl / sip.invested) * 100;
-
-          return (
-            <div
-              key={sip.id}
-              className="
-                rounded-xl p-5 flex flex-col gap-4 md:flex-row md:justify-between md:items-center
-                bg-white border border-slate-200 shadow-sm
-                dark:bg-[var(--card-bg)]
-                dark:border-[var(--border-color)]
-              "
+    <div className="w-full max-w-5xl mx-auto px-4 py-10 bg-transparent text-slate-900 dark:text-[var(--text-primary)]">
+      {sips.length === 0 ? (
+        <div className="min-h-[400px] flex flex-col justify-center items-center space-y-5">
+          <img src={emptySip} className="w-72 opacity-90" alt="" />
+          <h1 className="text-2xl font-semibold dark:text-[var(--text-primary)]">No active SIPs</h1>
+          <p className="text-slate-500 dark:text-[var(--text-secondary)] text-sm">
+            When you start an SIP, it will appear here.
+          </p>
+          <button
+            onClick={() => navigate("/user/mutual_fund/explore")}
+            className="mt-2 px-6 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium"
+          >
+            Explore Funds
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="mb-6 flex justify-between items-center">
+            <h1 className="text-xl font-semibold dark:text-[var(--text-primary)]">Your SIPs</h1>
+            <button
+              onClick={() => navigate("/mutual_fund/manage-sip")}
+              className="text-sm text-blue-600 dark:text-blue-400 font-medium"
             >
-              {/* LEFT SIDE */}
-              <div className="flex-1">
-                <p className="font-semibold text-sm dark:text-[var(--text-primary)]">
-                  {sip.name}
-                </p>
-
-                <p className="text-[12px] text-slate-500 dark:text-[var(--text-secondary)]">
-                  {sip.category}
-                </p>
-
-                <div className="flex items-center gap-2 mt-2 text-[11px]">
-                  <span
-                    className="
-                      px-2 py-0.5 rounded-full
-                      bg-emerald-100 text-emerald-700
-                      dark:bg-emerald-500/15 dark:text-emerald-400
-                    "
-                  >
-                    {sip.status}
-                  </span>
-
-                  <span
-                    className="
-                      px-2 py-0.5 rounded-full
-                      bg-slate-100 text-slate-600
-                      dark:bg-[var(--soft-bg)] dark:text-[var(--text-secondary)]
-                    "
-                  >
-                    Monthly • ₹{sip.amount}
-                  </span>
+              Manage SIPs →
+            </button>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            {sips.map((sip) => (
+              <div
+                key={sip.id}
+                className="rounded-xl border border-slate-200 dark:border-[var(--border-color)] p-5 bg-white dark:bg-[var(--card-bg)]"
+              >
+                <h3 className="font-semibold text-sm dark:text-[var(--text-primary)]">{sip.schemeName}</h3>
+                <p className="text-xs text-slate-500 dark:text-[var(--text-secondary)] mt-1">{sip.category}</p>
+                <div className="mt-3 flex justify-between text-sm">
+                  <span>₹{sip.sipAmount.toLocaleString()} / {sip.frequency}</span>
+                  <span className="text-emerald-600 font-medium">{sip.status}</span>
                 </div>
+                <p className="text-xs text-slate-400 mt-2">Next: {sip.nextInstallment}</p>
               </div>
-
-              {/* RIGHT SIDE NUMBERS */}
-              <div className="flex gap-6 text-right md:text-left md:gap-12 text-xs">
-                <div>
-                  <p className="text-slate-500 dark:text-[var(--text-secondary)]">
-                    Next installment
-                  </p>
-                  <p className="font-medium dark:text-[var(--text-primary)]">
-                    {sip.nextInstallment}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-slate-500 dark:text-[var(--text-secondary)]">
-                    Invested
-                  </p>
-                  <p className="font-medium dark:text-[var(--text-primary)]">
-                    ₹{sip.invested.toLocaleString()}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-slate-500 dark:text-[var(--text-secondary)]">
-                    Current value
-                  </p>
-                  <p className="font-medium dark:text-[var(--text-primary)]">
-                    ₹{sip.current.toLocaleString()}
-                  </p>
-
-                  <p
-                    className={`text-[11px] font-medium mt-0.5 ${
-                      pnl >= 0
-                        ? "text-emerald-600 dark:text-emerald-400"
-                        : "text-rose-600 dark:text-rose-400"
-                    }`}
-                  >
-                    {pnl >= 0 ? "+" : "-"}₹
-                    {Math.abs(pnl).toLocaleString()} (
-                    {pnlPercent >= 0 ? "+" : ""}
-                    {pnlPercent.toFixed(2)}%)
-                  </p>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </>
-  )}
-</div>
-
+            ))}
+          </div>
+        </>
+      )}
+    </div>
   );
 };
 

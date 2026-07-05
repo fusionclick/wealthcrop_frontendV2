@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 import FundHeaderSkeleton from "../../components/ui/skeleton/FundHeaderSkeleton";
 import RatioCardSkeleton from "../../components/ui/skeleton/RatioCardSkeleton";
 import FundListSkeleton from "../../components/ui/skeleton/main/FundListSkeleton";
+import { nodeUrl } from "../../utils/nodeApi";
 
 
 const ExploreMF = () => {
@@ -21,7 +22,7 @@ const ExploreMF = () => {
   const [page, setPage] = useState(0)
   const limit = 10;
 
-  const url = `${import.meta.env.VITE_NODE_URL}${import.meta.env.VITE_GET_ALL_FUNDS}`;
+  const url = nodeUrl(import.meta.env.VITE_GET_ALL_FUNDS || "/master-scheme-list");
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["FUNDS"],

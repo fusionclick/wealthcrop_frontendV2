@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import emptymutual from "../../../assets/emptymutual.svg";
 import { getApiWithToken } from "../../../api/api";
 import { useNavigate } from "react-router-dom";
+import { laravelUrl } from "../../../utils/nodeApi";
 
 const MutualFundOrder = () => {
   const [funds, setFunds] = useState([]);
@@ -11,7 +12,7 @@ const MutualFundOrder = () => {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_GET_FUNDLIST}`;
+        const url = laravelUrl(import.meta.env.VITE_GET_FUNDLIST);
         const res = await getApiWithToken(url);
         const items = res?.data?.data;
         if (Array.isArray(items)) setFunds(items);

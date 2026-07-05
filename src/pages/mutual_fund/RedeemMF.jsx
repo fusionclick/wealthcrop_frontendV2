@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getApiWithToken, postApiWithToken } from "../../api/api";
 import { toastError, toastSuccess } from "../../utils/notifyCustom";
 import { useSelector } from "react-redux";
+import { nodeUrl, validateInvestorReady, laravelUrl } from "../../utils/nodeApi";
 
 const RedeemMF = () => {
   const navigate = useNavigate();
@@ -18,7 +19,7 @@ const RedeemMF = () => {
   useEffect(() => {
     const fetchHoldings = async () => {
       try {
-        const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_GET_FUNDLIST}`;
+        const url = laravelUrl(import.meta.env.VITE_GET_FUNDLIST);
         const res = await getApiWithToken(url);
         const items = res?.data?.data;
         if (Array.isArray(items)) setHoldings(items);
@@ -34,8 +35,9 @@ const RedeemMF = () => {
   const generateOrderRefId = () => String(Math.floor(100000 + Math.random() * 900000));
 
   const handleRedeem = async () => {
-    if (!investorData?.kyc?.ucc_code) {
-      toastError("KYC not complete. Please finish your KYC before redeeming.");
+    const err = validateInvestorReady(investorData);
+    if (err) {
+      toastError(err);
       return;
     }
     if (!selectedHolding) {
@@ -83,7 +85,7 @@ const RedeemMF = () => {
     };
 
     try {
-      const url = `${import.meta.env.VITE_NODE_URL}/api/purchaseNewOrder`;
+      const url = nodeUrl(import.meta.env.VITE_FUND_ORDER_PLACE || "/purchaseNewOrder");
       const res = await postApiWithToken(url, payload);
       if (res?.status === 200 || res?.status === true || res?.status === "success") {
         toastSuccess("Redemption order placed successfully!");

@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { postApiWithToken } from "../../api/api";
 import { toastError, toastSuccess } from "../../utils/notifyCustom";
 import { useSelector } from "react-redux";
+import { nodeUrl, validateInvestorReady, buildMandatePayload } from "../../utils/nodeApi";
 
 const SIPSetupPage = () => {
   const navigate = useNavigate();
@@ -28,12 +29,10 @@ const SIPSetupPage = () => {
   const generateSipRefId = () => `SIP${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
   const handleRegister = async () => {
-    if (!investorData?.kyc?.ucc_code) {
-      toastError("KYC not complete. Please finish your KYC before starting a SIP.");
-      return;
-    }
-    if (!amount || Number(amount) < (fund.minSip || 500)) {
-      toastError(`Minimum SIP amount is ₹${fund.minSip || 500}`);
+    const minSip = fund.minSip || 500;
+    const err = validateInvestorReady(investorData, minSip, amount);
+    if (err) {
+      toastError(err);
       return;
     }
 
@@ -69,10 +68,15 @@ const SIPSetupPage = () => {
     };
 
     try {
-      const url = `${import.meta.env.VITE_NODE_URL}/xspRegister`;
+      const url = nodeUrl(import.meta.env.VITE_XSP_REGISTER || "/xspRegister");
       const res = await postApiWithToken(url, payload);
       if (res) {
         toastSuccess("SIP registered successfully!");
+        // Auto-register UPI mandate for SIP debits
+        try {
+          const mandateUrl = nodeUrl(import.meta.env.VITE_MANDATE_REGISTRATION || "/mandate_register/upi-autopay");
+          await postApiWithToken(mandateUrl, buildMandatePayload(investorData?.kyc?.ucc_code, investorData, amount));
+        } catch (_) { /* mandate optional */ }
         navigate("/mutual_fund/manage-sip");
       }
     } catch (err) {

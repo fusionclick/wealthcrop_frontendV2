@@ -60,9 +60,13 @@ const RiskProfilingPage = () => {
 
     try {
       const res = await postApiWithToken(`${import.meta.env.VITE_URL}/risk/calculate`, payload);
-      if (res?.status === 200 || res?.status === true) {
+      if (res?.status === 200 || res?.status === true || res?.success) {
         toastSuccess(res?.message || "Risk profile saved!");
-        setResult({ score: res?.data?.score ?? res?.score, category: res?.data?.category ?? res?.category });
+        const d = res?.data || res;
+        setResult({
+          score: d?.score,
+          category: d?.category || d?.profile,
+        });
       }
     } finally {
       setSubmitting(false);

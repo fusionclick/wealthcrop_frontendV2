@@ -1,100 +1,80 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { postApiWithToken } from "../../api/api";
 import { toastError, toastSuccess } from "../../utils/notifyCustom";
+import { useSelector } from "react-redux";
+import { nodeUrl, mapXspToSip } from "../../utils/nodeApi";
 
-// Dummy SIP data – replace with API later
-const INITIAL_SIPS = [
-  {
-    id: 1,
-    schemeName: "Axis Bluechip Fund Direct Growth",
-    category: "Equity • Large Cap",
-    sipAmount: 3000,
-    frequency: "Monthly",
-    sipDay: 5,
-    nextInstallment: "05 Jan 2026",
-    startDate: "05 Jan 2023",
-    investedSoFar: 108000,
-    currentValue: 122500,
-    mandateStatus: "Active",
-    status: "ACTIVE", // ACTIVE | PAUSED | CANCELLED
-  },
-  {
-    id: 2,
-    schemeName: "Parag Parikh Flexi Cap Fund Direct Growth",
-    category: "Equity • Flexi Cap",
-    sipAmount: 2000,
-    frequency: "Monthly",
-    sipDay: 10,
-    nextInstallment: "10 Jan 2026",
-    startDate: "10 Jun 2022",
-    investedSoFar: 84000,
-    currentValue: 101200,
-    mandateStatus: "Active",
-    status: "ACTIVE",
-  },
-  {
-    id: 3,
-    schemeName: "HDFC Midcap Opportunities Direct Growth",
-    category: "Equity • Mid Cap",
-    sipAmount: 1500,
-    frequency: "Monthly",
-    sipDay: 15,
-    nextInstallment: "15 Jan 2026",
-    startDate: "15 Mar 2024",
-    investedSoFar: 27000,
-    currentValue: 25800,
-    mandateStatus: "Active",
-    status: "PAUSED",
-  },
-  {
-    id: 4,
-    schemeName: "ICICI Prudential Balanced Advantage Direct Growth",
-    category: "Hybrid • Dynamic Asset Allocation",
-    sipAmount: 2500,
-    frequency: "Monthly",
-    sipDay: 25,
-    nextInstallment: "-",
-    startDate: "25 Aug 2021",
-    investedSoFar: 90000,
-    currentValue: 103400,
-    mandateStatus: "Stopped",
-    status: "CANCELLED",
-  },
-];
-
-const SIP_HISTORY = [
-  {
-    id: 101,
-    date: "05 Dec 2025",
-    schemeName: "Axis Bluechip Fund Direct Growth",
-    amount: 3000,
-    status: "Success",
-  },
-  {
-    id: 102,
-    date: "10 Dec 2025",
-    schemeName: "Parag Parikh Flexi Cap Fund Direct Growth",
-    amount: 2000,
-    status: "Success",
-  },
-  {
-    id: 103,
-    date: "15 Nov 2025",
-    schemeName: "HDFC Midcap Opportunities Direct Growth",
-    amount: 1500,
-    status: "Skipped (Paused)",
-  },
-];
+const SIP_HISTORY_PLACEHOLDER = [];
 
 const ManageSipPage = () => {
-  const [sips, setSips] = useState(INITIAL_SIPS);
-  const [statusFilter, setStatusFilter] = useState("ALL"); // ALL | ACTIVE | PAUSED | CANCELLED
+  const { data: investorData } = useSelector((state) => state.investorData);
+  const [sips, setSips] = useState([]);
+  const [loadingSips, setLoadingSips] = useState(true);
+  const [sipHistory, setSipHistory] = useState([]);
+  const [statusFilter, setStatusFilter] = useState("ALL");
 
   // NEW: modal & page state
   const [selectedSip, setSelectedSip] = useState(null);
   const [showPauseModal, setShowPauseModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showModifyPage, setShowModifyPage] = useState(false);
+
+  useEffect(() => {
+    const fetchSips = async () => {
+      const ucc = investorData?.kyc?.ucc_code;
+      if (!ucc) {
+        setLoadingSips(false);
+        return;
+      }
+      try {
+        const url = nodeUrl(import.meta.env.VITE_GET_ALL_XSP || "/getAllXsp");
+        const payload = {
+          data: {
+            fields: ["ALL"],
+            count_only: false,
+            start: 0,
+            length: 50,
+            filter_param: {
+              sxp_type: ["SIP"],
+              ucc: [ucc],
+            },
+          },
+        };
+        const res = await postApiWithToken(url, payload);
+        const items =
+          res?.data?.items ||
+          res?.response?.data?.items ||
+          res?.items ||
+          [];
+        if (Array.isArray(items) && items.length) {
+          setSips(items.map((item, i) => mapXspToSip(item, i)));
+          // Fetch SIP transaction history for first active SIP
+          const active = items.find((i) => (i.status || "").toUpperCase() === "ACTIVE") || items[0];
+          if (active?.reg_no || active?.id) {
+            const histUrl = nodeUrl("/getXspTrxnHistory");
+            const histRes = await postApiWithToken(histUrl, {
+              data: { reg_no: active.reg_no || active.id, sxp_type: "SIP" },
+            });
+            const histItems = histRes?.data?.items || histRes?.response?.data?.items || [];
+            if (Array.isArray(histItems)) {
+              setSipHistory(histItems.map((h) => ({
+                id: h.id || h.txn_id,
+                date: h.txn_date || h.date || "—",
+                schemeName: active.src_scheme_name || active.scheme_name || "SIP",
+                amount: Number(h.amount || 0),
+                status: h.status || "Success",
+              })));
+            }
+          }
+        }
+      } catch (_) {
+        /* keep empty */
+      } finally {
+        setLoadingSips(false);
+      }
+    };
+    fetchSips();
+  }, [investorData?.kyc?.ucc_code]);
 
   // ---- Derived summary values ----
   const summary = useMemo(() => {
@@ -156,12 +136,11 @@ const ManageSipPage = () => {
   const confirmPause = async (pauseData) => {
     if (!selectedSip) return;
     const isActive = selectedSip.status === "ACTIVE";
-    const endpoint = isActive ? "/pauseXsp" : "/resumeXsp";
     const payload = isActive
       ? { data: { reg_no: selectedSip.reg_no || selectedSip.id, ninstallments: pauseData?.months || 1, paused_from: new Date().toISOString().split("T")[0] } }
       : { data: { reg_no: selectedSip.reg_no || selectedSip.id, resume_reason: "Resumed by investor" } };
     try {
-      const url = `${import.meta.env.VITE_NODE_URL}${endpoint}`;
+      const url = nodeUrl(isActive ? (import.meta.env.VITE_PAUSE_XSP || "/pauseXsp") : (import.meta.env.VITE_RESUME_XSP || "/resumeXsp"));
       const res = await postApiWithToken(url, payload);
       if (res) toastSuccess(isActive ? "SIP paused successfully" : "SIP resumed successfully");
     } catch (_) {
@@ -189,7 +168,7 @@ const ManageSipPage = () => {
   const confirmCancel = async ({ reason }) => {
     if (!selectedSip) return;
     try {
-      const url = `${import.meta.env.VITE_NODE_URL}/cancelXsp`;
+      const url = nodeUrl(import.meta.env.VITE_CANCEL_XSP || "/cancelXsp");
       const payload = { data: { reg_no: selectedSip.reg_no || selectedSip.id, reason_cd: 6, reason_cd_msg: reason || "", sxp_type: "SIP" } };
       const res = await postApiWithToken(url, payload);
       if (res) toastSuccess("SIP cancelled successfully");
@@ -226,7 +205,7 @@ const ManageSipPage = () => {
   };
 
   const handleImportExternal = () => {
-    alert("Redirect to external SIP import flow (dummy).");
+    window.location.href = "/user/mutual_fund/explore";
   };
 
   // If modify page is open, show that instead of list (style is simple page)
@@ -461,7 +440,7 @@ const ManageSipPage = () => {
             </p>
             <button
               className="text-[11px] text-blue-600 hover:underline"
-              onClick={() => alert("Go to full SIP history page (dummy).")}
+              onClick={() => setSipHistory((h) => [...h])}
             >
               View all
             </button>
@@ -478,7 +457,7 @@ const ManageSipPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {SIP_HISTORY.map((row) => (
+                {(sipHistory.length ? sipHistory : SIP_HISTORY_PLACEHOLDER).map((row) => (
                   <tr
                     key={row.id}
                     className="border-t border-slate-100 hover:bg-slate-50"
@@ -506,7 +485,7 @@ const ManageSipPage = () => {
                   </tr>
                 ))}
 
-                {SIP_HISTORY.length === 0 && (
+                {sipHistory.length === 0 && (
                   <tr>
                     <td
                       colSpan={4}

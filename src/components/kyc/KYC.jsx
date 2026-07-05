@@ -20,6 +20,7 @@ import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import {banks} from "../../utils/bank"
 import { useNavigate } from "react-router-dom";
+import { nodeUrl, laravelUrl } from "../../utils/nodeApi";
 
 const steps = ["Personal", "Bank", "Docs", "Nominee", "Review"];
 
@@ -212,11 +213,10 @@ if (!/^\d{4}-\d{2}-\d{2}$/.test(data.dob)) {
       if (!data.income) return "Income is required";
       if (!data.gender) return "Gender is required";
       if (!data.addrss1) return "Address 1 is required";
+      if (data.addrss1.trim().length < 8) return "Address line 1 must be at least 8 characters";
       if (!data.addrss2) return "Address 2 is required";
-      if (!data.mStatus) return "Marital status is required";
-      if (!data.fName) return "Father's name is required";
-      if (!data.state) return "State name is required";
       if (!data.pin) return "Pin is required";
+      if (!/^[1-9][0-9]{5}$/.test(String(data.pin))) return "Enter a valid 6-digit India pincode";
       if (!data.aadhar) return "Income is required";
       if (!data.city) return "City is required";
       return null;
@@ -448,8 +448,8 @@ useEffect(() => {
     const generate10Digit = () =>
       Math.floor(10000000 + Math.random() * 90000000);
 
-    const dp_id = generate10Digit();
-    const client_id = generate10Digit();
+    const dp_id = userData?.kyc?.dp_id || generate10Digit();
+    const client_id = userData?.kyc?.client_id || generate10Digit();
 
     console.log(dp_id);
     console.log(client_id);
@@ -501,7 +501,7 @@ useEffect(() => {
       };
       console.log("UCC Payload", payload);
 
-      const uccUrl = `${import.meta.env.VITE_NODE_URL}${import.meta.env.VITE_ADD_UCC}`;
+      const uccUrl = nodeUrl(import.meta.env.VITE_ADD_UCC || "/v2/add_ucc");
       const res = await axios.post(uccUrl, payload, {
         headers: { "Content-Type": "application/json" },
       });
@@ -510,9 +510,25 @@ useEffect(() => {
       if (res?.data?.data?.client_code || res?.data?.status === "success") {
         setIsUccCreated(true);
         const clientCode = res?.data?.data?.client_code || payload.client_code;
-        console.log("Client code after ucc add", clientCode);
+        const uccStatus = res?.data?.data?.status || "APPROVED";
+        console.log("Client code after ucc add", clientCode, uccStatus);
+
+        // Poll UCC status until APPROVED (max 2 min)
+        if (uccStatus !== "APPROVED") {
+          const pollUrl = nodeUrl("/getparticularucc");
+          for (let i = 0; i < 12; i++) {
+            await new Promise((r) => setTimeout(r, 10000));
+            try {
+              const poll = await axios.post(pollUrl, { data: { client_code: clientCode } });
+              const st = poll?.data?.response?.data?.status || poll?.data?.data?.status;
+              if (st === "APPROVED") break;
+            } catch (_) { /* continue polling */ }
+          }
+        }
+
         sendUcc(clientCode, dp_id, client_id);
         mandateCreation(clientCode);
+        toastSuccess("UCC registered successfully!");
         navigate("/");
       }
     } catch (error) {
@@ -552,8 +568,7 @@ useEffect(() => {
                   // },
                   investor_bank_details: {
                     ifsc: userData?.bank_accounts?.[0]?.ifsc_code,
-                    no: "123456789012",
-                    // no: userData?.bank_accounts?.[0]?.account_number,
+                    no: userData?.bank_accounts?.[0]?.account_number || "123456789012",
                     type: "CB",
                     name: userData?.bank_accounts?.[0]?.bank_name,
                     branch: "BHARUCH",
@@ -577,7 +592,7 @@ useEffect(() => {
               };
 
 
-            const url = `${import.meta.env.VITE_NODE_URL}${import.meta.env.VITE_MANDATE_REGISTRATION}`;
+            const url = nodeUrl(import.meta.env.VITE_MANDATE_REGISTRATION || "/mandate_register/upi-autopay");
             try {
 
               const res = await postApiWithToken(url, payload)
