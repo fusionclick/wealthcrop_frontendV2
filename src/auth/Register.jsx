@@ -14,6 +14,10 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [pinOpen, setPinOpen] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const [formSnapshot, setFormSnapshot] = useState(null);
+  const otpRefs = useRef([]);
 
   const {
     register,
@@ -29,72 +33,103 @@ export default function Register() {
     },
   });
 
-  const submitForm = async (formData) => {
-    const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_USER_REGISTER}`
-    console.log("Form Data:", formData);
+  const handleOtpChange = (value, index) => {
+    if (!/^\d?$/.test(value)) return;
+    const newOtp = [...otp];
+    newOtp[index] = value;
+    setOtp(newOtp);
+    if (value && index < 5) otpRefs.current[index + 1]?.focus();
+  };
+
+  const handleOtpKeyDown = (e, index) => {
+    if (e.key === "Backspace" && !otp[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const sendRegistrationOtp = async (formData) => {
+    const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_REGISTER_SEND_OTP}`;
     setLoading(true);
     try {
-      // Simulate API delay
-      // await new Promise((resolve) => setTimeout(resolve, 2000));
-      const res = await postApi(url, formData)
-      console.log("Response data:", res);
-        if(res?.status === 200 || res?.status === true){
-          const expiryTime = Date.now() + 30 * 60 * 1000;
-          localStorage.setItem("pin_expiry", expiryTime);
-          localStorage.setItem("token", res?.token);
-          localStorage.setItem("username", res?.data?.name);
-          localStorage.setItem("phone", res?.data?.phone);
-          localStorage.setItem("email", res?.data?.email);
-
-          const newAccount = {
-            userId: res?.data?.id,
-            name: res?.data?.name,
-            phone: res?.data?.phone,
-            email: res?.data?.email,
-            token: res?.token,
-          };
-
-          // Get existing accounts
-          let accounts = [];
-
-          try {
-            accounts = JSON.parse(localStorage.getItem("accounts")) || [];
-          } catch (e) {
-            accounts = [];
-          }
-
-          // Check if account already exists
-          const existingIndex = accounts.findIndex(
-            (acc) => acc.userId === newAccount.userId,
-          );
-
-          if (existingIndex !== -1) {
-            // Update existing account
-            accounts[existingIndex] = newAccount;
-          } else {
-            // Add new account
-            accounts.push(newAccount);
-          }
-
-          // Save all accounts
-          localStorage.setItem("accounts", JSON.stringify(accounts));
-
-          // Set current active account
-          localStorage.setItem("currentAccount", JSON.stringify(newAccount));
-
-          // toastSuccess("Form submitted successfully! ");
-          toastSuccess(res?.message);
-          setPinOpen(true);
-        } else {
-      // toastError(res?.message || "Registration failed");  
-    }
-      
+      const res = await postApi(url, formData);
+      if (res?.status === 200 || res?.status === true) {
+        setFormSnapshot(formData);
+        setOtpSent(true);
+        setOtp(["", "", "", "", "", ""]);
+        toastSuccess(res?.message || "OTP sent to your mobile");
+      }
     } catch (error) {
-      // toastError("Something went wrong. Please try again.");
-      toastError(error?.message);
+      toastError(error?.message || "Failed to send OTP");
     } finally {
       setLoading(false);
     }
+  };
+
+  const completeRegistration = async () => {
+    const enteredOtp = otp.join("");
+    if (enteredOtp.length !== 6) {
+      toastError("Please enter the 6-digit OTP");
+      return;
+    }
+
+    const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_USER_REGISTER}`;
+    setLoading(true);
+    try {
+      const res = await postApi(url, { ...formSnapshot, otp: enteredOtp });
+      console.log("Response data:", res);
+      if (res?.status === 200 || res?.status === true) {
+        const expiryTime = Date.now() + 30 * 60 * 1000;
+        localStorage.setItem("pin_expiry", expiryTime);
+        localStorage.setItem("token", res?.token);
+        localStorage.setItem("username", res?.data?.name);
+        localStorage.setItem("phone", res?.data?.phone);
+        localStorage.setItem("email", res?.data?.email);
+
+        const newAccount = {
+          userId: res?.data?.id,
+          name: res?.data?.name,
+          phone: res?.data?.phone,
+          email: res?.data?.email,
+          token: res?.token,
+        };
+
+        let accounts = [];
+        try {
+          accounts = JSON.parse(localStorage.getItem("accounts")) || [];
+        } catch {
+          accounts = [];
+        }
+
+        const existingIndex = accounts.findIndex(
+          (acc) => acc.userId === newAccount.userId,
+        );
+
+        if (existingIndex !== -1) {
+          accounts[existingIndex] = newAccount;
+        } else {
+          accounts.push(newAccount);
+        }
+
+        localStorage.setItem("accounts", JSON.stringify(accounts));
+        localStorage.setItem("currentAccount", JSON.stringify(newAccount));
+
+        toastSuccess(res?.message);
+        setPinOpen(true);
+      }
+    } catch (error) {
+      toastError(error?.message || "Registration failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submitForm = async (formData) => {
+    console.log("Form Data:", formData);
+    if (!otpSent) {
+      await sendRegistrationOtp(formData);
+      return;
+    }
+    await completeRegistration();
   };
 
   return (
@@ -212,12 +247,49 @@ export default function Register() {
             </div>
 
             {/* Create Account Button */}
+            {otpSent && (
+              <div>
+                <label className="block text-sm font-medium text-blue-950 dark:text-gray-200 mb-2 text-center">
+                  Enter OTP sent to your mobile
+                </label>
+                <div className="flex justify-center gap-2 mb-2">
+                  {otp.map((digit, index) => (
+                    <input
+                      key={index}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength="1"
+                      value={digit}
+                      onChange={(e) => handleOtpChange(e.target.value, index)}
+                      onKeyDown={(e) => handleOtpKeyDown(e, index)}
+                      ref={(el) => (otpRefs.current[index] = el)}
+                      className="w-10 h-10 text-center rounded-lg text-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-white/5 text-blue-950 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-700"
+                    />
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOtpSent(false);
+                    setOtp(["", "", "", "", "", ""]);
+                  }}
+                  className="text-sm text-blue-800 dark:text-blue-400 hover:underline mb-3 block mx-auto"
+                >
+                  Change details / Resend OTP
+                </button>
+              </div>
+            )}
+
             <button
               type="submit"
               className="w-full bg-blue-950 dark:bg-blue-600 cursor-pointer text-white rounded-lg py-2 font-medium hover:bg-blue-900 dark:hover:bg-blue-500 transition"
               disabled={loading}
             >
-              {loading ? "Submitting..." : "Create Account"}
+              {loading
+                ? "Please wait..."
+                : otpSent
+                  ? "Verify OTP & Create Account"
+                  : "Send OTP"}
             </button>
 
             {/* Google Sign Up */}

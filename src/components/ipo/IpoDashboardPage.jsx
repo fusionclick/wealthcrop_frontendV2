@@ -1,106 +1,9 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-const IPO_DUMMY_DATA = [
-  {
-    id: 1,
-    name: "ABC Technologies Ltd",
-    symbol: "ABC",
-    logoInitial: "A",
-    logoBg: "bg-indigo-100",
-    marketType: "MAINBOARD",
-    status: "OPEN",
-    openDate: "10 Dec 2025",
-    closeDate: "12 Dec 2025",
-    listingDate: "18 Dec 2025",
-    issuePrice: "₹95 - ₹100",
-    faceValue: "₹10",
-    lotSize: 150,
-    subscription: "3.25x",
-  },
-  {
-    id: 2,
-    name: "Bright Retail India Ltd",
-    symbol: "BRIGHT",
-    logoInitial: "B",
-    logoBg: "bg-emerald-100",
-    marketType: "SME",
-    status: "OPEN",
-    openDate: "9 Dec 2025",
-    closeDate: "11 Dec 2025",
-    listingDate: "17 Dec 2025",
-    issuePrice: "₹55 - ₹60",
-    faceValue: "₹10",
-    lotSize: 2000,
-    subscription: "1.78x",
-  },
-  {
-    id: 3,
-    name: "Crown Infra Projects Ltd",
-    symbol: "CROWN",
-    logoInitial: "C",
-    logoBg: "bg-yellow-100",
-    marketType: "MAINBOARD",
-    status: "CLOSED",
-    openDate: "2 Dec 2025",
-    closeDate: "5 Dec 2025",
-    listingDate: "10 Dec 2025",
-    issuePrice: "₹150",
-    faceValue: "₹10",
-    lotSize: 100,
-    subscription: "12.5x",
-  },
-  {
-    id: 4,
-    name: "Delta Foods & Beverages Ltd",
-    symbol: "DELTA",
-    logoInitial: "D",
-    logoBg: "bg-red-100",
-    marketType: "SME",
-    status: "CLOSED",
-    openDate: "28 Nov 2025",
-    closeDate: "30 Nov 2025",
-    listingDate: "6 Dec 2025",
-    issuePrice: "₹80",
-    faceValue: "₹10",
-    lotSize: 1600,
-    subscription: "5.2x",
-  },
-  {
-    id: 5,
-    name: "Evergreen Logistics Ltd",
-    symbol: "EGL",
-    logoInitial: "E",
-    logoBg: "bg-blue-100",
-    marketType: "MAINBOARD",
-    status: "UPCOMING",
-    openDate: "20 Dec 2025",
-    closeDate: "23 Dec 2025",
-    listingDate: "30 Dec 2025",
-    issuePrice: "₹120 - ₹126",
-    faceValue: "₹10",
-    lotSize: 120,
-    subscription: "--",
-  },
-  {
-    id: 6,
-    name: "Future Fintech Services Ltd",
-    symbol: "FFS",
-    logoInitial: "F",
-    logoBg: "bg-pink-100",
-    marketType: "SME",
-    status: "UPCOMING",
-    openDate: "22 Dec 2025",
-    closeDate: "24 Dec 2025",
-    listingDate: "31 Dec 2025",
-    issuePrice: "₹65 - ₹70",
-    faceValue: "₹10",
-    lotSize: 1000,
-    subscription: "--",
-  },
-];
+import { fetchIpos } from "../../api/marketApi";
 
 const IpoDashboardPage = () => {
+  const [ipos, setIpos] = useState([]);
   const [marketFilter, setMarketFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("OPEN");
   const [search, setSearch] = useState("");
@@ -112,9 +15,13 @@ const IpoDashboardPage = () => {
 
   const navigate = useNavigate();
 
+  useEffect(() => {
+    fetchIpos().then((r) => setIpos(r?.data ?? [])).catch(() => setIpos([]));
+  }, []);
+
   // FILTERS
   const filteredIpos = useMemo(() => {
-    return IPO_DUMMY_DATA.filter((ipo) => {
+    return ipos.filter((ipo) => {
       const marketMatch =
         marketFilter === "ALL" ? true : ipo.marketType === marketFilter;
       const statusMatch = ipo.status === statusFilter;

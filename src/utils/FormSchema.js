@@ -5,6 +5,7 @@ export const formSchema = z.object({
   mobile: z
     .string()
     .min(10, "Please enter a valid number")
+    .max(15, "Mobile number is too long")
     .regex(/^\d+$/, "Only digits are allowed"),
   email: z.string().email("Invalid email address"),
   password: z

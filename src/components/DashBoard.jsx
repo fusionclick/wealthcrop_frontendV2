@@ -8,6 +8,7 @@ import { CandlestickChart, Bookmark } from "lucide-react";
 import { FaBookmark, FaRegBookmark } from "react-icons/fa";
 import axios from "axios";
 import MobileSearchBox from "./MobileSearchBox";
+import { fetchMarketIndices } from "../api/marketApi";
 
 
 const Dashboard = () => {
@@ -46,13 +47,13 @@ const Dashboard = () => {
   { name: "Watchlist", link: "watchlist" },
 ];
 
-  const markets = [
-    { name: "NIFTY", value: "25,597.65", change: "0.00 (0.00%)" },
-    { name: "SENSEX", value: "83,459.15", change: "0.00 (0.00%)" },
-    { name: "BANKNIFTY", value: "57,827.05", change: "0.00 (0.00%)" },
-    { name: "MIDCPNIFTY", value: "13,375.25", change: "-130.75 (0.97%)" },
-    { name: "FINNIFTY", value: "27,195.00", change: "0.00 (0.00%)" },
-  ];
+  const [markets, setMarkets] = useState([]);
+
+  useEffect(() => {
+    fetchMarketIndices()
+      .then((res) => setMarkets(res?.data ?? []))
+      .catch(() => setMarkets([]));
+  }, []);
 
 
   const dropdownRef = useRef(null);

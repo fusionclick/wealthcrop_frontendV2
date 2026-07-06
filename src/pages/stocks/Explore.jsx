@@ -9,7 +9,7 @@ import { FaBookmark, FaRegBookmark } from "react-icons/fa";
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import { getApi } from "../../api/api";
-import socket from "../../utils/socket";
+import { fetchMarketIndices, fetchMarketMovers, fetchMarketProducts, fetchStockList, fetchEtfs } from "../../api/marketApi";
 import { useSelector } from "react-redux";
 import WatchlistPopup from "../../components/WatchlistPopup";
 
@@ -87,45 +87,27 @@ const stockList =  useSelector((state) => state.stocks.stockList)
   // }, [activeTab]);
 
 
-  //!for mobile view
-    const marketIndices = [
-    { name: "NIFTY", value: "25,492.30", change: "-17.40 (0.07%)", isPositive: false },
-    { name: "SENSEX", value: "83,216.28", change: "-94.73 (0.11%)", isPositive: false },
-    { name: "BANK NIFTY", value: "57,851.20", change: "322.55 (0.56%)", isPositive: true },
-    { name: "FINNIFTY", value: "21,356.90", change: "74.25 (0.35%)", isPositive: true },
-    { name: "MIDCAP", value: "47,158.40", change: "124.52 (0.27%)", isPositive: true },
-    { name: "SMALLCAP", value: "16,728.20", change: "98.14 (0.59%)", isPositive: true },
-  ];
+  const [marketIndices, setMarketIndices] = useState([]);
+  const [topGainers, setTopGainers] = useState([]);
+  const [mtfStocks, setMtfStocks] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [etfs, setEtfs] = useState([]);
 
-  const topGainers = [
-    { name: "Shriram Finance", price: "₹816.35", change: "28.65 (3.64%)", logo: "https://logo.clearbit.com/shriramfinance.in" },
-    { name: "LIC", price: "₹924.15", change: "28.05 (3.13%)", logo: "https://logo.clearbit.com/licindia.in" },
-    { name: "Britannia", price: "₹6,157.35", change: "144.00 (2.41%)", logo: "https://logo.clearbit.com/britannia.co.in" },
-    { name: "ONGC", price: "₹216.50", change: "5.10 (2.42%)", logo: "https://logo.clearbit.com/ongcindia.com" },
-    { name: "HDFC Bank", price: "₹1,534.25", change: "28.65 (1.91%)", logo: "https://logo.clearbit.com/hdfcbank.com" },
-    { name: "TCS", price: "₹3,456.10", change: "68.25 (2.01%)", logo: "https://logo.clearbit.com/tcs.com" },
-  ];
-//!end
+  useEffect(() => {
+    fetchMarketIndices().then((r) => setMarketIndices(r?.data ?? [])).catch(() => {});
+    fetchMarketMovers("gainers").then((r) => setTopGainers(r?.data ?? [])).catch(() => {});
+    fetchStockList("NIFTY 50").then((r) => {
+      const sorted = [...(r?.data ?? [])].sort((a, b) => (b.totalTradedVolume ?? 0) - (a.totalTradedVolume ?? 0));
+      setMtfStocks(sorted.slice(0, 4));
+    }).catch(() => {});
+    fetchMarketProducts().then((r) => setProducts(r?.data ?? [])).catch(() => {});
+    fetchEtfs().then((r) => setEtfs(r?.data ?? [])).catch(() => {});
+  }, []);
 
-
-    const stocks = [
-    {
-      name: "Reliance Power",
-      logo: "https://logo.clearbit.com/reliancepower.co.in",
-    },
-    {
-      name: "Vodafone Idea",
-      logo: "https://logo.clearbit.com/vodafone.in",
-    },
-    {
-      name: "Infosys",
-      logo: "https://logo.clearbit.com/infosys.com",
-    },
-    {
-      name: "HDFC Bank",
-      logo: "https://logo.clearbit.com/hdfcbank.com",
-    },
-  ];
+  useEffect(() => {
+    const type = activeTab === "Losers" ? "losers" : activeTab === "Volume shockers" ? "volume" : "gainers";
+    fetchMarketMovers(type, selected.replace("NIFTY ", "NIFTY ")).then((r) => setTopGainers(r?.data ?? [])).catch(() => {});
+  }, [activeTab, selected]);
 
     const options = [
     { label: "NIFTY 100", link: "/nifty-100" },
@@ -424,7 +406,7 @@ const stockList =  useSelector((state) => state.stocks.stockList)
     </div>
   </div>
 
-  <MarketTable />
+  <MarketTable activeTab={activeTab} index={selected} />
 
    {/* See more link */}
                 <div className="mt-6 pl-2">
@@ -454,9 +436,9 @@ const stockList =  useSelector((state) => state.stocks.stockList)
 
     {/* Stock grid */}
     <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6 relative">
-      {stocks.map((stock, index) => (
+      {mtfStocks.map((stock, index) => (
         <div
-          key={stock.name}
+          key={stock.symbol}
           className="
             relative bg-white border border-gray-200 rounded-xl
             shadow-sm hover:shadow-md
@@ -468,7 +450,7 @@ const stockList =  useSelector((state) => state.stocks.stockList)
           "
           onMouseEnter={() => setHoveredRow(index)}
           onMouseLeave={() => setHoveredRow(null)}
-          onClick={() => showStockPage(stock.name)}
+          onClick={() => showStockPage(stock.companyName || stock.symbol)}
         >
           {/* 🔖 Bookmark Icon (appears on hover) */}
           {hoveredRow === index && (
@@ -501,16 +483,12 @@ const stockList =  useSelector((state) => state.stocks.stockList)
           <div>
             <div
               className="
-                w-10 h-10 mb-2 border rounded overflow-hidden
-                border-gray-300
+                w-10 h-10 mb-2 border rounded overflow-hidden flex items-center justify-center
+                border-gray-300 bg-blue-50 text-blue-800 font-bold text-xs
                 dark:border-[var(--border-color)]
               "
             >
-              <img
-                src={stock.logo}
-                alt={stock.name}
-                className="w-full h-full object-cover"
-              />
+              {(stock.symbol || "?").slice(0, 2)}
             </div>
 
             <h3
@@ -520,7 +498,7 @@ const stockList =  useSelector((state) => state.stocks.stockList)
                 dark:text-[var(--text-primary)]
               "
             >
-              {stock.name}
+              {stock.companyName || stock.symbol}
             </h3>
 
             <p className="text-gray-500 text-xs mt-1 dark:text-[var(--text-secondary)]">
@@ -531,18 +509,16 @@ const stockList =  useSelector((state) => state.stocks.stockList)
           {/* Price + Change */}
           <div>
             <p className="text-lg font-bold mt-2 text-gray-800 dark:text-[var(--text-primary)]">
-              ₹{(Math.random() * 3000 + 500).toFixed(2)}
+              ₹{stock.lastPrice}
             </p>
 
             <p
               className={`text-sm font-medium ${
-                Math.random() > 0.5
-                  ? "text-green-600"
-                  : "text-red-600"
+                Number(stock.pChange) >= 0 ? "text-green-600" : "text-red-600"
               }`}
             >
-              {Math.random() > 0.5 ? "+" : "-"}
-              {(Math.random() * 2).toFixed(2)}%
+              {Number(stock.pChange) >= 0 ? "+" : ""}
+              {stock.pChange}%
             </p>
           </div>
         </div>
@@ -581,9 +557,9 @@ const stockList =  useSelector((state) => state.stocks.stockList)
 
     {/* Stock grid */}
     <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6 relative">
-      {stocks.map((stock, index) => (
+      {(stockList ?? []).slice(0, 4).map((stock, index) => (
         <div
-          key={stock.name}
+          key={stock?.meta?.symbol || index}
           className="
             relative bg-white border border-gray-200 rounded-xl
             shadow-sm hover:shadow-md
@@ -595,7 +571,7 @@ const stockList =  useSelector((state) => state.stocks.stockList)
           "
           onMouseEnter={() => setHoveredRow(index)}
           onMouseLeave={() => setHoveredRow(null)}
-          onClick={() => showStockPage(stock.name)}
+          onClick={() => showStockPage(stock?.meta?.symbol)}
         >
           {/* 🔖 Bookmark Icon (appears on hover) */}
           {hoveredRow === index && (
@@ -628,16 +604,12 @@ const stockList =  useSelector((state) => state.stocks.stockList)
           <div>
             <div
               className="
-                w-10 h-10 mb-2 border rounded overflow-hidden
-                border-gray-300
+                w-10 h-10 mb-2 border rounded overflow-hidden flex items-center justify-center
+                border-gray-300 bg-blue-50 text-blue-800 font-bold text-xs
                 dark:border-[var(--border-color)]
               "
             >
-              <img
-                src={stock.logo}
-                alt={stock.name}
-                className="w-full h-full object-cover"
-              />
+              {(stock?.meta?.symbol || "?").slice(0, 2)}
             </div>
 
             <h3
@@ -647,7 +619,7 @@ const stockList =  useSelector((state) => state.stocks.stockList)
                 dark:text-[var(--text-primary)]
               "
             >
-              {stock.name}
+              {stock?.meta?.companyName}
             </h3>
 
             <p className="text-gray-500 text-xs mt-1 dark:text-[var(--text-secondary)]">
@@ -658,18 +630,16 @@ const stockList =  useSelector((state) => state.stocks.stockList)
           {/* Price + Change */}
           <div>
             <p className="text-lg font-bold mt-2 text-gray-800 dark:text-[var(--text-primary)]">
-              ₹{(Math.random() * 3000 + 500).toFixed(2)}
+              ₹{stock?.lastPrice}
             </p>
 
             <p
               className={`text-sm font-medium ${
-                Math.random() > 0.5
-                  ? "text-green-600"
-                  : "text-red-600"
+                Number(stock?.pChange) >= 0 ? "text-green-600" : "text-red-600"
               }`}
             >
-              {Math.random() > 0.5 ? "+" : "-"}
-              {(Math.random() * 2).toFixed(2)}%
+              {Number(stock?.pChange) >= 0 ? "+" : ""}
+              {stock?.pChange}%
             </p>
           </div>
         </div>
@@ -778,12 +748,7 @@ const stockList =  useSelector((state) => state.stocks.stockList)
     </h2>
 
     <div className="space-y-5">
-      {[
-        { name: "IPO", route: "/ipo", count: 6 },
-        { name: "Bonds", route: "/bond", count: 1 },
-        { name: "ETFs", route: "/", count: 2 },
-        { name: "Fixed Deposit", route: "/", count: 3 },
-      ].map((tool) => (
+      {products.map((tool) => (
         <a
           href={tool.route}
           key={tool.name}
@@ -833,14 +798,10 @@ const stockList =  useSelector((state) => state.stocks.stockList)
     </h2>
 
     <div className="space-y-5">
-      {[
-        "Nippon India ETF",
-        "HDFC Gold ETF",
-        "ICICI Prudential Nifty Next 50",
-      ].map((etf) => (
+      {etfs.map((etf) => (
         <a
           href="#"
-          key={etf}
+          key={etf.name}
           className="
             bg-white rounded-xl p-4 shadow
             hover:shadow-md transition block
@@ -856,7 +817,7 @@ const stockList =  useSelector((state) => state.stocks.stockList)
               dark:text-[var(--text-primary)]
             "
           >
-            {etf}
+            {etf.name}
           </h3>
 
           <p
@@ -1023,11 +984,9 @@ const stockList =  useSelector((state) => state.stocks.stockList)
       >
         {/* TOP */}
         <div className="flex flex-col items-center">
-          <img
-            src={item.logo}
-            alt={item.name}
-            className="w-10 h-10 object-contain mb-2 rounded-md"
-          />
+          <div className="w-10 h-10 mb-2 rounded-md bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-xs">
+            {(item.name || "?").slice(0, 2)}
+          </div>
 
           <h3
             className="
@@ -1109,11 +1068,9 @@ const stockList =  useSelector((state) => state.stocks.stockList)
       >
         {/* TOP */}
         <div className="flex flex-col items-center">
-          <img
-            src={item.logo}
-            alt={item.name}
-            className="w-10 h-10 object-contain mb-2 rounded-md"
-          />
+          <div className="w-10 h-10 mb-2 rounded-md bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-xs">
+            {(item.name || "?").slice(0, 2)}
+          </div>
 
           <h3
             className="
@@ -1200,11 +1157,9 @@ const stockList =  useSelector((state) => state.stocks.stockList)
       >
         {/* TOP */}
         <div className="flex flex-col items-center">
-          <img
-            src={item.logo}
-            alt={item.name}
-            className="w-10 h-10 object-contain mb-2 rounded-md"
-          />
+          <div className="w-10 h-10 mb-2 rounded-md bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-xs">
+            {(item.name || "?").slice(0, 2)}
+          </div>
 
           <h3
             className="
@@ -1368,11 +1323,9 @@ const stockList =  useSelector((state) => state.stocks.stockList)
       >
         {/* TOP */}
         <div className="flex flex-col items-center">
-          <img
-            src={item.logo}
-            alt={item.name}
-            className="w-10 h-10 object-contain mb-2 rounded-md"
-          />
+          <div className="w-10 h-10 mb-2 rounded-md bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-xs">
+            {(item.name || "?").slice(0, 2)}
+          </div>
 
           <h3
             className="
@@ -1413,10 +1366,18 @@ const stockList =  useSelector((state) => state.stocks.stockList)
 };
 
 // Table for movers
-const MarketTable = () => {
-      const [hoveredRow, setHoveredRow] = useState(null);
+const MarketTable = ({ activeTab, index }) => {
+  const [hoveredRow, setHoveredRow] = useState(null);
+  const [data, setData] = useState([]);
   const [selectedStock, setSelectedStock] = useState(null);
-     // Bookmark API call
+
+  useEffect(() => {
+    const type = activeTab === "Losers" ? "losers" : activeTab === "Volume shockers" ? "volume" : "gainers";
+    fetchMarketMovers(type, index)
+      .then((r) => setData(r?.data ?? []))
+      .catch(() => setData([]));
+  }, [activeTab, index]);
+
   const handleBookmark = async (company) => {
     try {
       await axios.post("/api/bookmark", { company });
@@ -1425,13 +1386,6 @@ const MarketTable = () => {
       console.error("Bookmark failed", err);
     }
   };
-  const data = [
-    { company: "Reliance", indexName: "RELIANCE", price: "₹2,987.30", volume: "12.3M" },
-    { company: "Infosys Limited", indexName: "INFY", price: "₹1,540.25", volume: "9.8M" },
-    { company: "TCS", indexName: "TCS", price: "₹3,700.00", volume: "8.1M" },
-    { company: "HDFC", indexName: "HDFCBANK", price: "₹1,670.50", volume: "5.6M" },
-    { company: "ICICI Bank", indexName: "ICICIBANK", price: "₹980.60", volume: "4.7M" },
-  ];
 
    return (
     <div

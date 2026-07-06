@@ -1,41 +1,15 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import empty from "../../assets/allorders.png";
 import { NavLink } from "react-router-dom";
+import { getApiWithToken } from "../../api/api";
 
 const Holdings = () => {
-  // Dummy data
-  const [stocks, setStocks] = useState([
-    {
-      id: 1,
-      name: "Reliance Industries",
-      symbol: "RELIANCE",
-      qty: 10,
-      avgPrice: 2485.5,
-      ltp: 2502.3,
-      orderDate: "2025-11-10",
-    },
-    {
-      id: 2,
-      name: "Tata Consultancy Services",
-      symbol: "TCS",
-      qty: 5,
-      avgPrice: 3710.0,
-      ltp: 3695.5,
-      orderDate: "2025-11-11",
-    },
-    {
-      id: 3,
-      name: "HDFC Bank",
-      symbol: "HDFCBANK",
-      qty: 8,
-      avgPrice: 1530.2,
-      ltp: 1555.1,
-      orderDate: "2025-11-12",
-    },
-  ]);
+  const [stocks, setStocks] = useState([]);
 
-  // Uncomment for empty state
-  // const [stocks, setStocks] = useState([]);
+  useEffect(() => {
+    const url = `${import.meta.env.VITE_URL}/portfolio/stocks/holdings`;
+    getApiWithToken(url).then((res) => setStocks(res?.data?.data ?? [])).catch(() => setStocks([]));
+  }, []);
 
   // -------------------------
   // 📌 Portfolio Calculations

@@ -8,6 +8,9 @@ import { CandlestickChart, Bookmark } from "lucide-react";
 import { FaBookmark, FaRegBookmark } from "react-icons/fa";
 import axios from "axios";
 import { IoLinkSharp } from "react-icons/io5";
+import { fetchFno, fetchMarketMovers, fetchMarketProducts, fetchEtfs } from "../../api/marketApi";
+
+const changeColor = (p) => (Number(p) >= 0 ? "text-green-600" : "text-red-600");
 
 const ExploreFO = () => {
 
@@ -16,6 +19,11 @@ const ExploreFO = () => {
       const [selected, setSelected] = useState("15 mins");
       const [open, setOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const [topTraded, setTopTraded] = useState([]);
+  const [commodityCards, setCommodityCards] = useState([]);
+  const [indexFutures, setIndexFutures] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [etfs, setEtfs] = useState([]);
 
     // Close dropdown if clicked outside
   useEffect(() => {
@@ -26,6 +34,28 @@ const ExploreFO = () => {
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    fetchFno("top-traded", category)
+      .then((r) => setTopTraded(r?.data ?? []))
+      .catch(() => setTopTraded([]));
+  }, [category]);
+
+  useEffect(() => {
+    Promise.all([
+      fetchFno("commodities"),
+      fetchFno("index-futures"),
+      fetchMarketProducts(),
+      fetchEtfs(),
+    ])
+      .then(([c, idx, p, e]) => {
+        setCommodityCards(c?.data ?? []);
+        setIndexFutures(idx?.data ?? []);
+        setProducts(p?.data ?? []);
+        setEtfs(e?.data ?? []);
+      })
+      .catch(() => {});
   }, []);
 
     const options = [
@@ -39,45 +69,6 @@ const ExploreFO = () => {
     // window.location.href = option.link; // redirect
   };  
 
-  const topTradedData = {
-    equity: [
-      {name: "SENSEX", price: "84,382.40", value: "-621.58(-0.74%)" },
-      {name: "NIFTY 50", price: "84,382.40", value: "-621.58(-0.74%)" },
-      {name: "BANK NIFTY", price: "84,382.40", value: "-621.58(-0.74%)" },
-      {name: "IEX", price: "84,382.40", value: "-621.58(-0.74%)" },
-      {name: "Mazagon Dock Ship", price: "84,382.40", value: "-621.58(-0.74%)" },
-      {name: "Nifty Midcap Select", price: "84,382.40", value: "-621.58(-0.74%)" },
-    ],
-    commodities: [
-      {name: "Crude Oil Mini Jan", price: "5066.00", value: "21.00(+0.42%)"},
-      {name: "Crude Oil Jan", price: "5066.00", value: "25.00(+0.50%)"},
-      {name: "Natural Gas Jan", price: "322.50", value: "1.10(+0.34%)"},
-      {name: "Silver Mini Feb", price: "2,44,948.00", value: "-8123.00(-3.22%)"},
-      {name: "Gold Mini Feb", price: "1,37,031.00", value: "-946.00(+0.69%)"},
-      {name: "Natural Gas Mini Jan", price: "322.70", value: "1.40(+0.44%)"},
-    ]
-  }
-
-  const commodities = [
-    { name: "Crude Oil", price: "5235.00", value: "72.00(+1.39%)"},
-    { name: "Gold", price: "1,38,340", value: "598.00(+0.43%)"},
-    { name: "Silver", price: "2,49,173.00", value: "5849.00(+2.40%)"},
-    { name: "Natural Gas", price: "313.80", value: "7.10(+2.31%)"}
-  ]
-
-  const topIndexFutures = [
-    { name: "NIFTY 27 Jan Fut"},
-    { name: "BANKNIFTY 27 Jan Fut"},
-    { name: "NIFTY 24 Feb Fut"},
-    { name: "MIDCPNIFTY 27 Jan Fut"}
-  ]
-
-  const topTradedStock = [
-    { name: "IEX 27 Jan Fut"},
-    { name: "HDFCBANK 27 Jan Fut"},
-    { name: "IDEA 27 Jan Fut"},
-    { name: "BHEL 27 Jan Fut"}
-  ]
  
   return (
     <div className='min-h-screen bg-white dark:bg-(--app-bg) text-blue-950'>
@@ -102,7 +93,7 @@ const ExploreFO = () => {
         
                         {/* Stock grid */}
                         <div className="grid grid-cols-2 sm:grid-cols-6 lg:grid-cols-4 gap-6 relative">
-          {topTradedData[category]?.map((data, index) => (
+          {topTraded.map((data, index) => (
             <div
               key={index}
               className="
@@ -134,18 +125,11 @@ const ExploreFO = () => {
                   text-gray-800
                   dark:text-[var(--text-primary)]
                 ">
-                  ₹{(Math.random() * 3000 + 500).toFixed(2)}
+                  ₹{data.price}
                 </p>
         
-                <p
-                  className={`text-sm font-medium ${
-                    Math.random() > 0.5
-                      ? "text-green-600"
-                      : "text-red-600"
-                  }`}
-                >
-                  {Math.random() > 0.5 ? "+" : "-"}
-                  {(Math.random() * 2).toFixed(2)}%
+                <p className={`text-sm font-medium ${changeColor(data.pChange)}`}>
+                  {data.value}
                 </p>
               </div>
               <p className="w-10 h-10 rounded-full bg-gray-200 dark:bg-[var(--white-10)] dark:text-[var(--text-primary)] flex items-center justify-center font-semibold text-gray-700">
@@ -272,7 +256,7 @@ const ExploreFO = () => {
                         </div>
                       </div>
                     
-                      <MarketTable />
+                      <MarketTable activeTab={activeTab} />
                        {/* See more link */}
                                       <div className="mt-6 pl-2">
                                         <Link
@@ -289,12 +273,12 @@ const ExploreFO = () => {
                                 {/* Left Section */}
                                 <div className="lg:col-span-2">
                                   <h2 className="flex gap-4 font-semibold text-xl mb-6 text-blue-950 dark:text-(--text-primary)">
-                                    Commodities <p>44</p>
+                                    Commodities <p>{commodityCards.length}</p>
                                   </h2>
                   
                                   {/* Stock grid */}
                                   <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6 relative">
-                    {commodities.map((stock, index) => (
+                    {commodityCards.map((stock) => (
                       <div
                         key={stock.name}
                         className="
@@ -308,18 +292,6 @@ const ExploreFO = () => {
                       
                         {/* Logo + Name */}
                         <div>
-                          <div className="
-                            w-10 h-10 mb-2 overflow-hidden rounded
-                            border border-gray-300
-                            dark:border-[var(--border-color)]
-                          ">
-                            <img
-                              src={stock.logo}
-                              alt={stock.name}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                  
                           <h3 className="
                             font-semibold text-sm line-clamp-2 min-h-10
                             text-blue-950
@@ -327,14 +299,6 @@ const ExploreFO = () => {
                           ">
                             {stock.name}
                           </h3>
-                  
-                          {/* <p className="
-                            text-xs mt-1
-                            text-gray-500
-                            dark:text-[var(--text-secondary)]
-                          ">
-                            NSE • Equity
-                          </p> */}
                         </div>
                   
                         {/* Price + Change */}
@@ -344,18 +308,11 @@ const ExploreFO = () => {
                             text-gray-800
                             dark:text-[var(--text-primary)]
                           ">
-                            ₹{(Math.random() * 3000 + 500).toFixed(2)}
+                            ₹{stock.price}
                           </p>
                   
-                          <p
-                            className={`text-sm font-medium ${
-                              Math.random() > 0.5
-                                ? "text-green-600"
-                                : "text-red-600"
-                            }`}
-                          >
-                            {Math.random() > 0.5 ? "+" : "-"}
-                            {(Math.random() * 2).toFixed(2)}%
+                          <p className={`text-sm font-medium ${changeColor(stock.pChange)}`}>
+                            {stock.value}
                           </p>
                         </div>
                       </div>
@@ -385,7 +342,7 @@ const ExploreFO = () => {
                   
                                   {/* Stock grid */}
                                   <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6 relative">
-                    {topIndexFutures.map((stock, index) => (
+                    {indexFutures.map((stock) => (
                       <div
                         key={stock.name}
                         className="
@@ -397,20 +354,7 @@ const ExploreFO = () => {
                         "
                       >
                       
-                        {/* Logo + Name */}
                         <div>
-                          <div className="
-                            w-10 h-10 mb-2 overflow-hidden rounded
-                            border border-gray-300
-                            dark:border-[var(--border-color)]
-                          ">
-                            <img
-                              src={stock.logo}
-                              alt={stock.name}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                  
                           <h3 className="
                             font-semibold text-sm line-clamp-2 min-h-10
                             text-blue-950
@@ -420,25 +364,17 @@ const ExploreFO = () => {
                           </h3>
                         </div>
                   
-                        {/* Price + Change */}
                         <div>
                           <p className="
                             text-lg font-bold mt-2
                             text-gray-800
                             dark:text-[var(--text-primary)]
                           ">
-                            ₹{(Math.random() * 3000 + 500).toFixed(2)}
+                            ₹{stock.price}
                           </p>
                   
-                          <p
-                            className={`text-sm font-medium ${
-                              Math.random() > 0.5
-                                ? "text-green-600"
-                                : "text-red-600"
-                            }`}
-                          >
-                            {Math.random() > 0.5 ? "+" : "-"}
-                            {(Math.random() * 2).toFixed(2)}%
+                          <p className={`text-sm font-medium ${changeColor(stock.pChange)}`}>
+                            {stock.value}
                           </p>
                         </div>
                       </div>
@@ -498,12 +434,7 @@ const ExploreFO = () => {
             </h2>
         
             <div className="space-y-5">
-              {[
-                { name: "IPO", route: "/ipo", count: 6 },
-                { name: "Bonds", route: "/bond", count: 1 },
-                { name: "ETFs", route: "/", count: 2 },
-                { name: "Fixed Deposit", route: "/", count: 3 },
-              ].map((tool) => (
+              {products.map((tool) => (
                 <a
                   href={tool.route}
                   key={tool.name}
@@ -553,14 +484,10 @@ const ExploreFO = () => {
             </h2>
         
             <div className="space-y-5">
-              {[
-                "Nippon India ETF",
-                "HDFC Gold ETF",
-                "ICICI Prudential Nifty Next 50",
-              ].map((etf) => (
+              {etfs.map((etf) => (
                 <a
                   href="#"
-                  key={etf}
+                  key={etf.name ?? etf}
                   className="
                     bg-white rounded-xl p-4 shadow
                     hover:shadow-md transition block
@@ -576,7 +503,7 @@ const ExploreFO = () => {
                       dark:text-[var(--text-primary)]
                     "
                   >
-                    {etf}
+                    {etf.name ?? etf}
                   </h3>
         
                   <p
@@ -601,9 +528,18 @@ const ExploreFO = () => {
 }
 
 // Table for movers
-const MarketTable = () => {
+const MarketTable = ({ activeTab }) => {
       const [hoveredRow, setHoveredRow] = useState(null);
   const [selectedStock, setSelectedStock] = useState(null);
+  const [data, setData] = useState([]);
+
+  useEffect(() => {
+    const type = activeTab === "Losers" ? "losers" : "gainers";
+    fetchMarketMovers(type)
+      .then((r) => setData(r?.data ?? []))
+      .catch(() => setData([]));
+  }, [activeTab]);
+
      // Bookmark API call
   const handleBookmark = async (company) => {
     try {
@@ -613,13 +549,6 @@ const MarketTable = () => {
       console.error("Bookmark failed", err);
     }
   };
-  const data = [
-    { company: "Reliance", indexName: "RELIANCE", price: "₹2,987.30", volume: "12.3M" },
-    { company: "Infosys Limited", indexName: "INFY", price: "₹1,540.25", volume: "9.8M" },
-    { company: "TCS", indexName: "TCS", price: "₹3,700.00", volume: "8.1M" },
-    { company: "HDFC", indexName: "HDFCBANK", price: "₹1,670.50", volume: "5.6M" },
-    { company: "ICICI Bank", indexName: "ICICIBANK", price: "₹980.60", volume: "4.7M" },
-  ];
 
    return (
     <div

@@ -2,10 +2,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FiChevronLeft, FiChevronRight, FiSearch } from "react-icons/fi";
-import { blogData as staticBlogData } from "../data/blogData";
 import { highlightText } from "../utils/highlight";
 
-const API_ENDPOINT = ""; // keep empty to use static
+const API_ENDPOINT = `${import.meta.env.VITE_URL}/content/blogs`;
 
 const categories = [
   "All",
@@ -59,14 +58,14 @@ const Blog = () => {
           const data = await res.json();
           if (!mounted) return;
 
-          setAllPosts(Array.isArray(data) ? data : data.posts || []);
+          setAllPosts(data?.data ?? (Array.isArray(data) ? data : data.posts ?? []));
         } else {
-          setAllPosts(staticBlogData);
+          setAllPosts([]);
         }
       } catch (err) {
         console.error(err);
-        setError("Couldn't fetch blogs. Using local demo data.");
-        setAllPosts(staticBlogData);
+        setError("Couldn't fetch blogs.");
+        setAllPosts([]);
       } finally {
         if (mounted) setLoading(false);
       }

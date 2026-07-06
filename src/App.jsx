@@ -87,8 +87,6 @@ import BasketList from "./pages/basket/BasketList";
 import CreateBasket from "./pages/basket/CreateBasket";
 import BasketDetails from "./pages/basket/BasketDetails";
 
-import basketsData from "./data/baskets";
-import basketDetailsData from "./data/basketDetails";
 import Invest from "./pages/basket/Invest";
 import Performance from "./pages/basket/Performance";
 import AMCPage from "./pages/AMCPage";
@@ -270,7 +268,6 @@ const StockDetails = lazy(() => import("./components/StockDetails"));
   const { pathname } = useLocation();
   const { token } = useSelector((state) => state.auth);
     // const [baskets] = useState(basketsData); // static for now
-  const [basketDetails] = useState(basketDetailsData);
   const [baskets, setBaskets] = useState([]);
 
     useEffect(() => {
@@ -284,9 +281,10 @@ const StockDetails = lazy(() => import("./components/StockDetails"));
         try {
           const res = await getApiWithToken(url);
           console.log("All Baskets", res?.data);
-          setBaskets(res?.data?.data);
+          setBaskets(res?.data?.data ?? []);
         } catch (error) {
           toastError(error.message);
+          setBaskets([]);
         }
       };
 
@@ -495,25 +493,14 @@ useEffect(() => {
                 element={<BasketList baskets={baskets} />}
               />
 
-              <Route
-                path="/basket/:id"
-                element={
-                  <BasketDetails
-                    baskets={baskets}
-                    basketDetails={basketDetails}
-                  />
-                }
-              />
+              <Route path="/basket/:id" element={<BasketDetails />} />
 
               <Route
                 path="/invest/:id"
                 element={<Invest baskets={baskets} />}
               />
 
-              <Route
-                path="/performance/:id"
-                element={<Performance basketDetails={basketDetails} />}
-              />
+              <Route path="/performance/:id" element={<Performance />} />
               <Route path="/create-basket" element={<CreateBasket />} />
             </Route>
 

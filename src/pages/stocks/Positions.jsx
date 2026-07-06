@@ -1,30 +1,16 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import emptyDashboardImg from "../../assets/stocks/stockEmptyDashboard.svg";
+import { getApiWithToken } from "../../api/api";
 
 const Positions = () => {
-  //  Replace with API data later
-  const hasStocks = true;
+  const [stocks, setStocks] = useState([]);
 
-  const stocks = [
-    {
-      name: "Tata Motors",
-      qty: 10,
-      avgBuy: 600,
-      current: 720,
-    },
-    {
-      name: "HDFC Bank",
-      qty: 5,
-      avgBuy: 1520,
-      current: 1480,
-    },
-    {
-      name: "Infosys",
-      qty: 8,
-      avgBuy: 1320,
-      current: 1410,
-    },
-  ];
+  useEffect(() => {
+    const url = `${import.meta.env.VITE_URL}/portfolio/stocks/positions`;
+    getApiWithToken(url).then((res) => setStocks(res?.data?.data ?? [])).catch(() => setStocks([]));
+  }, []);
+
+  const hasStocks = stocks.length > 0;
 
   // 👉 Calculate totals
   const totalInvested = stocks.reduce(

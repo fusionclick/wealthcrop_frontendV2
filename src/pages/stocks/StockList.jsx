@@ -1,7 +1,8 @@
 import { CandlestickChart, IndianRupee, Search } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { NavLink, useParams } from "react-router-dom";
 import TrendChart from "../../components/TrendChart";
+import { fetchMarketMovers } from "../../api/marketApi";
 
 const formatTitle = (param = "") =>
   param
@@ -9,51 +10,46 @@ const formatTitle = (param = "") =>
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
 
-const stocks = [
-  {
-    name: "Rolex Rings",
-    symbol: "ROLEX",
-    price: 161.2,
-    change: 21.72,
-    percent: 15.57,
-    volume: "3,76,84,943",
-  },
-  {
-    name: "OLA Electric Mobility",
-    symbol: "OLA",
-    price: 37.53,
-    change: -1.69,
-    percent: -4.31,
-    volume: "9,46,79,164",
-  },
-  {
-    name: "Groww",
-    symbol: "GROWW",
-    price: 214.05,
-    change: 17.94,
-    percent: 9.15,
-    volume: "18,13,98,603",
-  },
-];
-
-
+const moverType = (title) => {
+  const t = title.toLowerCase();
+  if (t.includes("loser")) return "losers";
+  if (t.includes("volume")) return "volume";
+  return "gainers";
+};
 
 const StockList = () => {
   const { name } = useParams();
   const title = formatTitle(name);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [hoveredRow, setHoveredRow] = useState(null)
+  const [hoveredRow, setHoveredRow] = useState(null);
+  const [stocks, setStocks] = useState([]);
 
-  const watchList = [
-    { name: "Canara Bank", trend: "up", price: "137.42", oneDvol: "1,92,54,808", trendData: [5, 8, 7, 10, 6, 9] },
-    { name: "Indian Oil Corporation", trend: "up", price: "187.14", oneDvol: "47,64,467",trendData: [10, 12, 9, 14, 13, 15] },
-    { name: "Eternal(Zomato)", trend: "up", price: "304.20", oneDvol: "68,77,503" },
-    { name: "PNB", trend: "up", price: "150.12", oneDvol: "1,92,54,808" },
-    { name: "BPCL", trend: "up", price: "180.12", oneDvol: "1,92,54,808" },
-  ];
+  useEffect(() => {
+    fetchMarketMovers(moverType(title))
+      .then((r) =>
+        setStocks(
+          (r?.data ?? []).map((row) => ({
+            name: row.name || row.company,
+            symbol: row.indexName || row.company,
+            price: parseFloat(String(row.price).replace(/[^\d.]/g, "")) || 0,
+            percent: parseFloat(row.change) || 0,
+            volume: row.volume,
+          }))
+        )
+      )
+      .catch(() => setStocks([]));
+  }, [title]);
 
-  const filteredList = watchList.filter((item) =>
+  const list = stocks.map((s) => ({
+    name: s.name,
+    price: s.price,
+    oneDvol: s.volume,
+    percent: s.percent,
+    trendData: [5, 8, 7, 10, 6, 9],
+  }));
+
+  const filteredList = list.filter((item) =>
     item.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -122,13 +118,11 @@ const StockList = () => {
               <td className="py-4 px-3">
                 <p
                   className={`text-sm font-medium ${
-                    Math.random() > 0.5
-                      ? "text-green-600"
-                      : "text-red-600"
+                    item.percent >= 0 ? "text-green-600" : "text-red-600"
                   }`}
                 >
-                  {Math.random() > 0.5 ? "+" : "-"}
-                  {(Math.random() * 2).toFixed(2)}%
+                  {item.percent >= 0 ? "+" : ""}
+                  {item.percent.toFixed(2)}%
                 </p>
               </td>
 
@@ -196,14 +190,11 @@ const StockList = () => {
 
             <span
               className={`font-medium ${
-                Math.random() > 0.5
-                  ? "text-green-600"
-                  : "text-red-600"
+                item.percent >= 0 ? "text-green-600" : "text-red-600"
               }`}
             >
-              {(Math.random() > 0.5 ? "+" : "-") +
-                (Math.random() * 2).toFixed(2)}
-              %
+              {item.percent >= 0 ? "+" : ""}
+              {item.percent.toFixed(2)}%
             </span>
           </div>
 

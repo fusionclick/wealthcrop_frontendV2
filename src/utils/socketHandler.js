@@ -1,29 +1,29 @@
 import { useEffect } from "react";
 import { useDispatch } from "react-redux";
-import socket from "./socket";
 import { setStocks } from "../redux/stockSlice";
+import { fetchStockList } from "../api/marketApi";
 
 const SocketHandler = () => {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    const fetchStockList = () => {
-      socket.emit("get_stock_list");
+    const load = () => {
+      fetchStockList("NIFTY 50")
+        .then((res) => {
+          const rows = (res?.data ?? []).map((s) => ({
+            meta: { companyName: s.companyName, symbol: s.symbol, segment: s.segment },
+            lastPrice: s.lastPrice,
+            pChange: s.pChange,
+            chartTodayPath: null,
+          }));
+          dispatch(setStocks(rows));
+        })
+        .catch(() => dispatch(setStocks([])));
     };
 
-    socket.on("stock_list", (data) => {
-      console.log("Stock List", data);
-      dispatch(setStocks(data?.data));
-    });
-
-    const interval = setInterval(fetchStockList, 1000);
-
-    fetchStockList();
-
-    return () => {
-      clearInterval(interval);
-      socket.off("stock_list");
-    };
+    load();
+    const interval = setInterval(load, 30000);
+    return () => clearInterval(interval);
   }, [dispatch]);
 
   return null;

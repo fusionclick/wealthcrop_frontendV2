@@ -1,9 +1,22 @@
 import { useParams, Link } from "react-router-dom";
 import Chart from "../../components/Chart";
+import { useEffect, useState } from "react";
+import { getApiWithToken } from "../../api/api";
 
-export default function Performance({ basketDetails }) {
+export default function Performance() {
   const { id } = useParams();
-  const details = basketDetails[id];
+  const [details, setDetails] = useState(null);
+
+  useEffect(() => {
+    const url = `${import.meta.env.VITE_URL}/baskets/${id}`;
+    getApiWithToken(url).then((res) => {
+      setDetails(res?.data?.data ?? res?.data ?? null);
+    }).catch(() => setDetails(null));
+  }, [id]);
+
+  if (!details) {
+    return <div className="p-10 text-center">Loading performance...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-[#f3f7fb] p-6">
@@ -28,94 +41,33 @@ export default function Performance({ basketDetails }) {
         {/* NAV Trend */}
         <div className="bg-white border border-[#e0e7ef] rounded-xl shadow-sm p-4">
           <h2 className="font-semibold text-slate-800 text-[15px] mb-2">NAV Trend</h2>
-          <div className="h-36">
-            <Chart type="line" data={details.navHistory} />
-          </div>
+          <Chart data={details.navHistory || []} />
         </div>
 
-        {/* Rolling Returns */}
-        <div className="bg-white border border-[#e0e7ef] rounded-xl shadow-sm p-4">
-          <h2 className="font-semibold text-slate-800 text-[15px] mb-3">Rolling Returns</h2>
-
-          <div className="grid grid-cols-3 gap-4 text-center">
-
-            <div className="bg-[#f9fbff] border border-[#e0e7ef] p-3 rounded-lg">
-              <p className="text-xs text-gray-500">1-Year Rolling</p>
-              <p className="text-lg font-semibold text-green-600">
-                {details.rolling?.rolling1Y || "9.8"}%
-              </p>
+        {/* Metrics */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {details.metrics && Object.entries(details.metrics).map(([key, val]) => (
+            <div key={key} className="bg-white border rounded-xl p-4">
+              <p className="text-xs text-gray-500 uppercase">{key}</p>
+              <p className="text-lg font-semibold">{val}</p>
             </div>
-
-            <div className="bg-[#f9fbff] border border-[#e0e7ef] p-3 rounded-lg">
-              <p className="text-xs text-gray-500">3-Year Rolling</p>
-              <p className="text-lg font-semibold text-green-600">
-                {details.rolling?.rolling3Y || "10.4"}%
-              </p>
-            </div>
-
-            <div className="bg-[#f9fbff] border border-[#e0e7ef] p-3 rounded-lg">
-              <p className="text-xs text-gray-500">5-Year Rolling</p>
-              <p className="text-lg font-semibold text-green-600">
-                {details.rolling?.rolling5Y || "11.1"}%
-              </p>
-            </div>
-
-          </div>
+          ))}
         </div>
 
-        {/* RISK METRICS */}
-        <div className="bg-white border border-[#e0e7ef] rounded-xl shadow-sm p-4">
-          <h2 className="font-semibold text-slate-800 text-[15px] mb-3">Risk Metrics</h2>
-
-          <div className="grid grid-cols-2 gap-4">
-
-            <div className="bg-[#f9fbff] border border-[#e0e7ef] p-3 rounded-lg">
-              <p className="text-xs text-gray-500">Sharpe Ratio</p>
-              <p className="text-lg font-semibold text-slate-900">
-                {details.metrics.sharpe}
-              </p>
+        {/* Rolling returns */}
+        {details.rolling && (
+          <div className="bg-white border rounded-xl p-4">
+            <h2 className="font-semibold mb-3">Rolling Returns</h2>
+            <div className="flex gap-6">
+              {Object.entries(details.rolling).map(([k, v]) => (
+                <div key={k}>
+                  <p className="text-xs text-gray-500">{k}</p>
+                  <p className="font-semibold">{v}%</p>
+                </div>
+              ))}
             </div>
-
-            <div className="bg-[#f9fbff] border border-[#e0e7ef] p-3 rounded-lg">
-              <p className="text-xs text-gray-500">Standard Deviation</p>
-              <p className="text-lg font-semibold text-slate-900">
-                {details.metrics.stdDev}
-              </p>
-            </div>
-
-            <div className="bg-[#f9fbff] border border-[#e0e7ef] p-3 rounded-lg">
-              <p className="text-xs text-gray-500">Max Drawdown</p>
-              <p className="text-lg font-semibold text-red-500">
-                {details.metrics.maxDrawdown || "-12.4%"}
-              </p>
-            </div>
-
-            <div className="bg-[#f9fbff] border border-[#e0e7ef] p-3 rounded-lg">
-              <p className="text-xs text-gray-500">Beta</p>
-              <p className="text-lg font-semibold text-slate-900">
-                {details.metrics.beta || "0.92"}
-              </p>
-            </div>
-
           </div>
-        </div>
-
-        {/* CATEGORY RETURN COMPARISON */}
-        <div className="bg-white border border-[#e0e7ef] rounded-xl shadow-sm p-4">
-          <h2 className="font-semibold text-slate-800 text-[15px] mb-3">Category Comparison</h2>
-
-          <p className="text-sm text-gray-600">
-            Basket vs Category Average (illustration)
-          </p>
-
-          <div className="h-36 mt-3">
-            <Chart
-              type="line"
-              data={[8, 9.5, 10.2, 11.5, 12.4]} // dummy category chart
-            />
-          </div>
-        </div>
-
+        )}
       </div>
     </div>
   );

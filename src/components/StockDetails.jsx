@@ -18,6 +18,7 @@ import { MdOutlineInfo } from "react-icons/md";
 import logo from "../assets/mutualFund/sbi.webp"
 import { useParams } from "react-router-dom";
 import CandleChart from "./chart/CandleChart";
+import TradingViewChart from "./charts/TradingViewChart";
 import {
   data_1D,
   data_1W,
@@ -509,7 +510,7 @@ const getLogoUrl = (stockDetails) => {
       dark:bg-(--white-10)
       ">
         
-        <CandleChart height={320} />
+        <TradingViewChart symbol={name ? `NSE:${name}` : undefined} height={320} />
 
         {/* BELOW CHART: keep your Day High / Day Low cards */}
         <div className="mt-4 grid grid-cols-2 gap-3">

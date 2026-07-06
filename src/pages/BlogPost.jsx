@@ -1,10 +1,9 @@
 // src/pages/BlogPost.jsx
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { blogData as staticBlogData } from "../data/blogData";
 import { FiShare2 } from "react-icons/fi";
 
-const API_ENDPOINT = ""; // same endpoint as list if available
+const API_ENDPOINT = `${import.meta.env.VITE_URL}/content/blogs`;
 
 const estimateReadTime = (text = "") => {
   const words = text.trim().split(/\s+/).length;
@@ -28,19 +27,18 @@ const BlogPost = () => {
           const res = await fetch(API_ENDPOINT);
           const data = await res.json();
           if (!mounted) return;
-          const posts = Array.isArray(data) ? data : data.posts || [];
+          const posts = data?.data ?? (Array.isArray(data) ? data : data.posts ?? []);
           setAllPosts(posts);
           setPost(posts.find((p) => String(p.id) === String(id)));
         } catch (e) {
           console.error(e);
-          setAllPosts(staticBlogData);
-          setPost(staticBlogData.find((p) => String(p.id) === String(id)));
+          setPost(null);
         } finally {
           if (mounted) setLoading(false);
         }
       } else {
-        setAllPosts(staticBlogData);
-        setPost(staticBlogData.find((p) => String(p.id) === String(id)));
+        setAllPosts([]);
+        setPost(null);
         setLoading(false);
       }
     }
