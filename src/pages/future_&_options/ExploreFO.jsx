@@ -679,7 +679,7 @@ const MarketTable = ({ activeTab }) => {
         </h2>
 
         <iframe
-          src={`https://s.tradingview.com/widgetembed/?symbol=${selectedStock}&interval=1D&hidesidetoolbar=1&symboledit=1&saveimage=0&toolbarbg=f1f3f6`}
+          src={`https://s.tradingview.com/widgetembed/?symbol=${encodeURIComponent(selectedStock?.includes(":") ? selectedStock : `NSE:${selectedStock}`)}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=0&toolbarbg=f1f3f6&theme=light&style=1&timezone=Asia%2FKolkata`}
           style={{ width: "100%", height: "400px", border: "none" }}
           title="TradingView Chart"
         />

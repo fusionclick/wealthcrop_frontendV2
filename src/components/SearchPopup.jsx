@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from "react";
 import { Search, ArrowLeft, Bookmark } from "lucide-react";
 import { postApiWithToken } from "../api/api";
+import { searchStocks } from "../api/marketApi";
 import { useNavigate } from "react-router-dom";
 import { nodeUrl } from "../utils/nodeApi";
 
@@ -10,6 +11,7 @@ export default function SearchPopup({ onClose }) {
   const [filterTag, setFilterTag] = useState("All")
   const [query, setQuery] = useState("");
     const [results, setResults] = useState([]);
+    const [stockResults, setStockResults] = useState([]);
     const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -34,8 +36,26 @@ export default function SearchPopup({ onClose }) {
 
     if (text.length < 2) {
       setResults([]);
+      setStockResults([]);
+      setLoading(false);
       return;
     }
+
+    const searchStocksNow =
+      filterTag === "All" || filterTag === "Stocks"
+        ? searchStocks(text)
+            .then((r) => setStockResults(r?.data ?? []))
+            .catch(() => setStockResults([]))
+        : Promise.resolve().then(() => setStockResults([]));
+
+    if (filterTag === "Stocks") {
+      await searchStocksNow;
+      setResults([]);
+      setLoading(false);
+      return;
+    }
+
+    await searchStocksNow;
 
     const payload = {
       data:{
@@ -218,6 +238,33 @@ export default function SearchPopup({ onClose }) {
 
     {/* CONTENT */}
     <div className="flex-1 overflow-hidden">
+      {stockResults.length > 0 && (
+        <div className="border-b border-gray-100 dark:border-[var(--border-color)]">
+          <h3 className="px-5 pt-4 pb-2 text-xs font-semibold text-gray-500">Stocks</h3>
+          {stockResults.map((stock) => (
+            <div
+              key={stock.symbol}
+              onClick={() => {
+                onClose();
+                navigate(`/stocks/${stock.symbol}`);
+              }}
+              className="px-5 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-[var(--gray-800)] flex justify-between items-center"
+            >
+              <div>
+                <div className="text-sm font-medium dark:text-[var(--text-primary)]">
+                  {stock.companyName}
+                </div>
+                <div className="text-xs text-gray-500">{stock.symbol} · NSE</div>
+              </div>
+              {stock.lastPrice > 0 && (
+                <div className="text-sm font-semibold dark:text-[var(--text-primary)]">
+                  ₹{stock.lastPrice}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
       {results.length > 0 ? (
         <div className="h-full overflow-y-auto">
           {results.map((asset) => (
@@ -273,7 +320,7 @@ export default function SearchPopup({ onClose }) {
             </div>
           ))}
         </div>
-      ) : (
+      ) : stockResults.length === 0 ? (
         <div className="h-full overflow-y-auto">
           {/* TRENDING */}
           <div className="px-5 pt-5">
@@ -346,7 +393,7 @@ export default function SearchPopup({ onClose }) {
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   </div>
 </div>

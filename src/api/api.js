@@ -1,9 +1,11 @@
 import axios from "axios";
 import { toastError } from "../utils/notifyCustom";
 
+const api = axios.create({ timeout: 120000 });
+
 export const getApi = async (url) => {
   try {
-    const response = await axios.get(url);
+    const response = await api.get(url);
     return response.data;
   } catch (error) {
     console.error("API error:", error);
@@ -20,7 +22,7 @@ export const getApiWithToken = async (url) => {
   }
 
   try {
-    const response = await axios.get(url, {
+    const response = await api.get(url, {
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",

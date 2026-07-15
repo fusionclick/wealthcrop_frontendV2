@@ -5,7 +5,13 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
-    host: true,          // ⬅ REQUIRED
-    allowedHosts: true,  // ⬅ DISABLE host validation entirely
+    host: true,
+    allowedHosts: true,
+    proxy: {
+      "/api/internal": {
+        target: "http://127.0.0.1:8000",
+        changeOrigin: true,
+      },
+    },
   },
 });

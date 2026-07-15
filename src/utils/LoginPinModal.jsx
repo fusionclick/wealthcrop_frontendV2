@@ -75,8 +75,14 @@ function LoginPinModal({ onSuccess }) {
       const res = await postApi(url, { phone });
 
       if (res?.status === 200 || res?.status === true) {
+        if (res?.auto_reset && res?.pin) {
+          toastSuccess(`New PIN: ${res.pin}`);
+          setPin(["", "", "", ""]);
+          setError("");
+          return;
+        }
         toastSuccess(res?.message);
-        setMode("reset"); // 🔥 switch UI
+        setMode("reset");
       }
     } catch (error) {
       toastError(error?.message);
