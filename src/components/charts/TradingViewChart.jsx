@@ -1,82 +1,79 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
+import { normalizeTvSymbol, tradingViewChartUrl } from "../../utils/tradingView";
 
-const TV_SCRIPT_SRC = "https://s3.tradingview.com/tv.js";
-
-let tvScriptPromise;
-function loadTradingViewScript() {
-  if (window.TradingView) return Promise.resolve();
-  if (!tvScriptPromise) {
-    tvScriptPromise = new Promise((resolve, reject) => {
-      const script = document.createElement("script");
-      script.src = TV_SCRIPT_SRC;
-      script.async = true;
-      script.onload = resolve;
-      script.onerror = reject;
-      document.body.appendChild(script);
-    });
-  }
-  return tvScriptPromise;
-}
-
+/** Real TradingView Advanced Chart — same as tradingview.com/chart/?symbol=NSE%3ATCS */
 const TradingViewChart = ({ symbol, height = 400 }) => {
-  const container = useRef(null);
-  const containerId = useRef(
-    `tv_chart_${Math.random().toString(36).slice(2)}`
-  );
-  const [status, setStatus] = useState("loading"); // loading | ready | error
+  const tvSymbol = normalizeTvSymbol(symbol);
+  const containerRef = useRef(null);
 
   useEffect(() => {
-    if (!symbol) {
-      setStatus("error");
-      return;
-    }
+    if (!tvSymbol || !containerRef.current) return;
 
-    let cancelled = false;
-    setStatus("loading");
+    const el = containerRef.current;
+    el.innerHTML = "";
 
-    loadTradingViewScript()
-      .then(() => {
-        if (cancelled || !container.current) return;
-        new window.TradingView.widget({
-          container_id: containerId.current,
-          autosize: true,
-          symbol,
-          interval: "5",
-          timezone: "Asia/Kolkata",
-          theme: "light",
-          style: "1",
-          locale: "in",
-          enable_publishing: false,
-          allow_symbol_change: true,
-        });
-        setStatus("ready");
-      })
-      .catch(() => {
-        if (!cancelled) setStatus("error");
-      });
+    const widget = document.createElement("div");
+    widget.className = "tradingview-widget-container__widget";
+    widget.style.height = `${height}px`;
+    widget.style.width = "100%";
+    el.appendChild(widget);
+
+    const script = document.createElement("script");
+    script.src =
+      "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
+    script.type = "text/javascript";
+    script.async = true;
+    script.textContent = JSON.stringify({
+      autosize: true,
+      symbol: tvSymbol,
+      interval: "D",
+      timezone: "Asia/Kolkata",
+      theme: "light",
+      style: "1",
+      locale: "en",
+      allow_symbol_change: true,
+      calendar: false,
+      hide_top_toolbar: false,
+      hide_legend: false,
+      support_host: "https://www.tradingview.com",
+    });
+    el.appendChild(script);
 
     return () => {
-      cancelled = true;
+      el.innerHTML = "";
     };
-  }, [symbol]);
+  }, [tvSymbol, height]);
+
+  if (!tvSymbol) {
+    return (
+      <div
+        className="flex items-center justify-center text-sm text-red-500"
+        style={{ height }}
+      >
+        Chart unavailable for this symbol.
+      </div>
+    );
+  }
 
   return (
-    <div className="relative w-full" style={{ height }}>
-      {status === "loading" && (
-        <div className="absolute inset-0 flex items-center justify-center text-sm text-slate-500 dark:text-[var(--text-secondary)]">
-          Loading chart…
-        </div>
-      )}
-      {status === "error" && (
-        <div className="absolute inset-0 flex items-center justify-center text-sm text-red-500">
-          Chart unavailable for this symbol.
-        </div>
-      )}
+    <div className="w-full">
+      <div className="flex items-center justify-between mb-2 px-1">
+        <span className="text-sm font-semibold text-slate-700 dark:text-[var(--text-primary)]">
+          {tvSymbol}
+        </span>
+        <a
+          href={tradingViewChartUrl(tvSymbol)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm font-medium text-blue-600 hover:underline"
+        >
+          Open on TradingView ↗
+        </a>
+      </div>
       <div
-        id={containerId.current}
-        ref={container}
-        className="h-full w-full"
-        style={{ visibility: status === "ready" ? "visible" : "hidden" }}
+        className="tradingview-widget-container"
+        ref={containerRef}
+        style={{ height, width: "100%" }}
       />
     </div>
   );

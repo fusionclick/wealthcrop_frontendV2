@@ -38,7 +38,6 @@ function ScrollToTopButton() {
         backdropFilter: "blur(4px)",
         transition: "transform 0.25s ease, box-shadow 0.25s ease",
         zIndex: 999,
-        transition: "transform 0.25s ease, box-shadow 0.25s ease"
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.transform = "scale(1.06)";

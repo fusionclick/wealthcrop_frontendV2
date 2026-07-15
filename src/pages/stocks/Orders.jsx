@@ -17,20 +17,7 @@ const Orders = () => {
   // This stores only the items currently displayed
   const [visibleOrders, setVisibleOrders] = useState([]);
 
-  // -----------------------------------------------------------
-  // STATIC DATA (this is used now)
-  // -----------------------------------------------------------
-  const ALL_ORDERS = Array.from({ length: 50 }).map((_, i) => ({
-    id: i + 1,
-    symbol: ["INFY", "TCS", "HDFCBANK", "RELIANCE", "SBIN"][i % 5],
-    name: ["Infosys", "TCS", "HDFC Bank", "Reliance", "SBI"][i % 5],
-    side: i % 2 === 0 ? "BUY" : "SELL",
-    status: ["Executed", "Pending", "Rejected"][i % 3],
-    qty: [10, 5, 12, 20][i % 4],
-    price: [1520.5, 3675.2, 1621.0, 2420][i % 4],
-    orderType: ["LIMIT", "MARKET"][i % 2],
-    placedAt: `0${(i % 9) + 1} Jan, ${(i % 12) + 9}:${(i % 50) + 10} AM`,
-  }));
+  const ALL_ORDERS = [];
 
   // -----------------------------------------------------------
   //  Filter + Search Logic (Core Fix)

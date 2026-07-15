@@ -3,27 +3,41 @@ import { useDispatch } from "react-redux";
 import { setStocks } from "../redux/stockSlice";
 import { fetchStockList } from "../api/marketApi";
 
+const POLL_MS = Number(import.meta.env.VITE_STOCK_POLL_MS) || 10000;
+
+const toReduxRow = (s) => ({
+  meta: {
+    companyName: s.companyName,
+    symbol: s.symbol,
+    segment: s.segment ?? "EQ",
+  },
+  lastPrice: s.lastPrice,
+  pChange: s.pChange,
+  chartTodayPath: null,
+  live: s.live ?? false,
+});
+
 const SocketHandler = () => {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    const load = () => {
-      fetchStockList("NIFTY 50")
-        .then((res) => {
-          const rows = (res?.data ?? []).map((s) => ({
-            meta: { companyName: s.companyName, symbol: s.symbol, segment: s.segment },
-            lastPrice: s.lastPrice,
-            pChange: s.pChange,
-            chartTodayPath: null,
-          }));
-          dispatch(setStocks(rows));
-        })
-        .catch(() => dispatch(setStocks([])));
-    };
+    let cancelled = false;
 
-    load();
-    const interval = setInterval(load, 30000);
-    return () => clearInterval(interval);
+    const loadLive = () =>
+      fetchStockList("NIFTY 500", 50)
+        .then((res) => {
+          if (cancelled) return;
+          const rows = (res?.data ?? []).map(toReduxRow);
+          if (rows.length) dispatch(setStocks(rows));
+        })
+        .catch(() => {});
+
+    loadLive();
+    const interval = setInterval(loadLive, POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [dispatch]);
 
   return null;

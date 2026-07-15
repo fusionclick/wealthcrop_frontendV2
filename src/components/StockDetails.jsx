@@ -1,149 +1,76 @@
-// StockDetailsPremiumFull.jsx
-import React, { useEffect, useMemo, useState } from "react";
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as ReTooltip,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  LabelList,
-} from "recharts";
+import React, { useEffect, useState } from "react";
 import { FiShare2 } from "react-icons/fi";
 import { AiOutlineStar } from "react-icons/ai";
 import { MdOutlineInfo } from "react-icons/md";
-import logo from "../assets/mutualFund/sbi.webp"
 import { useParams } from "react-router-dom";
-import CandleChart from "./chart/CandleChart";
 import TradingViewChart from "./charts/TradingViewChart";
-import {
-  data_1D,
-  data_1W,
-  data_1M,
-  data_3M,
-  data_6M,
-  data_1Y,
-  data_3Y,
-  data_5Y,
-  data_All,
-} from "./chart/chartData";
 import OrderEntryPage from "../pages/stocks/OrderEntryPage";
-import socket from "../utils/socket";
-
-/**
- * NOTE: use your uploaded image path here (developer provided).
- * The image is available at:
- * /mnt/data/489847be-2715-4255-af96-6c64dad8bb92.png
- */
+import { fetchStockDetails } from "../api/marketApi";
+import { stockLogoUrl } from "../utils/stockLogo";
 
 const StockDetails = () => {
-  // ---------------- MOCK STOCK DATA ----------------
-  const {name} = useParams()
-  
-  const baseStock = {
-    name: "AetherTech Solutions Ltd.",
-    symbol: "AETHER",
-    price: 1489.6,
-    marketCap: "₹1,95,200 Cr",
-    pe: 28.3,
-    volume: 5_820_321,
-    week52High: 1750,
-    week52Low: 820,
-    beta: 1.12,
-    dividendYield: "0.95%",
-    description:
-      "AetherTech Solutions is a technology & cloud solutions provider focused on enterprise digital transformation, AI services and edge computing platforms.",
-    rating: 4.4,
-  };
+  const { name } = useParams();
+  const [stockDetails, setStockDetails] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // timeseries (30 points) - mock
-  const timeseries = useMemo(() => {
-    const arr = [];
-    let base = 1420;
-    for (let i = 29; i >= 0; i--) {
-      base += (Math.sin(i / 3) * 5 + (Math.random() - 0.5) * 10);
-      arr.push({
-        x: `D-${i}`,
-        price: Math.round(base * 100) / 100,
-      });
-    }
-    return arr;
-  }, []);
+  useEffect(() => {
+    if (!name) return;
 
-  const [stockDetails, setStockDetails] = useState()
+    let cancelled = false;
 
+    const load = () => {
+      fetchStockDetails(name)
+        .then((res) => {
+          if (!cancelled && res?.data) {
+            setStockDetails(res.data);
+            setLoading(false);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setLoading(false);
+        });
+    };
 
- useEffect(() => {
-   setStockDetails(null); 
-   
-  if (!name) return; 
+    load();
+    const interval = setInterval(load, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [name]);
 
-  const fetchStockDetails = () => {
-    socket.emit("get_details", { symbol: name });
-  };
+  // ponytail: financials removed until real source exists
 
-  const handleStockDetails = (data) => {
-    console.log("Stock Details", data);
-    setStockDetails(data);
-  };
+  const livePrice = stockDetails?.priceInfo?.lastPrice ?? 0;
+  const pctChange = stockDetails?.priceInfo?.pChange ?? 0;
+  const marketCapDisplay =
+    stockDetails?.securityInfo?.issuedSize && livePrice
+      ? (
+          (stockDetails.securityInfo.issuedSize * livePrice) /
+          1e7
+        ).toFixed(2) + " Cr"
+      : "—";
 
-  socket.on("stock_details", handleStockDetails);
+  const chartSymbol = stockDetails?.info?.symbol
+    ? `NSE:${stockDetails.info.symbol}`
+    : name
+      ? `NSE:${String(name).toUpperCase()}`
+      : undefined;
 
-  fetchStockDetails(); // initial call
+  const tradedVolume = stockDetails?.priceInfo?.totalTradedVolume;
 
-  const interval = setInterval(fetchStockDetails, 1000);
-
-  return () => {
-    clearInterval(interval);
-    socket.off("stock_details", handleStockDetails); //  correct cleanup
-  };
-}, [name]); //  VERY IMPORTANT
-
-  // Financials: quarterly and yearly (mock)
-  const financialsQuarterly = {
-    revenue: [
-      { name: "Q2'24", value: 7372 },
-      { name: "Q3'24", value: 8187 },
-      { name: "Q4'24", value: 8770 },
-      { name: "Q1'25", value: 9422 },
-    ],
-    profit: [
-      { name: "Q2'24", value: 1220 },
-      { name: "Q3'24", value: 1490 },
-      { name: "Q4'24", value: 1580 },
-      { name: "Q1'25", value: 1710 },
-    ],
-  };
-
-  const financialsYearly = {
-    revenue: [
-      { name: "2021", value: 15000 },
-      { name: "2022", value: 25000 },
-      { name: "2023", value: 28500 },
-      { name: "2024", value: 31200 },
-    ],
-    profit: [
-      { name: "2021", value: 2500 },
-      { name: "2022", value: 4500 },
-      { name: "2023", value: 5200 },
-      { name: "2024", value: 5800 },
-    ],
-  };
-
-  // Fundamentals (mock)
-  const fundamentals = [
-    { label: "Market Cap", value: baseStock.marketCap },
-    { label: "P/E (TTM)", value: baseStock.pe },
-    { label: "EPS (TTM)", value: "₹52.8" },
-    { label: "ROE", value: "15.6%" },
-    { label: "Debt/Equity", value: "0.38" },
-    { label: "Book Value", value: "₹780" },
-    { label: "Dividend Yield", value: baseStock.dividendYield },
-    { label: "Beta", value: baseStock.beta },
-  ];
+  const fundamentals = stockDetails
+    ? [
+        { label: "Market Cap", value: marketCapDisplay },
+        { label: "P/E (TTM)", value: stockDetails?.metadata?.pdSymbolPe ?? "—" },
+        { label: "EPS (TTM)", value: stockDetails?.metadata?.pdSectorPe ?? "—" },
+        { label: "ROE", value: "—" },
+        { label: "Debt/Equity", value: "—" },
+        { label: "Book Value", value: stockDetails?.priceInfo?.basePrice ?? "—" },
+        { label: "Dividend Yield", value: "—" },
+        { label: "Beta", value: "—" },
+      ]
+    : [];
 
   //! Definitons
   const fundamentalsDefinitions = {
@@ -173,94 +100,29 @@ const StockDetails = () => {
 };
 const [activeInfo, setActiveInfo] = useState(null); 
 
-  // Market Depth (mock)
-  const bids = [
-    { price: 1489.3, qty: 2 },
-    { price: 1489.2, qty: 58 },
-    { price: 1489.1, qty: 50 },
-    { price: 1489.0, qty: 4 },
-    { price: 1488.9, qty: 161 },
-  ];
-  const asks = [
-    { price: 1489.4, qty: 44 },
-    { price: 1489.5, qty: 105 },
-    { price: 1489.6, qty: 59 },
-    { price: 1489.7, qty: 31 },
-    { price: 1489.8, qty: 251 },
-  ];
-
-  // Peers
-  const peers = [
-    { company: "CloudNova", price: 980, change: 0.8, mcap: "₹82,300 Cr" },
-    { company: "HyperEdge", price: 2245, change: -0.6, mcap: "₹1,12,480 Cr" },
-    { company: baseStock.name, price: baseStock.price, change: 1.42, mcap: baseStock.marketCap },
-  ];
-
-  // News
-  const news = [
-    { title: "AetherTech announces strategic AI chip partnership", src: "BusinessTech", time: "2h ago" },
-    { title: "Q1 results beat estimates: Revenue +18%", src: "MarketWatch", time: "1d ago" },
-    { title: "New data center to expand capacity in South India", src: "InfraDaily", time: "3d ago" },
-  ];
-
-  // ---------------- UI state ----------------
-  const [livePrice, setLivePrice] = useState(baseStock.price);
-  const [isTicking, setIsTicking] = useState(true);
+  const depth = stockDetails?.marketDepth?.depth;
+  const bids = depth?.buy?.filter((b) => b.price).slice(0, 5) ?? [];
+  const asks = depth?.sell?.filter((a) => a.price).slice(0, 5) ?? [];
+  const maxQty = Math.max(
+    ...bids.map((b) => Number(b.quantity) || 0),
+    ...asks.map((a) => Number(a.quantity) || 0),
+    1
+  );
   const [saved, setSaved] = useState(false);
-  const [selectedTimeframe, setSelectedTimeframe] = useState("30D");
-  const [finTab, setFinTab] = useState("revenue");
-  const [finPeriod, setFinPeriod] = useState("quarterly");
+
   const [buySellModal, setBuySellModal] = useState({ open: false, type: "buy" });
-  const [qty, setQty] = useState(1);
-  const [orderType, setOrderType] = useState("Market");
 
-  // animate live price a little
-  useEffect(() => {
-    if (!isTicking) return;
-    const id = setInterval(() => {
-      setLivePrice((p) => Math.round((p + (Math.random() - 0.48) * 2) * 100) / 100);
-    }, 1400);
-    return () => clearInterval(id);
-  }, [isTicking]);
-
-  const pctChange = Math.round(((livePrice - baseStock.price) / baseStock.price) * 10000) / 100;
-
-  // handlers
   const openBuy = () => setBuySellModal({ open: true, type: "buy" });
   const openSell = () => setBuySellModal({ open: true, type: "sell" });
   const closeModal = () => setBuySellModal({ open: false, type: "buy" });
-  const placeOrder = () => {
-    alert(`${buySellModal.type.toUpperCase()} order placed: ${qty} shares (${orderType}) — total ₹${(livePrice * qty).toFixed(2)}`);
-    closeModal();
-  };
   const shareWhatsApp = () => {
-    const msg = `Check ${baseStock.name} (${baseStock.symbol}) price ₹${livePrice} (${pctChange}%).`;
+    const company = stockDetails?.info?.companyName ?? name;
+    const symbol = stockDetails?.info?.symbol ?? name;
+    const msg = `Check ${company} (${symbol}) price ₹${livePrice} (${pctChange}%).`;
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
   };
 
-  // prepare chart data
-  const areaData = timeseries.map((d) => ({ name: d.x, price: d.price }));
-  const finData = finPeriod === "quarterly" ? financialsQuarterly[finTab] : financialsYearly[finTab];
-
-  // market-depth scaling
-  const maxQty = Math.max(...bids.map((b) => b.qty), ...asks.map((a) => a.qty));
-
-    //! one day high and low
-  const latest = data_1D[data_1D.length - 1];
-  const dayHigh = latest.high;
-  const dayLow = latest.low;
-
-const getDomainFromName = (name) => {
-  return name
-    ?.toLowerCase()
-    .replace(/limited|ltd|inc|corp/g, "")
-    .replace(/[^a-z]/g, "") + ".com";
-};
-
-const getLogoUrl = (stockDetails) => {
-  const domain = getDomainFromName(stockDetails?.info?.companyName);
-  return `https://www.google.com/s2/favicons?sz=128&domain=${domain}`;
-};
+const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
 
   return (
     <div className="min-h-screen bg-linear-to-b from-slate-50 to-white py-10 px-4 dark:from-[var(--app-bg)] dark:to-[var(--app-bg)] ">
@@ -285,11 +147,14 @@ const getLogoUrl = (stockDetails) => {
     {/* LOGO + NAME */}
     <div className="flex items-center gap-4 flex-1 min-w-0">
       <img
-  src={getLogoUrl(stockDetails)}
+  src={logoSrc}
   alt="logo"
-  className="w-16 h-16 rounded-xl"
+  className="w-16 h-16 rounded-xl object-contain bg-white"
   onError={(e) => {
-    e.target.src = "/default-stock.png";
+    e.target.onerror = null;
+    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+      stockDetails?.info?.symbol ?? name ?? "?"
+    )}&background=e2e8f0&color=0f172a&size=128`;
   }}
 />
 
@@ -356,19 +221,19 @@ const getLogoUrl = (stockDetails) => {
       <div className="flex items-end gap-3">
         <h2 className="text-4xl font-extrabold text-slate-900 dark:text-[var(--text-primary)]">
           {/* ₹{livePrice.toFixed(2)} */}
-          ₹{stockDetails?.priceInfo?.lastPrice?.toFixed(2)}
+          ₹{Number(livePrice || 0).toFixed(2)}
         </h2>
 
         <div
           className={`px-3 py-1 rounded-md text-sm font-semibold
             ${
-              stockDetails?.priceInfo?.pChange >= 0
+              Number(pctChange || 0) >= 0
                 ? "bg-emerald-50 text-emerald-700"
                 : "bg-red-50 text-red-600"
             }`}
         >
-          {stockDetails?.priceInfo?.pChange >= 0 ? "+" : ""}
-          {stockDetails?.priceInfo?.pChange?.toFixed(2)}%
+          {Number(pctChange || 0) >= 0 ? "+" : ""}
+          {Number(pctChange || 0).toFixed(2)}%
         </div>
       </div>
 
@@ -397,22 +262,14 @@ const getLogoUrl = (stockDetails) => {
           Vol:
           <span className="text-slate-900 font-medium dark:text-[var(--text-primary)]">
             {" "}
-            {stockDetails?.securityInfo?.issuedSize}
+            {tradedVolume ? Number(tradedVolume).toLocaleString("en-IN") : "—"}
           </span>
         </div>
         <div>
           Mkt Cap:
           <span className="text-slate-900 font-medium dark:text-[var(--text-primary)]">
             {" "}
-{
-  stockDetails?.securityInfo?.issuedSize &&
-  stockDetails?.priceInfo?.basePrice
-    ? (
-        (stockDetails.securityInfo.issuedSize *
-          stockDetails.priceInfo.basePrice) / 1e7
-      ).toFixed(2) + " Cr"
-    : "N/A"
-}
+            {marketCapDisplay}
           </span>
         </div>
       </div>
@@ -486,11 +343,11 @@ const getLogoUrl = (stockDetails) => {
 
       <div className="flex items-center gap-2">
         <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold">
-          {baseStock.rating}
+          —
         </div>
 
         <div className="text-sm text-slate-700 dark:text-[var(--text-secondary)]">
-          Strong Buy
+          Live market data
         </div>
       </div>
     </div>
@@ -510,7 +367,7 @@ const getLogoUrl = (stockDetails) => {
       dark:bg-(--white-10)
       ">
         
-        <TradingViewChart symbol={name ? `NSE:${name}` : undefined} height={320} />
+        <TradingViewChart key={chartSymbol} symbol={chartSymbol} height={320} />
 
         {/* BELOW CHART: keep your Day High / Day Low cards */}
         <div className="mt-4 grid grid-cols-2 gap-3">
@@ -574,7 +431,9 @@ const getLogoUrl = (stockDetails) => {
       Avg Volume (3M)
     </p>
     <p className="font-semibold dark:text-[var(--text-primary)]">
-      {Math.round(baseStock.volume / 1e6 * 10) / 10}M
+      {stockDetails?.securityInfo?.issuedSize
+        ? Math.round(stockDetails.securityInfo.issuedSize / 1e6 * 10) / 10 + "M"
+        : "—"}
     </p>
   </div>
 
@@ -590,9 +449,7 @@ const getLogoUrl = (stockDetails) => {
     <p className="text-xs text-slate-500 dark:text-[var(--text-secondary)]">
       Beta
     </p>
-    <p className="font-semibold dark:text-[var(--text-primary)]">
-      {baseStock.beta}
-    </p>
+    <p className="font-semibold dark:text-[var(--text-primary)]">—</p>
   </div>
 
   {/* Dividend Yield */}
@@ -607,9 +464,7 @@ const getLogoUrl = (stockDetails) => {
     <p className="text-xs text-slate-500 dark:text-[var(--text-secondary)]">
       Dividend Yield
     </p>
-    <p className="font-semibold dark:text-[var(--text-primary)]">
-      {baseStock.dividendYield}
-    </p>
+    <p className="font-semibold dark:text-[var(--text-primary)]">—</p>
   </div>
 </aside>
 
@@ -617,123 +472,11 @@ const getLogoUrl = (stockDetails) => {
     </section>
 
 
-        {/* FINANCIALS (quarterly/yearly) */}
+        {/* FUNDAMENTALS */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-  {/* FINANCIALS */}
-  <div
-    className="
-      lg:col-span-2
-      bg-white/60 backdrop-blur-sm
-      border border-white/40
-      rounded-2xl p-6 shadow-md
-
-      dark:bg-[var(--white-10)]
-      dark:border-[var(--border-color)]
-    "
-  >
-    <div className="flex items-center justify-between mb-4">
-      <h3 className="text-lg font-semibold text-slate-900 dark:text-[var(--text-primary)]">
-        Financials
-      </h3>
-
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => setFinPeriod("quarterly")}
-            className={`px-3 py-1 rounded-md ${
-              finPeriod === "quarterly"
-                ? "bg-blue-950 text-white"
-                : "bg-white border border-slate-200 dark:bg-[var(--gray-800)] dark:border-[var(--border-color)] dark:text-[var(--text-secondary)]"
-            }`}
-          >
-            Quarterly
-          </button>
-
-          <button
-            onClick={() => setFinPeriod("yearly")}
-            className={`px-3 py-1 rounded-md ${
-              finPeriod === "yearly"
-                ? "bg-blue-950 text-white"
-                : "bg-white border border-slate-200 dark:bg-[var(--gray-800)] dark:border-[var(--border-color)] dark:text-[var(--text-secondary)]"
-            }`}
-          >
-            Yearly
-          </button>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => setFinTab("revenue")}
-            className={`px-3 py-1 rounded-md ${
-              finTab === "revenue"
-                ? "bg-emerald-600 text-white"
-                : "bg-white border border-slate-200 dark:bg-[var(--gray-800)] dark:border-[var(--border-color)] dark:text-[var(--text-secondary)]"
-            }`}
-          >
-            Revenue
-          </button>
-
-          <button
-            onClick={() => setFinTab("profit")}
-            className={`px-3 py-1 rounded-md ${
-              finTab === "profit"
-                ? "bg-emerald-600 text-white"
-                : "bg-white border border-slate-200 dark:bg-[var(--gray-800)] dark:border-[var(--border-color)] dark:text-[var(--text-secondary)]"
-            }`}
-          >
-            Profit
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div style={{ width: "100%", height: 260 }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={finData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-          <XAxis dataKey="name" />
-          <ReTooltip />
-          <Bar dataKey="value" fill="#06b6d4" barSize={18}>
-            <LabelList
-              dataKey="value"
-              position="top"
-              style={{ fontSize: 12, fontWeight: 700 }}
-            />
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-
-    <div className="mt-6 grid grid-cols-3 gap-4">
-      {[
-        ["Net Profit (TTM)", "₹3,820 Cr"],
-        ["EBITDA Margin", "24.7%"],
-        ["Operating Cashflow", "₹5,200 Cr"],
-      ].map(([label, value], i) => (
-        <div
-          key={i}
-          className="
-            p-4 rounded-xl shadow-sm
-            bg-white
-
-            dark:bg-[var(--white-5)]
-            dark:border dark:border-[var(--border-color)]
-          "
-        >
-          <p className="text-xs text-slate-500 dark:text-[var(--text-secondary)]">
-            {label}
-          </p>
-          <p className="font-semibold dark:text-[var(--text-primary)]">
-            {value}
-          </p>
-        </div>
-      ))}
-    </div>
-  </div>
-
-  {/* FUNDAMENTALS */}
   <aside
     className="
+      lg:col-span-2
       bg-white/60 backdrop-blur-sm
       border border-white/40
       rounded-2xl p-4 shadow-md
@@ -746,7 +489,7 @@ const getLogoUrl = (stockDetails) => {
       Fundamentals
     </h4>
 
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       {fundamentals.map((item, index) => (
         <div
           key={index}
@@ -789,16 +532,11 @@ const getLogoUrl = (stockDetails) => {
         </div>
       ))}
     </div>
-
-    <div className="mt-3 flex items-center gap-2 text-sm text-slate-500 dark:text-[var(--text-secondary)]">
-      <span className="text-gray-500"><MdOutlineInfo /></span>
-      <span>Click any metric to view its definition</span>
-    </div>
   </aside>
 </section>
 
 
-        {/* MARKET DEPTH + PEERS + NEWS */}
+        {/* MARKET DEPTH */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
   {/* MARKET DEPTH */}
@@ -817,6 +555,12 @@ const getLogoUrl = (stockDetails) => {
       Market Depth
     </h3>
 
+    {bids.length === 0 && asks.length === 0 ? (
+      <p className="text-sm text-slate-500 dark:text-[var(--text-secondary)]">
+        {loading ? "Loading depth…" : "Market depth available when Kotak API is connected."}
+      </p>
+    ) : (
+    <>
     <div className="w-full">
       <div className="flex justify-between text-md font-medium text-slate-600 dark:text-[var(--text-secondary)]">
         <span>Buy order quantity</span>
@@ -845,16 +589,16 @@ const getLogoUrl = (stockDetails) => {
         {bids.map((b, i) => (
           <div key={i} className="grid grid-cols-2 items-center text-sm mb-2 relative">
             <span className="dark:text-[var(--text-primary)]">
-              {b.price.toLocaleString()}
+              {Number(b.price).toLocaleString()}
             </span>
 
             <div className="relative text-right">
               <span className="text-emerald-600 font-medium relative z-10">
-                {b.qty.toLocaleString()}
+                {Number(b.quantity).toLocaleString()}
               </span>
               <div
                 className="absolute right-0 top-1/2 -translate-y-1/2 h-full bg-emerald-100 dark:bg-emerald-500/20 rounded"
-                style={{ width: `${(b.qty / maxQty) * 100}%` }}
+                style={{ width: `${(Number(b.quantity) / maxQty) * 100}%` }}
               />
             </div>
           </div>
@@ -862,7 +606,7 @@ const getLogoUrl = (stockDetails) => {
 
         <div className="flex justify-between mt-3 font-semibold dark:text-[var(--text-primary)]">
           <span>Bid Total</span>
-          <span>{bids.reduce((acc, c) => acc + c.qty, 0).toLocaleString()}</span>
+          <span>{bids.reduce((acc, c) => acc + (Number(c.quantity) || 0), 0).toLocaleString()}</span>
         </div>
       </div>
 
@@ -876,16 +620,16 @@ const getLogoUrl = (stockDetails) => {
         {asks.map((a, i) => (
           <div key={i} className="grid grid-cols-2 items-center text-sm mb-2 relative">
             <span className="dark:text-[var(--text-primary)]">
-              {a.price.toLocaleString()}
+              {Number(a.price).toLocaleString()}
             </span>
 
             <div className="relative text-right">
               <span className="text-red-500 font-medium relative z-10">
-                {a.qty.toLocaleString()}
+                {Number(a.quantity).toLocaleString()}
               </span>
               <div
                 className="absolute right-0 top-1/2 -translate-y-1/2 h-full bg-red-100 dark:bg-red-500/20 rounded"
-                style={{ width: `${(a.qty / maxQty) * 100}%` }}
+                style={{ width: `${(Number(a.quantity) / maxQty) * 100}%` }}
               />
             </div>
           </div>
@@ -893,92 +637,13 @@ const getLogoUrl = (stockDetails) => {
 
         <div className="flex justify-between mt-3 font-semibold dark:text-[var(--text-primary)]">
           <span>Ask Total</span>
-          <span>{asks.reduce((acc, c) => acc + c.qty, 0).toLocaleString()}</span>
+          <span>{asks.reduce((acc, c) => acc + (Number(c.quantity) || 0), 0).toLocaleString()}</span>
         </div>
       </div>
     </div>
+    </>
+    )}
   </div>
-
-  {/* PEERS & NEWS */}
-  <aside
-    className="
-      bg-white/60 backdrop-blur-sm
-      border border-white/40
-      rounded-2xl p-4 shadow-md
-
-      dark:bg-[var(--white-10)]
-      dark:border-[var(--border-color)]
-    "
-  >
-    <h4 className="text-lg font-semibold mb-3 dark:text-[var(--text-primary)]">
-      Peers
-    </h4>
-
-    <div className="space-y-2">
-      {peers.map((p, i) => (
-        <div
-          key={i}
-          className="
-            flex justify-between items-center p-2 rounded-md transition
-            hover:bg-white
-
-            dark:hover:bg-[var(--gray-800)]
-          "
-        >
-          <div>
-            <div className="font-medium dark:text-[var(--text-primary)]">
-              {p.company}
-            </div>
-            <div className="text-xs text-slate-500 dark:text-[var(--text-secondary)]">
-              {p.mcap}
-            </div>
-          </div>
-
-          <div className="text-right">
-            <div className="font-semibold dark:text-[var(--text-primary)]">
-              ₹{p.price}
-            </div>
-            <div className={`text-sm ${p.change >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-              {p.change >= 0 ? "+" : ""}
-              {p.change}%
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-
-    <hr className="my-4 border-slate-200 dark:border-[var(--border-color)]" />
-
-    <h4 className="text-lg font-semibold mb-3 dark:text-[var(--text-primary)]">
-      Latest News
-    </h4>
-
-    <ul className="space-y-3">
-      {news.map((n, i) => (
-        <li
-          key={i}
-          className="
-            p-3 rounded-lg transition flex justify-between items-start
-            hover:bg-white
-
-            dark:hover:bg-[var(--gray-800)]
-          "
-        >
-          <div>
-            <div className="font-semibold text-slate-900 dark:text-[var(--text-primary)]">
-              {n.title}
-            </div>
-            <div className="text-xs text-slate-500 dark:text-[var(--text-secondary)] mt-1">
-              {n.src} • {n.time}
-            </div>
-          </div>
-          <button className="text-slate-500 dark:text-[var(--text-secondary)] text-sm">
-            Read
-          </button>
-        </li>
-      ))}
-    </ul>
-  </aside>
 </section>
 
 
@@ -998,11 +663,15 @@ const getLogoUrl = (stockDetails) => {
     "
   >
     <h3 className="text-lg font-semibold mb-3 text-slate-900 dark:text-[var(--text-primary)]">
-      About {baseStock.name}
+      About {stockDetails?.info?.companyName ?? name}
     </h3>
 
     <p className="text-sm leading-relaxed text-slate-700 dark:text-[var(--text-secondary)]">
-      {baseStock.description}
+      {stockDetails?.industryInfo?.industry
+        ? `${stockDetails.info?.companyName} operates in the ${stockDetails.industryInfo.industry} sector on NSE.`
+        : loading
+          ? "Loading company info…"
+          : "Company details will appear when market data is available."}
     </p>
 
     <div className="mt-6 grid grid-cols-2 gap-4">
@@ -1018,7 +687,7 @@ const getLogoUrl = (stockDetails) => {
           Parent Organisation
         </p>
         <p className="font-semibold dark:text-[var(--text-primary)]">
-          Aether Group
+          {stockDetails?.info?.companyName ?? "—"}
         </p>
       </div>
 
@@ -1033,9 +702,7 @@ const getLogoUrl = (stockDetails) => {
         <p className="text-xs text-slate-500 dark:text-[var(--text-secondary)]">
           Headquarters
         </p>
-        <p className="font-semibold dark:text-[var(--text-primary)]">
-          Bengaluru, India
-        </p>
+        <p className="font-semibold dark:text-[var(--text-primary)]">India</p>
       </div>
     </div>
   </div>

@@ -9,10 +9,80 @@ import { FaBookmark, FaRegBookmark } from "react-icons/fa";
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import { getApi } from "../../api/api";
-import { fetchMarketIndices, fetchMarketMovers, fetchMarketProducts, fetchStockList, fetchEtfs } from "../../api/marketApi";
+import { fetchMarketIndices, fetchMarketProducts, fetchStockList, fetchEtfs } from "../../api/marketApi";
 import { useSelector } from "react-redux";
 import WatchlistPopup from "../../components/WatchlistPopup";
+import { stockLogoUrl } from "../../utils/stockLogo";
+import { normalizeTvSymbol } from "../../utils/tradingView";
 
+
+const WATCHLIST_KEY = "wealthcrop_watchlist";
+const STOCKS_CACHE_KEY = "wealthcrop_explore_stocks";
+
+const loadCachedStocks = () => {
+  try {
+    return JSON.parse(localStorage.getItem(STOCKS_CACHE_KEY) || "[]");
+  } catch {
+    return [];
+  }
+};
+
+const saveCachedStocks = (rows) => {
+  try {
+    localStorage.setItem(STOCKS_CACHE_KEY, JSON.stringify(rows));
+  } catch {
+    // ignore quota errors
+  }
+};
+
+const saveToWatchlist = (symbol) => {
+  const sym = String(symbol || "").toUpperCase();
+  if (!sym) return;
+  const list = JSON.parse(localStorage.getItem(WATCHLIST_KEY) || "[]");
+  if (!list.includes(sym)) {
+    localStorage.setItem(WATCHLIST_KEY, JSON.stringify([...list, sym]));
+  }
+};
+
+const toStock = (s) => ({
+  symbol: s.symbol ?? s?.meta?.symbol ?? "",
+  companyName: s.companyName ?? s?.meta?.companyName ?? s.symbol ?? "",
+  lastPrice: s.lastPrice ?? 0,
+  pChange: s.pChange ?? 0,
+  totalTradedVolume: s.totalTradedVolume ?? 0,
+  segment: s.segment ?? s?.meta?.segment ?? "EQ",
+});
+
+const formatVolume = (vol) => {
+  const v = Number(vol) || 0;
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
+  return String(v);
+};
+
+const deriveMovers = (stocks, tab) => {
+  const sorted = [...stocks];
+  if (tab === "Losers") sorted.sort((a, b) => a.pChange - b.pChange);
+  else if (tab === "Volume shockers") sorted.sort((a, b) => (b.totalTradedVolume ?? 0) - (a.totalTradedVolume ?? 0));
+  else sorted.sort((a, b) => b.pChange - a.pChange);
+
+  return sorted.slice(0, 10).map((s) => ({
+    company: s.symbol,
+    name: s.companyName,
+    indexName: s.symbol,
+    price: s.lastPrice ? `₹${Number(s.lastPrice).toFixed(2)}` : "—",
+    change: s.lastPrice ? `${s.pChange >= 0 ? "+" : ""}${Number(s.pChange).toFixed(2)}%` : "—",
+    volume: formatVolume(s.totalTradedVolume),
+    symbol: s.symbol,
+  }));
+};
+
+const toMobileCard = (s) => ({
+  name: s.companyName || s.symbol,
+  symbol: s.symbol,
+  price: s.lastPrice ? `₹${Number(s.lastPrice).toFixed(2)}` : "—",
+  change: s.lastPrice ? `${s.pChange >= 0 ? "+" : ""}${Number(s.pChange).toFixed(2)}%` : "—",
+});
 
 const Explore = () => {
   const [isSticky, setIsSticky] = useState(false);
@@ -88,26 +158,96 @@ const stockList =  useSelector((state) => state.stocks.stockList)
 
 
   const [marketIndices, setMarketIndices] = useState([]);
-  const [topGainers, setTopGainers] = useState([]);
-  const [mtfStocks, setMtfStocks] = useState([]);
-  const [products, setProducts] = useState([]);
+  const [stocks, setStocks] = useState(() => {
+    const cached = loadCachedStocks().map(toStock);
+    return cached.some((s) => s.lastPrice > 0) ? cached : [];
+  });
+  const [loadingStocks, setLoadingStocks] = useState(() => {
+    const cached = loadCachedStocks();
+    return !cached.some((s) => s.lastPrice > 0);
+  });
+  const [products, setProducts] = useState([
+    { name: "IPO", route: "/ipo", count: 0 },
+    { name: "Bonds", route: "/bond", count: 0 },
+    { name: "ETFs", route: "/etf", count: 0 },
+    { name: "Fixed Deposit", route: "/fd", count: 0 },
+  ]);
   const [etfs, setEtfs] = useState([]);
 
-  useEffect(() => {
-    fetchMarketIndices().then((r) => setMarketIndices(r?.data ?? [])).catch(() => {});
-    fetchMarketMovers("gainers").then((r) => setTopGainers(r?.data ?? [])).catch(() => {});
-    fetchStockList("NIFTY 50").then((r) => {
-      const sorted = [...(r?.data ?? [])].sort((a, b) => (b.totalTradedVolume ?? 0) - (a.totalTradedVolume ?? 0));
-      setMtfStocks(sorted.slice(0, 4));
-    }).catch(() => {});
-    fetchMarketProducts().then((r) => setProducts(r?.data ?? [])).catch(() => {});
-    fetchEtfs().then((r) => setEtfs(r?.data ?? [])).catch(() => {});
-  }, []);
+  const applyStocks = (rows) => {
+    if (!rows.length) return;
+    setStocks((prev) => {
+      const merged = rows.map((row) => {
+        if (row.lastPrice > 0) return row;
+        const old = prev.find((p) => p.symbol === row.symbol);
+        if (old?.lastPrice > 0) {
+          return {
+            ...row,
+            lastPrice: old.lastPrice,
+            pChange: old.pChange,
+            totalTradedVolume: old.totalTradedVolume,
+            live: old.live,
+          };
+        }
+        return row;
+      });
+      if (merged.some((r) => r.lastPrice > 0)) {
+        saveCachedStocks(merged);
+      }
+      return merged;
+    });
+  };
+
+  const displayStocks =
+    stocks.length > 0
+      ? stocks
+      : (stockList ?? []).map(toStock);
+
+  const moversData = deriveMovers(displayStocks, activeTab);
+  const mobileGainers = deriveMovers(displayStocks, "Gainers").map(toMobileCard);
+  const mobileLosers = deriveMovers(displayStocks, "Losers").map(toMobileCard);
 
   useEffect(() => {
-    const type = activeTab === "Losers" ? "losers" : activeTab === "Volume shockers" ? "volume" : "gainers";
-    fetchMarketMovers(type, selected.replace("NIFTY ", "NIFTY ")).then((r) => setTopGainers(r?.data ?? [])).catch(() => {});
-  }, [activeTab, selected]);
+    let cancelled = false;
+
+    fetchStockList("NIFTY 500", 50, { quick: true })
+      .then((r) => {
+        if (cancelled) return;
+        const rows = (r?.data ?? []).map(toStock);
+        if (rows.length) {
+          applyStocks(rows);
+          setLoadingStocks(false);
+        }
+        return fetchStockList("NIFTY 500", 50);
+      })
+      .then((r) => {
+        if (cancelled || !r) return;
+        const rows = (r?.data ?? []).map(toStock);
+        if (rows.length) applyStocks(rows);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoadingStocks(false);
+      });
+
+    const sidebarTimer = setTimeout(() => {
+      if (cancelled) return;
+      fetchMarketProducts().then((r) => {
+        if (!cancelled && r?.data?.length) setProducts(r.data);
+      }).catch(() => {});
+      fetchEtfs().then((r) => {
+        if (!cancelled) setEtfs(r?.data ?? []);
+      }).catch(() => {});
+      fetchMarketIndices().then((r) => {
+        if (!cancelled) setMarketIndices(r?.data ?? []);
+      }).catch(() => {});
+    }, 3000);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(sidebarTimer);
+    };
+  }, []);
 
     const options = [
     { label: "NIFTY 100", link: "/nifty-100" },
@@ -148,20 +288,19 @@ const stockList =  useSelector((state) => state.stocks.stockList)
 
    const [bookmarked, setBookmarked] = useState({});
 
-  const toggleBookmark = (index) => {
-    setIsWatchlist(true)
+  const toggleBookmark = (index, symbol) => {
+    setIsWatchlist(true);
+    if (symbol) saveToWatchlist(symbol);
     setBookmarked((prev) => ({
       ...prev,
       [index]: !prev[index],
     }));
-    // Optionally: send to API here
-    // axios.post('/api/bookmark', { company: stocks[index].name })
   };
 
   const navigate = useNavigate()
 
    const showStockPage = (stockName) => {
-  const cleanName = stockName.replace(/\s+/g, "");
+  const cleanName = String(stockName || "").replace(/\s+/g, "").toUpperCase();
   navigate(`/stocks/${cleanName}`);
 };
 
@@ -194,9 +333,14 @@ const stockList =  useSelector((state) => state.stocks.stockList)
 
                 {/* Stock grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6 relative">
-  {stockList?.slice(0,5).map((stock, index) => (
+  {loadingStocks && displayStocks.length === 0 ? (
+    Array.from({ length: 4 }).map((_, i) => (
+      <div key={i} className="h-48 rounded-xl bg-gray-100 dark:bg-[var(--border-color)] animate-pulse" />
+    ))
+  ) : (
+  displayStocks.slice(0, 5).map((stock, index) => (
     <div
-      key={stock?.meta?.companyName}
+      key={stock.symbol || index}
       className="
         relative flex flex-col justify-between p-5 h-48 cursor-pointer
         bg-white border border-gray-200 rounded-xl shadow-sm
@@ -206,14 +350,14 @@ const stockList =  useSelector((state) => state.stocks.stockList)
       "
       onMouseEnter={() => setHoveredRow(index)}
       onMouseLeave={() => setHoveredRow(null)}
-      onClick={() => showStockPage(stock?.meta?.symbol)}
+      onClick={() => showStockPage(stock.symbol)}
     >
       {/* 🔖 Bookmark Icon (appears on hover) */}
       {hoveredRow === index && (
         <button
           onClick={(e) => {
             e.stopPropagation();
-            toggleBookmark(index);
+            toggleBookmark(index, stock.symbol);
           }}
           className="
             absolute top-2 right-2 p-1
@@ -235,24 +379,22 @@ const stockList =  useSelector((state) => state.stocks.stockList)
 
       {/* Logo + Name */}
       <div>
-        <div className="
-          w-10 h-10 mb-2 overflow-hidden rounded
-          border border-gray-300
-          dark:border-[var(--border-color)]
-        ">
-          <img
-            src={stock?.chartTodayPath}
-            alt={stock?.meta?.companyName}
-            className="w-full h-full object-cover"
-          />
-        </div>
+        <img
+          src={stockLogoUrl(stock.symbol)}
+          alt={stock.symbol}
+          className="w-10 h-10 mb-2 overflow-hidden rounded border border-gray-300 dark:border-[var(--border-color)] object-contain bg-white"
+          onError={(e) => {
+            e.target.onerror = null;
+            e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(stock.symbol || "?")}&background=dbeafe&color=1e3a8a&size=64`;
+          }}
+        />
 
         <h3 className="
           font-semibold text-sm line-clamp-2 min-h-10
           text-blue-950
           dark:text-[var(--text-primary)]
         ">
-          {stock?.meta?.companyName}
+          {stock.companyName}
         </h3>
 
         <p className="
@@ -260,7 +402,7 @@ const stockList =  useSelector((state) => state.stocks.stockList)
           text-gray-500
           dark:text-[var(--text-secondary)]
         ">
-          NSE • {stock?.meta?.segment}
+          NSE • {stock.segment}
         </p>
       </div>
 
@@ -272,7 +414,7 @@ const stockList =  useSelector((state) => state.stocks.stockList)
           dark:text-[var(--text-primary)]
         ">
           {/* ₹{(Math.random() * 3000 + 500).toFixed(2)} */}
-          ₹{stock?.lastPrice}
+          {stock?.lastPrice ? `₹${stock.lastPrice}` : "—"}
         </p>
 
         <p
@@ -290,14 +432,14 @@ const stockList =  useSelector((state) => state.stocks.stockList)
         </p>
       </div>
     </div>
-  ))}
+  )))}
 </div>
 
 
                 {/* See more link */}
                 <div className="mt-6 pl-2">
                   <Link
-                    to="/stockList/most-bought-stocks-on-wealthcrop"
+                    to="/stockList/all-nse-stocks"
                     className="text-green-600 font-semibold text-sm flex items-center gap-1 hover:gap-2 transition-all duration-200"
                   >
                     See more <FaAngleRight size={14} />
@@ -406,7 +548,7 @@ const stockList =  useSelector((state) => state.stocks.stockList)
     </div>
   </div>
 
-  <MarketTable activeTab={activeTab} index={selected} />
+  <MarketTable data={moversData} activeTab={activeTab} />
 
    {/* See more link */}
                 <div className="mt-6 pl-2">
@@ -418,127 +560,6 @@ const stockList =  useSelector((state) => state.stocks.stockList)
                   </Link>
                 </div>
 
-</div>
-
-
-            {/* Most traded stocks */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
-  {/* Left Section */}
-  <div className="lg:col-span-2">
-    <h2
-      className="
-        font-semibold text-xl mb-6 text-blue-950
-        dark:text-[var(--text-primary)]
-      "
-    >
-      Most traded stocks in MTF
-    </h2>
-
-    {/* Stock grid */}
-    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6 relative">
-      {mtfStocks.map((stock, index) => (
-        <div
-          key={stock.symbol}
-          className="
-            relative bg-white border border-gray-200 rounded-xl
-            shadow-sm hover:shadow-md
-            transition-all duration-300
-            flex flex-col justify-between p-5 h-48 cursor-pointer
-            dark:bg-[var(--card-bg)]
-            dark:border-[var(--border-color)]
-            dark:hover:bg-[var(--white-5)]
-          "
-          onMouseEnter={() => setHoveredRow(index)}
-          onMouseLeave={() => setHoveredRow(null)}
-          onClick={() => showStockPage(stock.companyName || stock.symbol)}
-        >
-          {/* 🔖 Bookmark Icon (appears on hover) */}
-          {hoveredRow === index && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleBookmark(index);
-              }}
-              className="
-                absolute top-2 right-2 bg-white p-1
-                hover:scale-110 transition-transform hover:cursor-pointer
-                dark:bg-[var(--card-bg)]
-              "
-            >
-              {bookmarked[index] ? (
-                <FaBookmark
-                  className="text-blue-600 dark:text-blue-400"
-                  size={20}
-                />
-              ) : (
-                <FaRegBookmark
-                  className="text-gray-400 dark:text-[var(--text-secondary)]"
-                  size={20}
-                />
-              )}
-            </button>
-          )}
-
-          {/* Logo + Name */}
-          <div>
-            <div
-              className="
-                w-10 h-10 mb-2 border rounded overflow-hidden flex items-center justify-center
-                border-gray-300 bg-blue-50 text-blue-800 font-bold text-xs
-                dark:border-[var(--border-color)]
-              "
-            >
-              {(stock.symbol || "?").slice(0, 2)}
-            </div>
-
-            <h3
-              className="
-                font-semibold text-blue-950 text-sm
-                line-clamp-2 min-h-10
-                dark:text-[var(--text-primary)]
-              "
-            >
-              {stock.companyName || stock.symbol}
-            </h3>
-
-            <p className="text-gray-500 text-xs mt-1 dark:text-[var(--text-secondary)]">
-              NSE • Equity
-            </p>
-          </div>
-
-          {/* Price + Change */}
-          <div>
-            <p className="text-lg font-bold mt-2 text-gray-800 dark:text-[var(--text-primary)]">
-              ₹{stock.lastPrice}
-            </p>
-
-            <p
-              className={`text-sm font-medium ${
-                Number(stock.pChange) >= 0 ? "text-green-600" : "text-red-600"
-              }`}
-            >
-              {Number(stock.pChange) >= 0 ? "+" : ""}
-              {stock.pChange}%
-            </p>
-          </div>
-        </div>
-      ))}
-    </div>
-
-    {/* See more link */}
-    <div className="mt-6 pl-2">
-      <Link
-        to="/"
-        className="
-          text-green-600 font-semibold text-sm
-          flex items-center gap-1
-          hover:gap-2 transition-all duration-200
-        "
-      >
-        See more <FaAngleRight size={14} />
-      </Link>
-    </div>
-  </div>
 </div>
 
 
@@ -557,9 +578,9 @@ const stockList =  useSelector((state) => state.stocks.stockList)
 
     {/* Stock grid */}
     <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6 relative">
-      {(stockList ?? []).slice(0, 4).map((stock, index) => (
+      {displayStocks.slice(0, 4).map((stock, index) => (
         <div
-          key={stock?.meta?.symbol || index}
+          key={stock.symbol || index}
           className="
             relative bg-white border border-gray-200 rounded-xl
             shadow-sm hover:shadow-md
@@ -571,14 +592,14 @@ const stockList =  useSelector((state) => state.stocks.stockList)
           "
           onMouseEnter={() => setHoveredRow(index)}
           onMouseLeave={() => setHoveredRow(null)}
-          onClick={() => showStockPage(stock?.meta?.symbol)}
+          onClick={() => showStockPage(stock.symbol)}
         >
           {/* 🔖 Bookmark Icon (appears on hover) */}
           {hoveredRow === index && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                toggleBookmark(index);
+                toggleBookmark(index, stock.symbol);
               }}
               className="
                 absolute top-2 right-2 bg-white p-1
@@ -602,15 +623,15 @@ const stockList =  useSelector((state) => state.stocks.stockList)
 
           {/* Logo + Name */}
           <div>
-            <div
-              className="
-                w-10 h-10 mb-2 border rounded overflow-hidden flex items-center justify-center
-                border-gray-300 bg-blue-50 text-blue-800 font-bold text-xs
-                dark:border-[var(--border-color)]
-              "
-            >
-              {(stock?.meta?.symbol || "?").slice(0, 2)}
-            </div>
+            <img
+              src={stockLogoUrl(stock.symbol)}
+              alt={stock.symbol}
+              className="w-10 h-10 mb-2 border rounded overflow-hidden border-gray-300 dark:border-[var(--border-color)] object-contain bg-white"
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(stock.symbol || "?")}&background=dbeafe&color=1e3a8a&size=64`;
+              }}
+            />
 
             <h3
               className="
@@ -619,7 +640,7 @@ const stockList =  useSelector((state) => state.stocks.stockList)
                 dark:text-[var(--text-primary)]
               "
             >
-              {stock?.meta?.companyName}
+              {stock.companyName}
             </h3>
 
             <p className="text-gray-500 text-xs mt-1 dark:text-[var(--text-secondary)]">
@@ -630,7 +651,7 @@ const stockList =  useSelector((state) => state.stocks.stockList)
           {/* Price + Change */}
           <div>
             <p className="text-lg font-bold mt-2 text-gray-800 dark:text-[var(--text-primary)]">
-              ₹{stock?.lastPrice}
+              {stock?.lastPrice ? `₹${stock.lastPrice}` : "—"}
             </p>
 
             <p
@@ -649,7 +670,7 @@ const stockList =  useSelector((state) => state.stocks.stockList)
     {/* See more link */}
     <div className="mt-6 pl-2">
       <Link
-        to="/"
+        to="/stockList/all-nse-stocks"
         className="
           text-green-600 font-semibold text-sm
           flex items-center gap-1
@@ -965,10 +986,10 @@ const stockList =  useSelector((state) => state.stocks.stockList)
       overscroll-x-contain
     "
   >
-    {topGainers.map((item, i) => (
+    {mobileGainers.map((item, i) => (
       <div
         key={i}
-        onClick={() => showStockPage(item.name)}
+        onClick={() => showStockPage(item.name || item.symbol)}
         className="
           min-w-[130px]
           h-[170px]
@@ -1049,10 +1070,10 @@ const stockList =  useSelector((state) => state.stocks.stockList)
       overscroll-x-contain
     "
   >
-    {topGainers.map((item, i) => (
+    {mobileGainers.map((item, i) => (
       <div
         key={i}
-        onClick={() => showStockPage(item.name)}
+        onClick={() => showStockPage(item.name || item.symbol)}
         className="
           min-w-[130px]
           h-[180px]
@@ -1133,10 +1154,10 @@ const stockList =  useSelector((state) => state.stocks.stockList)
       overscroll-x-contain
     "
   >
-    {topGainers.map((item, i) => (
+    {mobileLosers.map((item, i) => (
       <div
         key={i}
-        onClick={() => showStockPage(item.name)}
+        onClick={() => showStockPage(item.name || item.symbol)}
         className="
           min-w-[130px]
           h-[180px]
@@ -1201,30 +1222,9 @@ const stockList =  useSelector((state) => state.stocks.stockList)
   </h2>
 
   <div className="space-y-5">
-    {[
-      {
-        name: "IPO",
-        count: 6,
-        img: "https://cdn-icons-png.flaticon.com/512/481/481949.png",
-      },
-      {
-        name: "Bonds",
-        count: 1,
-        img: "https://cdn-icons-png.flaticon.com/512/2716/2716999.png",
-      },
-      {
-        name: "ETFs",
-        count: 2,
-        img: "https://cdn-icons-png.flaticon.com/512/7099/7099964.png",
-      },
-      {
-        name: "Fixed Deposit",
-        count: 3,
-        img: "https://cdn-icons-png.flaticon.com/512/4228/4228704.png",
-      },
-    ].map((tool) => (
+    {products.map((tool) => (
       <a
-        href="#"
+        href={tool.route}
         key={tool.name}
         className="
           rounded-xl p-5 flex justify-between items-center
@@ -1242,11 +1242,7 @@ const stockList =  useSelector((state) => state.stocks.stockList)
               dark:bg-[var(--soft-bg)]
             "
           >
-            <img
-              src={tool.img}
-              alt={tool.name}
-              className="w-6 h-6 object-contain"
-            />
+            <span className="text-blue-800 font-bold text-xs">{tool.name.slice(0, 2)}</span>
           </div>
 
           <span
@@ -1299,10 +1295,10 @@ const stockList =  useSelector((state) => state.stocks.stockList)
       overscroll-x-contain
     "
   >
-    {topGainers.map((item, i) => (
+    {mobileGainers.map((item, i) => (
       <div
         key={i}
-        onClick={() => showStockPage(item.name)}
+        onClick={() => showStockPage(item.name || item.symbol)}
         className="
           min-w-[130px]
           h-[180px]
@@ -1366,17 +1362,9 @@ const stockList =  useSelector((state) => state.stocks.stockList)
 };
 
 // Table for movers
-const MarketTable = ({ activeTab, index }) => {
+const MarketTable = ({ data = [], activeTab }) => {
   const [hoveredRow, setHoveredRow] = useState(null);
-  const [data, setData] = useState([]);
   const [selectedStock, setSelectedStock] = useState(null);
-
-  useEffect(() => {
-    const type = activeTab === "Losers" ? "losers" : activeTab === "Volume shockers" ? "volume" : "gainers";
-    fetchMarketMovers(type, index)
-      .then((r) => setData(r?.data ?? []))
-      .catch(() => setData([]));
-  }, [activeTab, index]);
 
   const handleBookmark = async (company) => {
     try {
@@ -1412,7 +1400,14 @@ const MarketTable = ({ activeTab, index }) => {
     </thead>
 
     <tbody>
-      {data.map((row, index) => (
+      {data.length === 0 ? (
+        <tr>
+          <td colSpan={3} className="px-6 py-8 text-center text-gray-500">
+            Loading market data…
+          </td>
+        </tr>
+      ) : (
+      data.map((row, index) => (
         <tr
           key={row.company}
           className="
@@ -1486,7 +1481,7 @@ const MarketTable = ({ activeTab, index }) => {
             )}
           </td>
         </tr>
-      ))}
+      )))}
     </tbody>
   </table>
 
@@ -1516,7 +1511,7 @@ const MarketTable = ({ activeTab, index }) => {
         </h2>
 
         <iframe
-          src={`https://s.tradingview.com/widgetembed/?symbol=${selectedStock}&interval=1D&hidesidetoolbar=1&symboledit=1&saveimage=0&toolbarbg=f1f3f6`}
+          src={`https://s.tradingview.com/widgetembed/?symbol=${encodeURIComponent(normalizeTvSymbol(selectedStock))}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=0&toolbarbg=f1f3f6&theme=light&style=1&timezone=Asia%2FKolkata&withdateranges=1`}
           style={{ width: "100%", height: "400px", border: "none" }}
           title="TradingView Chart"
         />

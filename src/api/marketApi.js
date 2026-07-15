@@ -1,12 +1,30 @@
 import { getApi } from "./api";
 
-const base = import.meta.env.VITE_URL;
+const base = import.meta.env.VITE_URL || "/api/internal";
 
 export const fetchMarketIndices = () =>
   getApi(`${base}/market/indices`);
 
-export const fetchStockList = (index = "NIFTY 50") =>
-  getApi(`${base}/market/stock-list?index=${encodeURIComponent(index)}`);
+export const fetchStockList = (index = "NIFTY 50", limit, { quick = false } = {}) => {
+  const params = new URLSearchParams({ index });
+  if (limit) params.set("limit", String(limit));
+  if (quick) params.set("quick", "1");
+  return getApi(`${base}/market/stock-list?${params}`);
+};
+
+export const fetchStockDetails = (symbol) =>
+  getApi(`${base}/market/stock-details/${encodeURIComponent(symbol)}`);
+
+export const fetchStockQuote = (symbol) =>
+  getApi(`${base}/market/quote/${encodeURIComponent(symbol)}`);
+
+export const fetchStockChart = (symbol, range = "6mo", interval = "1d") =>
+  getApi(
+    `${base}/market/chart/${encodeURIComponent(symbol)}?range=${range}&interval=${interval}`
+  );
+
+export const searchStocks = (query) =>
+  getApi(`${base}/market/search?q=${encodeURIComponent(query)}`);
 
 export const fetchMarketMovers = (type = "gainers", index = "NIFTY 100") =>
   getApi(`${base}/market/movers?type=${type}&index=${encodeURIComponent(index)}`);
