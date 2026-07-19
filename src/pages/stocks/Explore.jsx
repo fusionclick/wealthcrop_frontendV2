@@ -299,9 +299,15 @@ const stockList =  useSelector((state) => state.stocks.stockList)
 
   const navigate = useNavigate()
 
-   const showStockPage = (stockName) => {
-  const cleanName = String(stockName || "").replace(/\s+/g, "").toUpperCase();
-  navigate(`/stocks/${cleanName}`);
+   const showStockPage = (stockSymbol) => {
+  // always navigate by ticker — company names break TradingView (NSE:RELIANCEINDUSTRIESLTD)
+  const clean = String(stockSymbol || "")
+    .trim()
+    .toUpperCase()
+    .replace(/^NSE:/, "")
+    .replace(/[^A-Z0-9&]/g, "");
+  if (!clean) return;
+  navigate(`/stocks/${clean}`);
 };
 
  const topTabs = [
@@ -989,7 +995,7 @@ const stockList =  useSelector((state) => state.stocks.stockList)
     {mobileGainers.map((item, i) => (
       <div
         key={i}
-        onClick={() => showStockPage(item.name || item.symbol)}
+        onClick={() => showStockPage(item.symbol)}
         className="
           min-w-[130px]
           h-[170px]
@@ -1073,7 +1079,7 @@ const stockList =  useSelector((state) => state.stocks.stockList)
     {mobileGainers.map((item, i) => (
       <div
         key={i}
-        onClick={() => showStockPage(item.name || item.symbol)}
+        onClick={() => showStockPage(item.symbol)}
         className="
           min-w-[130px]
           h-[180px]
@@ -1157,7 +1163,7 @@ const stockList =  useSelector((state) => state.stocks.stockList)
     {mobileLosers.map((item, i) => (
       <div
         key={i}
-        onClick={() => showStockPage(item.name || item.symbol)}
+        onClick={() => showStockPage(item.symbol)}
         className="
           min-w-[130px]
           h-[180px]
@@ -1298,7 +1304,7 @@ const stockList =  useSelector((state) => state.stocks.stockList)
     {mobileGainers.map((item, i) => (
       <div
         key={i}
-        onClick={() => showStockPage(item.name || item.symbol)}
+        onClick={() => showStockPage(item.symbol)}
         className="
           min-w-[130px]
           h-[180px]

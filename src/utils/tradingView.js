@@ -2,7 +2,12 @@
 export function normalizeTvSymbol(input) {
   if (!input) return "";
   const raw = String(input).trim().toUpperCase();
-  if (raw.includes(":")) return raw;
+  if (raw.includes(":")) {
+    const [ex, ...rest] = raw.split(":");
+    const sym = rest.join(":").replace(/[^A-Z0-9&]/g, "");
+    return sym ? `${ex}:${sym}` : "";
+  }
+  // strip spaces / company-name junk so "RELIANCE INDUSTRIES" → still needs a ticker
   const sym = raw.replace(/[^A-Z0-9&]/g, "");
   return sym ? `NSE:${sym}` : "";
 }

@@ -1,9 +1,15 @@
 import { motion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-const DraggableQRCodeCard = ({ value, size }) => {
+const DraggableQRCodeCard = ({ value, size, autoHideMs = 8000 }) => {
   const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    if (!autoHideMs) return;
+    const t = setTimeout(() => setVisible(false), autoHideMs);
+    return () => clearTimeout(t);
+  }, [autoHideMs]);
 
   if (!visible) return null;
 

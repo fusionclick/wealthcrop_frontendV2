@@ -177,20 +177,8 @@ function MutualFundCarousel() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showModal]);
 
-  // if no funds yet, show placeholder bar (keeps height)
-  if (!funds.length) {
-    return (
-      <div
-  className="left-0 w-full bg-white dark:bg-gray-900 overflow-hidden"
-  style={{ height: "40px" }}
->
-  <div className="h-full flex items-center px-4 text-gray-500 dark:text-gray-400">
-    Loading…
-  </div>
-</div>
-
-    );
-  }
+  // ponytail: hide bar when API/env missing — no perpetual "Loading…"
+  if (!funds.length) return null;
 
   // build duplicated content (2x is enough)
   const duplicated = [...funds, ...funds];

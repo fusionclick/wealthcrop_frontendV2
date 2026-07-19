@@ -7,6 +7,7 @@ import TradingViewChart from "./charts/TradingViewChart";
 import OrderEntryPage from "../pages/stocks/OrderEntryPage";
 import { fetchStockDetails } from "../api/marketApi";
 import { stockLogoUrl } from "../utils/stockLogo";
+import { normalizeTvSymbol } from "../utils/tradingView";
 
 const StockDetails = () => {
   const { name } = useParams();
@@ -51,11 +52,9 @@ const StockDetails = () => {
         ).toFixed(2) + " Cr"
       : "—";
 
-  const chartSymbol = stockDetails?.info?.symbol
-    ? `NSE:${stockDetails.info.symbol}`
-    : name
-      ? `NSE:${String(name).toUpperCase()}`
-      : undefined;
+  const chartSymbol = normalizeTvSymbol(
+    stockDetails?.info?.symbol || name
+  ) || undefined;
 
   const tradedVolume = stockDetails?.priceInfo?.totalTradedVolume;
 

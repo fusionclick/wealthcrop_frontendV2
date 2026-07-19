@@ -1,9 +1,10 @@
-/** Free NSE logo CDN (tickertape). Falls back via onError in UI. */
+/** NSE logos via FMP (Tickertape CDN returns 403). Falls back via onError in UI. */
 export function stockLogoUrl(symbol) {
   const sym = String(symbol || "")
     .trim()
     .toUpperCase()
-    .replace(/^NSE:/, "");
-  if (!sym) return "/default-stock.png";
-  return `https://assets.tickertape.in/stock-logos/${encodeURIComponent(sym)}.png`;
+    .replace(/^NSE:/, "")
+    .replace(/[^A-Z0-9&]/g, "");
+  if (!sym) return "";
+  return `https://financialmodelingprep.com/image-stock/${encodeURIComponent(sym)}.NS.png`;
 }
