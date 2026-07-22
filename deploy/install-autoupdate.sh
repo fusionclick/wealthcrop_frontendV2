@@ -10,7 +10,11 @@ set -euo pipefail
 DIR=/home/ubuntu/wealthcrop_frontendV2
 
 cd "$DIR"
-docker compose rm -sf watchtower 2>/dev/null || true
+# watchtower ab compose file mein nahi hai, is liye `compose rm` use nahi dhoond sakta —
+# naam se hi hatana padta hai. Saath hi adhoore recreate se bachi hui container bhi,
+# warna `up -d` naam ke conflict par gir jata hai.
+docker ps -aq --filter name=watchtower | xargs -r docker rm -f
+docker ps -aq --filter name=_wealthcrop_frontendv2-web-1 | xargs -r docker rm -f
 
 cat >/usr/local/bin/wc-image-update <<EOF
 #!/usr/bin/env bash
@@ -19,7 +23,7 @@ cd "$DIR"
 
 BEFORE=\$(docker compose images -q | sort)
 docker compose pull -q
-docker compose up -d
+docker compose up -d --remove-orphans
 AFTER=\$(docker compose images -q | sort)
 
 if [ "\$BEFORE" != "\$AFTER" ]; then
