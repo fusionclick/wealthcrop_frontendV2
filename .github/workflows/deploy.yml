@@ -1,0 +1,25 @@
+name: build & publish dist
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write        # GITHUB_TOKEN se hi build branch par push — koi secret nahi
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build      # VITE_* values .env.production se aati hain (repo mein committed)
+      - uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          publish_branch: build
+          force_orphan: true     # har baar single commit — repo bloat nahi hota
