@@ -47,7 +47,6 @@ import StocksMenu from "./hovercomp/StocksMenu";
 import FOMenu from "./hovercomp/FOMenu";
 import MoreMenu from "./hovercomp/MoreMenu";
 import ThemeToggle from "../utils/ThemeToggle";
-import socket from "../utils/socket";
 
 export default function OldHeader() {
   const [menuOpen, setMenuOpen] = useState(false);

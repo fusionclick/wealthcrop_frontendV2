@@ -1,4 +1,4 @@
-/** NSE logos via FMP (Tickertape CDN returns 403). Falls back via onError in UI. */
+image.png/** NSE logos via FMP (Tickertape CDN returns 403). Falls back via onError in UI. */
 export function stockLogoUrl(symbol) {
   const sym = String(symbol || "")
     .trim()

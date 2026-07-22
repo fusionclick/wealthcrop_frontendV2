@@ -1,21 +1,70 @@
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
+import { fetchStockQuote } from "../../api/marketApi";
+import { placeStockOrder } from "../../api/portfolioApi";
+import { toastError, toastSuccess } from "../../utils/notifyCustom";
 
-const OrderEntryPage = () => {
-  const [side, setSide] = useState("BUY");
-  const [quantity, setQuantity] = useState(10);
-  const [price, setPrice] = useState(125.5); // limit price
+const OrderEntryPage = ({
+  symbol: symbolProp,
+  initialSide = "BUY",
+  ltp: ltpProp = 0,
+  change: changeProp = 0,
+  changePct: changePctProp = 0,
+  onSuccess,
+}) => {
+  const { name } = useParams();
+  const symbol = String(symbolProp || name || "")
+    .replace(/^NSE:/i, "")
+    .replace(/[^A-Za-z0-9&]/g, "")
+    .toUpperCase();
+
+  const [side, setSide] = useState(String(initialSide).toUpperCase() === "SELL" ? "SELL" : "BUY");
+  const [quantity, setQuantity] = useState(1);
+  const [ltp, setLtp] = useState(Number(ltpProp) || 0);
+  const [change, setChange] = useState(Number(changeProp) || 0);
+  const [changePct, setChangePct] = useState(Number(changePctProp) || 0);
+  const [price, setPrice] = useState(Number(ltpProp) || 0);
   const [orderType, setOrderType] = useState("LIMIT");
   const [product, setProduct] = useState("DELIVERY");
-  const [validity, setValidity] = useState("DAY");
+  const [validity] = useState("DAY");
+  const [submitting, setSubmitting] = useState(false);
 
-  const ltp = 124.8; // last traded price (dummy)
-  const stockName = "INFY";
-  const {name} = useParams();
-  const change = +1.85;
-  const changePct = +1.51;
+  useEffect(() => {
+    setSide(String(initialSide).toUpperCase() === "SELL" ? "SELL" : "BUY");
+  }, [initialSide]);
 
-  const notionalValue = useMemo(() => quantity * price, [quantity, price]);
+  // live LTP from market quote (Yahoo/Kotak via Laravel)
+  useEffect(() => {
+    if (!symbol) return;
+    let cancelled = false;
+
+    const load = () => {
+      fetchStockQuote(symbol)
+        .then((res) => {
+          if (cancelled) return;
+          const q = res?.data ?? res ?? {};
+          const nextLtp = Number(q.lastPrice ?? q.ltp ?? 0);
+          const nextPct = Number(q.pChange ?? 0);
+          if (nextLtp > 0) {
+            setLtp(nextLtp);
+            setChangePct(nextPct);
+            setChange((nextLtp * nextPct) / 100);
+            setPrice((prev) => (orderType === "MARKET" || !prev ? nextLtp : prev));
+          }
+        })
+        .catch(() => {});
+    };
+
+    load();
+    const t = setInterval(load, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, [symbol, orderType]);
+
+  const execPrice = orderType === "MARKET" ? ltp : price;
+  const notionalValue = useMemo(() => quantity * execPrice, [quantity, execPrice]);
   const brokerage = useMemo(() => Math.min(20, notionalValue * 0.0003), [notionalValue]);
   const taxes = useMemo(() => notionalValue * 0.0005, [notionalValue]);
   const totalCharges = useMemo(
@@ -29,7 +78,7 @@ const OrderEntryPage = () => {
 
   const handleQtyChange = (val) => {
     const n = Number(val);
-    if (!Number.isNaN(n) && n >= 0) setQuantity(n);
+    if (!Number.isNaN(n) && n >= 0) setQuantity(Math.floor(n));
   };
 
   const handlePriceChange = (val) => {
@@ -37,13 +86,42 @@ const OrderEntryPage = () => {
     if (!Number.isNaN(n) && n >= 0) setPrice(n);
   };
 
-  const placeOrder = () => {
-    // You can replace this with your actual order API call / socket event
-    alert(
-      `${side} order placed for ${quantity} shares of ${stockName} at ₹${price.toFixed(
-        2
-      )} (${orderType}, ${product}, ${validity})`
-    );
+  const placeOrder = async () => {
+    if (!symbol) {
+      toastError("Symbol missing");
+      return;
+    }
+    if (quantity < 1) {
+      toastError("Enter quantity");
+      return;
+    }
+    if (orderType === "LIMIT" && !(price > 0)) {
+      toastError("Enter limit price");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await placeStockOrder({
+        symbol,
+        side,
+        quantity,
+        order_type: orderType,
+        product,
+        price: orderType === "MARKET" ? 0 : price,
+        validity,
+      });
+
+      if (res?.status === true || res?.status === 200) {
+        toastSuccess(res?.message || `${side} order placed on Kotak`);
+        onSuccess?.(res);
+      } else if (res?.needs_setup) {
+        toastError(res?.message || "Link Kotak MPIN + TOTP in Holdings first");
+      }
+      // errors already toasted by postApiWithToken when null
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -118,7 +196,7 @@ const OrderEntryPage = () => {
             dark:text-[var(--text-primary)]
           "
         >
-          {name}
+          {symbol || "—"}
         </p>
 
         <p
@@ -128,7 +206,7 @@ const OrderEntryPage = () => {
             dark:text-[var(--text-secondary)]
           "
         >
-          {name}
+          {symbol || "—"}
         </p>
       </div>
     </div>
@@ -153,21 +231,21 @@ const OrderEntryPage = () => {
           dark:text-[var(--text-primary)]
         "
       >
-        ₹{ltp.toFixed(2)}
+        ₹{(ltp || 0).toFixed(2)}
       </p>
     </div>
 
     <div className="text-right">
       <p
         className={`text-xs font-medium ${
-          change >= 0
+          changePct >= 0
             ? "text-emerald-600 dark:text-emerald-400"
             : "text-rose-600 dark:text-rose-400"
         }`}
       >
-        {change >= 0 ? "+" : ""}
-        {change.toFixed(2)} ({changePct >= 0 ? "+" : ""}
-        {changePct.toFixed(2)}%)
+        {changePct >= 0 ? "+" : ""}
+        {(change || 0).toFixed(2)} ({changePct >= 0 ? "+" : ""}
+        {(changePct || 0).toFixed(2)}%)
       </p>
 
       <p
@@ -275,7 +353,11 @@ const OrderEntryPage = () => {
       </p>
 
       <div className="flex items-center rounded-xl border border-slate-200 dark:border-[var(--border-color)] bg-slate-50 dark:bg-[var(--gray-800)] px-2">
-        <button className="px-2 py-2 text-lg leading-none text-slate-500 dark:text-[var(--text-secondary)]">
+        <button
+          type="button"
+          onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+          className="px-2 py-2 text-lg leading-none text-slate-500 dark:text-[var(--text-secondary)]"
+        >
           -
         </button>
 
@@ -286,7 +368,11 @@ const OrderEntryPage = () => {
           className="w-full bg-transparent text-sm text-slate-900 dark:text-[var(--text-primary)] text-center outline-none py-2"
         />
 
-        <button className="px-2 py-2 text-lg leading-none text-slate-500 dark:text-[var(--text-secondary)]">
+        <button
+          type="button"
+          onClick={() => setQuantity((q) => q + 1)}
+          className="px-2 py-2 text-lg leading-none text-slate-500 dark:text-[var(--text-secondary)]"
+        >
           +
         </button>
       </div>
@@ -312,7 +398,7 @@ const OrderEntryPage = () => {
       </div>
 
       <p className="mt-1 text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">
-        LTP: ₹{ltp.toFixed(2)}
+        LTP: ₹{(ltp || 0).toFixed(2)}
       </p>
     </div>
   </div>
@@ -335,14 +421,20 @@ const OrderEntryPage = () => {
     </div>
 
     <button
+      type="button"
+      disabled={submitting}
       onClick={placeOrder}
-      className={`px-5 py-2.5 rounded-xl text-xs font-semibold shadow-sm transition ${
+      className={`px-5 py-2.5 rounded-xl text-xs font-semibold shadow-sm transition disabled:opacity-60 ${
         side === 'BUY'
           ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
           : 'bg-rose-500 hover:bg-rose-600 text-white'
       }`}
     >
-      {side === 'BUY' ? 'Place Buy Order' : 'Place Sell Order'}
+      {submitting
+        ? 'Placing…'
+        : side === 'BUY'
+          ? 'Place Buy Order'
+          : 'Place Sell Order'}
     </button>
   </div>
 </div>
@@ -382,7 +474,7 @@ const OrderEntryPage = () => {
           Qty × Price
         </span>
         <span className="font-medium text-slate-800 dark:text-[var(--text-primary)]">
-          {quantity} × ₹{price.toFixed(2)}
+          {quantity} × ₹{execPrice.toFixed(2)}
         </span>
       </div>
 

@@ -3,11 +3,11 @@ import { FiShare2 } from "react-icons/fi";
 import { AiOutlineStar } from "react-icons/ai";
 import { MdOutlineInfo } from "react-icons/md";
 import { useParams } from "react-router-dom";
-import TradingViewChart from "./charts/TradingViewChart";
+import StockLiveChart from "./charts/StockLiveChart";
 import OrderEntryPage from "../pages/stocks/OrderEntryPage";
 import { fetchStockDetails } from "../api/marketApi";
 import { stockLogoUrl } from "../utils/stockLogo";
-import { normalizeTvSymbol } from "../utils/tradingView";
+import { normalizeTvSymbol, tradingViewChartUrl } from "../utils/tradingView";
 
 const StockDetails = () => {
   const { name } = useParams();
@@ -55,6 +55,12 @@ const StockDetails = () => {
   const chartSymbol = normalizeTvSymbol(
     stockDetails?.info?.symbol || name
   ) || undefined;
+  // Yahoo chart uses bare NSE ticker (RELIANCE), not NSE:RELIANCE
+  const yahooSymbol = (stockDetails?.info?.symbol || name || "")
+    .toString()
+    .replace(/^NSE:/i, "")
+    .replace(/[^A-Za-z0-9&]/g, "")
+    .toUpperCase();
 
   const tradedVolume = stockDetails?.priceInfo?.totalTradedVolume;
 
@@ -366,7 +372,22 @@ const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
       dark:bg-(--white-10)
       ">
         
-        <TradingViewChart key={chartSymbol} symbol={chartSymbol} height={320} />
+        <div className="flex items-center justify-between mb-2 px-1">
+          <span className="text-sm font-semibold text-slate-700 dark:text-[var(--text-primary)]">
+            {chartSymbol || yahooSymbol}
+          </span>
+          {chartSymbol && (
+            <a
+              href={tradingViewChartUrl(chartSymbol)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-medium text-blue-600 hover:underline"
+            >
+              Open on TradingView ↗
+            </a>
+          )}
+        </div>
+        <StockLiveChart key={yahooSymbol} symbol={yahooSymbol} height={320} />
 
         {/* BELOW CHART: keep your Day High / Day Low cards */}
         <div className="mt-4 grid grid-cols-2 gap-3">
@@ -855,7 +876,14 @@ const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
     </button>
 
     {/* Your content */}
-    <OrderEntryPage />
+    <OrderEntryPage
+      symbol={yahooSymbol || name}
+      initialSide={buySellModal.type === "sell" ? "SELL" : "BUY"}
+      ltp={livePrice}
+      changePct={pctChange}
+      change={(livePrice * pctChange) / 100}
+      onSuccess={closeModal}
+    />
   </div>
 </div>
 

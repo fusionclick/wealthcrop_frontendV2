@@ -1,48 +1,8 @@
-import { useEffect, useRef } from "react";
 import { normalizeTvSymbol, tradingViewChartUrl } from "../../utils/tradingView";
 
-/** Real TradingView Advanced Chart — same as tradingview.com/chart/?symbol=NSE%3ATCS */
+/** TradingView chart via widgetembed iframe — script embed often ignores symbol and defaults to AAPL */
 const TradingViewChart = ({ symbol, height = 400 }) => {
   const tvSymbol = normalizeTvSymbol(symbol);
-  const containerRef = useRef(null);
-
-  useEffect(() => {
-    if (!tvSymbol || !containerRef.current) return;
-
-    const el = containerRef.current;
-    el.innerHTML = "";
-
-    const widget = document.createElement("div");
-    widget.className = "tradingview-widget-container__widget";
-    widget.style.height = `${height}px`;
-    widget.style.width = "100%";
-    el.appendChild(widget);
-
-    const script = document.createElement("script");
-    script.src =
-      "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
-    script.type = "text/javascript";
-    script.async = true;
-    script.textContent = JSON.stringify({
-      autosize: true,
-      symbol: tvSymbol,
-      interval: "D",
-      timezone: "Asia/Kolkata",
-      theme: "light",
-      style: "1",
-      locale: "en",
-      allow_symbol_change: true,
-      calendar: false,
-      hide_top_toolbar: false,
-      hide_legend: false,
-      support_host: "https://www.tradingview.com",
-    });
-    el.appendChild(script);
-
-    return () => {
-      el.innerHTML = "";
-    };
-  }, [tvSymbol, height]);
 
   if (!tvSymbol) {
     return (
@@ -54,6 +14,22 @@ const TradingViewChart = ({ symbol, height = 400 }) => {
       </div>
     );
   }
+
+  const src =
+    `https://s.tradingview.com/widgetembed/?` +
+    new URLSearchParams({
+      symbol: tvSymbol,
+      interval: "D",
+      hidesidetoolbar: "0",
+      symboledit: "1",
+      saveimage: "0",
+      toolbarbg: "f1f3f6",
+      theme: "light",
+      style: "1",
+      timezone: "Asia/Kolkata",
+      withdateranges: "1",
+      locale: "en",
+    }).toString();
 
   return (
     <div className="w-full">
@@ -70,10 +46,12 @@ const TradingViewChart = ({ symbol, height = 400 }) => {
           Open on TradingView ↗
         </a>
       </div>
-      <div
-        className="tradingview-widget-container"
-        ref={containerRef}
-        style={{ height, width: "100%" }}
+      <iframe
+        key={tvSymbol}
+        src={src}
+        title={`${tvSymbol} chart`}
+        style={{ width: "100%", height, border: 0 }}
+        allowFullScreen
       />
     </div>
   );

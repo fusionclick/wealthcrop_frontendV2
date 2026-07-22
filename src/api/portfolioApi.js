@@ -19,3 +19,12 @@ export const saveKotakCredentials = (mpin, totpSecret) =>
 
 export const syncStockPortfolio = () =>
   postApiWithToken(`${base}/portfolio/stocks/sync`, {});
+
+export const placeStockOrder = (payload) =>
+  postApiWithToken(`${base}/portfolio/stocks/order`, payload);
+
+export const fetchStockOrders = () =>
+  getApiWithToken(`${base}/portfolio/stocks/orders`);
+
+export const cancelStockOrder = (orderId) =>
+  postApiWithToken(`${base}/portfolio/stocks/order/cancel`, { order_id: orderId });
