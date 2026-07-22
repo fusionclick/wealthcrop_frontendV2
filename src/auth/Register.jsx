@@ -53,10 +53,12 @@ export default function Register() {
     try {
       const res = await postApi(url, formData);
       if (res?.status === 200 || res?.status === true) {
+        // ponytail: SMS not reachable from PK; API already returns otp — surface it for testing
+        console.log("OTP:", res?.otp);
         setFormSnapshot(formData);
         setOtpSent(true);
         setOtp(["", "", "", "", "", ""]);
-        toastSuccess(res?.message || "OTP sent to your mobile");
+        toastSuccess(res?.otp ? `OTP: ${res.otp}` : res?.message || "OTP sent");
       }
     } catch (error) {
       toastError(error?.message || "Failed to send OTP");
