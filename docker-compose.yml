@@ -4,14 +4,7 @@ services:
     restart: always
     ports:
       - "127.0.0.1:8080:8080"    # sirf localhost — bahar se seedha nahi khulta, host nginx proxy karta hai
-    labels:
-      - com.centurylinklabs.watchtower.enable=true
 
-  watchtower:
-    image: containrrr/watchtower
-    restart: always
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      # GHCR package private hai — watchtower ko bhi wahi login chahiye jo `sudo docker login` ne banaya
-      - /root/.docker/config.json:/config.json:ro
-    command: --interval 60 --label-enable --cleanup
+# Auto-update watchtower se nahi, host ke systemd timer se hota hai:
+#   sudo bash deploy/install-autoupdate.sh
+# (watchtower Docker 29 ke saath API version ki wajah se chalta hi nahi)
