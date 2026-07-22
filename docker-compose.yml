@@ -1,0 +1,15 @@
+services:
+  web:
+    image: ghcr.io/fusionclick/wealthcrop_frontendv2:latest   # GHCR naam lowercase hi hota hai
+    restart: always
+    ports:
+      - "127.0.0.1:8080:8080"    # sirf localhost — bahar se seedha nahi khulta, host nginx proxy karta hai
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
+  watchtower:
+    image: containrrr/watchtower
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 60 --label-enable --cleanup

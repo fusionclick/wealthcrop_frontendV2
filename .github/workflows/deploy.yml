@@ -9,6 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write        # GITHUB_TOKEN se hi build branch par push — koi secret nahi
+      packages: write        # ...aur usi token se GHCR par image
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,3 +24,18 @@ jobs:
           publish_dir: ./dist
           publish_branch: build
           force_orphan: true     # har baar single commit — repo bloat nahi hota
+
+      # Docker path. Migration ke doran dono chal rahe hain; Docker verify hote hi
+      # upar wala gh-pages step aur box ka wc-frontend.timer hata denge.
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/fusionclick/wealthcrop_frontendv2:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
