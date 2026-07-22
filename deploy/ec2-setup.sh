@@ -40,13 +40,20 @@ cat >/usr/local/bin/wc-frontend-deploy <<EOF
 set -euo pipefail
 cd "$WORK"
 git fetch --quiet --depth 1 origin build
-[ "\$(git rev-parse HEAD)" = "\$(git rev-parse origin/build)" ] && exit 0
+TARGET=\$(git rev-parse origin/build)
+
+# "pehle se deployed hai?" ka jawab WEB ROOT se aata hai, git state se nahi.
+# Warna fresh clone HEAD==origin/build hota hai aur pehla deploy skip ho jata hai.
+if [ "\$(cat "$WEB_ROOT/.deployed-sha" 2>/dev/null || true)" = "\$TARGET" ]; then
+  exit 0
+fi
 
 git reset --hard origin/build --quiet
 # --delete taake purane hashed assets jama na hon.
 # .well-known kabhi mat mitao — certbot ka HTTPS renewal usi par chalta hai.
 rsync -a --delete --exclude .git --exclude .well-known ./ "$WEB_ROOT/"
-echo "deployed \$(git rev-parse --short HEAD)"
+echo "\$TARGET" > "$WEB_ROOT/.deployed-sha"
+echo "deployed \${TARGET:0:7}"
 EOF
 chmod +x /usr/local/bin/wc-frontend-deploy
 
