@@ -13,6 +13,14 @@ command -v docker >/dev/null || {
   apt-get update -qq && apt-get install -y docker.io docker-compose-v2
 }
 
+# GHCR package private hai. Login pehle hona chahiye — warna compose is path par
+# ek khaali DIRECTORY bana deta hai aur watchtower baad mein chup chaap fail hota rehta hai.
+if [ ! -f /root/.docker/config.json ]; then
+  echo "!! pehle ye chalao:  sudo docker login ghcr.io -u Minhal128"
+  echo "   (password ki jagah read:packages wala GitHub token)"
+  exit 1
+fi
+
 echo "== container chalu =="
 cd /home/ubuntu/wealthcrop_frontendV2
 docker compose up -d
