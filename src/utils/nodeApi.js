@@ -1,11 +1,7 @@
-/** Build Node BSE proxy URLs — VITE_NODE_URL should be http://host:3000/api (no trailing slash) */
+/** Build Node BSE proxy URLs — production: same-origin HTTPS `/api/bse` (nginx → Node). */
 export const nodeUrl = (path = "") => {
-  const rawBase = (import.meta.env.VITE_NODE_URL || "").replace(/\/$/, "");
-  const isHttpsPage = typeof window !== "undefined" && window.location.protocol === "https:";
-  const hasInsecureHttpBase = rawBase.startsWith("http://");
-  const base = isHttpsPage && hasInsecureHttpBase
-    ? `${window.location.origin}/api/internal/bse-proxy`
-    : (rawBase || `${typeof window !== "undefined" ? window.location.origin : ""}/api/internal/bse-proxy`);
+  // ponytail: never fall back to Laravel /api/internal on wealthcrop.co.in — that is SPA territory
+  const base = (import.meta.env.VITE_NODE_URL || "/api/bse").replace(/\/$/, "");
   const suffix = path.startsWith("/") ? path : `/${path}`;
   return `${base}${suffix}`;
 };
