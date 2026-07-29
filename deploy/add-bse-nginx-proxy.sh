@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# One-shot: wealthcrop.co.in pe /api/bse/ → Node BSE (HTTPS, no mixed-content).
+# OBSOLETE for normal deploys — /api/bse ab container nginx (deploy/nginx.conf) mein hai.
+# CI image push + wc-image-update.timer se auto aa jata hai; SSH ki zaroorat nahi.
+# Ye script sirf emergency host-nginx fallback ke liye rakha hai.
 #   sudo bash deploy/add-bse-nginx-proxy.sh
 set -euo pipefail
 
