@@ -3,6 +3,7 @@ import { Search } from "lucide-react";
 import icon from "../assets/favicon.png";
 import SearchPopup from './SearchPopup';
 import { useNavigate } from 'react-router-dom';
+import MutualFundCarousel from '../carousel/MutualFundCarousel';
 
 const MobileSearchBox = () => {
 
@@ -12,10 +13,15 @@ const MobileSearchBox = () => {
 
   return (
     <>
-    <div className="relative w-full">
+    {/* ponytail: same route-aware ticker as desktop OldHeader */}
+    <div className="mb-2 -mx-2">
+      <MutualFundCarousel />
+    </div>
+
+    <div className="relative w-full px-2">
       <img
         src={icon}
-        className="absolute left-3 top-1/2 -translate-y-1/2 w-6 opacity-80"
+        className="absolute left-5 top-1/2 -translate-y-1/2 w-6 opacity-80"
       />
 
       <div
@@ -36,7 +42,7 @@ const MobileSearchBox = () => {
       <img
         src={icon}
         onClick={() => navigate("/profile")}
-        className="absolute right-3 top-1/2 -translate-y-1/2 w-6 cursor-pointer opacity-80"
+        className="absolute right-5 top-1/2 -translate-y-1/2 w-6 cursor-pointer opacity-80"
       />
     </div>
 
