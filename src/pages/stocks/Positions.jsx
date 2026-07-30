@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import emptyDashboardImg from "../../assets/stocks/stockEmptyDashboard.svg";
 import { NavLink, useNavigate } from "react-router-dom";
-import { fetchKotakStatus, fetchPositions, syncStockPortfolio } from "../../api/portfolioApi";
+import { fetchPositions, syncStockPortfolio } from "../../api/portfolioApi";
 import { toastError, toastSuccess } from "../../utils/notifyCustom";
 import KotakLinkForm from "../../components/stocks/KotakLinkForm";
 
@@ -12,18 +12,29 @@ const Positions = () => {
   const [showKotakForm, setShowKotakForm] = useState(false);
   const navigate = useNavigate();
 
-  const load = useCallback((sync = false) => {
-    setLoading(true);
-    fetchPositions(sync)
-      .then((res) => setStocks(res?.data?.data ?? []))
-      .catch(() => setStocks([]))
-      .finally(() => setLoading(false));
+  const load = useCallback(async () => {
+    const res = await fetchPositions(false);
+    return res?.data?.data ?? [];
   }, []);
 
+  // ponytail: auto Import on mount; empty UI kept as fallback
   useEffect(() => {
-    fetchKotakStatus()
-      .then((res) => load(Boolean(res?.data?.trading_auth)))
-      .catch(() => load());
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const sync = await syncStockPortfolio();
+      if (cancelled) return;
+
+      if (sync?.token_ok && !sync?.trading_auth) setShowKotakForm(true);
+
+      const list = await load();
+      if (cancelled) return;
+      setStocks(list);
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [load]);
 
   const handleImport = async () => {
@@ -33,7 +44,7 @@ const Positions = () => {
 
     if (res?.status) {
       toastSuccess(res.message || "Positions imported");
-      load(true);
+      setStocks(await load());
       return;
     }
 
@@ -89,14 +100,17 @@ const Positions = () => {
             >
               {syncing ? "Importing…" : "Import Positions"}
             </button>
-              <NavLink
-                to="/stockList/all-nse-stocks"
-                className="border border-gray-300 text-gray-700 dark:text-[var(--text-secondary)] px-5 py-2 rounded-md text-sm hover:bg-gray-50"
-              >
-                Browse NSE stocks
-              </NavLink>
+            <NavLink
+              to="/stockList/all-nse-stocks"
+              className="border border-gray-300 text-gray-700 dark:text-[var(--text-secondary)] px-5 py-2 rounded-md text-sm hover:bg-gray-50"
+            >
+              Browse NSE stocks
+            </NavLink>
           </div>
-          <KotakLinkForm forceOpen={showKotakForm} onLinked={() => load(true)} />
+          <KotakLinkForm
+            forceOpen={showKotakForm}
+            onLinked={async () => setStocks(await load())}
+          />
         </div>
       ) : (
         <div className="space-y-4 lg:space-y-5">

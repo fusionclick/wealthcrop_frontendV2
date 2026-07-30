@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import empty from "../../assets/allorders.png";
 import { NavLink, useNavigate } from "react-router-dom";
-import { fetchHoldings, fetchKotakStatus, syncStockPortfolio } from "../../api/portfolioApi";
+import { fetchHoldings, syncStockPortfolio } from "../../api/portfolioApi";
 import { toastError, toastSuccess } from "../../utils/notifyCustom";
 import KotakLinkForm from "../../components/stocks/KotakLinkForm";
 
@@ -9,28 +9,38 @@ const Holdings = () => {
   const [stocks, setStocks] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-
   const [showKotakForm, setShowKotakForm] = useState(false);
 
-  const load = useCallback((sync = false) => {
-    setLoading(true);
-    fetchHoldings(sync)
-      .then((res) => setStocks(res?.data?.data ?? []))
-      .catch(() => setStocks([]))
-      .finally(() => setLoading(false));
+  const load = useCallback(async () => {
+    const res = await fetchHoldings(false);
+    return res?.data?.data ?? [];
   }, []);
 
+  // ponytail: auto Import on mount; empty UI kept as fallback
   useEffect(() => {
-    fetchKotakStatus()
-      .then((res) => load(Boolean(res?.data?.trading_auth)))
-      .catch(() => load());
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const sync = await syncStockPortfolio();
+      if (cancelled) return;
+
+      if (sync?.token_ok && !sync?.trading_auth) setShowKotakForm(true);
+
+      const list = await load();
+      if (cancelled) return;
+      setStocks(list);
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [load]);
 
   const handleSync = async () => {
     const res = await syncStockPortfolio();
     if (res?.status) {
       toastSuccess(res.message || "Portfolio synced");
-      load(true);
+      setStocks(await load());
       return;
     }
     if (res?.token_ok && !res?.trading_auth) {
@@ -103,7 +113,10 @@ const Holdings = () => {
                   Import from Kotak
                 </button>
               </div>
-              <KotakLinkForm forceOpen={showKotakForm} onLinked={() => load(true)} />
+              <KotakLinkForm
+                forceOpen={showKotakForm}
+                onLinked={async () => setStocks(await load())}
+              />
             </div>
           </div>
         </div>
