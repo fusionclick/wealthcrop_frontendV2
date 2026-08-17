@@ -1,66 +1,11 @@
-import React from 'react'
-
-const orders = [
-  {
-    id: 1,
-    symbol: "NIFTY 25 JAN 22000 CE",
-    type: "BUY",
-    quantity: 50,
-    price: 128.5,
-    status: "EXECUTED",
-    time: "10:32 AM",
-  },
-  {
-    id: 2,
-    symbol: "BANKNIFTY 25 JAN 46000 PE",
-    type: "SELL",
-    quantity: "25",
-    price: 210.0,
-    status: "OPEN",
-    time: "11.05 AM"
-  },
-  {
-    id: 3,
-    symbol: "RELIANCE FEB FUT",
-    type: "BUY",
-    quantity: "100",
-    price: 2450,
-    status: "CANCELLED",
-    time: "12:10 PM"
-  },
-  {
-    id: 4,
-    symbol: "BANKNIFTY 8 JUN PE",
-    type: "SELL",
-    quantity: "12",
-    price: 1270,
-    status: "EXECUTED",
-    time: "02:40 PM"
-  },
-  {
-    id: 5,
-    symbol: "TATA MOTORS",
-    type: "BUY",
-    quantity: "400",
-    price: 450,
-    status: "EXECUTED",
-    time: "12:20 PM"
-  },
-  {
-   id: 6,
-   symbol: "ITC",
-   type: "sell",
-   quantity: "410",
-   price: 1250,
-   status: "cancelled",
-   time: "02:10 pm" 
-  }
-];
+import React, { useCallback, useEffect, useState } from "react";
+import { fetchFnoOrders } from "../../api/portfolioApi";
 
 const statusStyles = {
-  OPEN: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
-  EXECUTED: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
-  CANCELLED: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+  Pending: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
+  Executed: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+  Rejected: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+  Cancelled: "bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300",
 };
 
 const typeStyles = {
@@ -69,6 +14,22 @@ const typeStyles = {
 };
 
 const OrdersFO = () => {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    fetchFnoOrders()
+      .then((res) => setOrders(res?.data?.data ?? []))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    load();
+    const timer = setInterval(load, 15000);
+    return () => clearInterval(timer);
+  }, [load]);
+
   return (
     <div className="w-full max-w-7xl mx-auto px-4 py-6">
       {/* HEADER */}
@@ -81,8 +42,15 @@ const OrdersFO = () => {
         </p>
       </div>
 
+      {loading && orders.length === 0 && (
+        <p className="py-8 text-center text-sm text-slate-500">Loading Kotak F&amp;O orders…</p>
+      )}
+      {!loading && orders.length === 0 && (
+        <p className="py-8 text-center text-sm text-slate-500">No Kotak F&amp;O orders found.</p>
+      )}
+
       {/* DESKTOP TABLE */}
-      <div className="hidden md:block">
+      {orders.length > 0 && <div className="hidden md:block">
         <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-white/10">
           <table className="w-full text-sm">
             <thead className="bg-slate-100 dark:bg-white/5">
@@ -105,10 +73,10 @@ const OrdersFO = () => {
                   <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
                     {order.symbol}
                   </td>
-                  <td className={`px-4 py-3 font-semibold ${typeStyles[order.type]}`}>
-                    {order.type}
+                  <td className={`px-4 py-3 font-semibold ${typeStyles[order.side]}`}>
+                    {order.side}
                   </td>
-                  <td className="px-4 py-3">{order.quantity}</td>
+                  <td className="px-4 py-3">{order.qty}</td>
                   <td className="px-4 py-3">₹{order.price}</td>
                   <td className="px-4 py-3">
                     <span
@@ -119,17 +87,17 @@ const OrdersFO = () => {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
-                    {order.time}
+                    {order.placedAt}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </div>
+      </div>}
 
       {/* MOBILE VIEW */}
-      <div className="md:hidden space-y-4">
+      {orders.length > 0 && <div className="md:hidden space-y-4">
         {orders.map((order) => (
           <div
             key={order.id}
@@ -149,17 +117,17 @@ const OrdersFO = () => {
             </div>
 
             <div className="flex justify-between text-sm">
-              <span className={`font-semibold ${typeStyles[order.type]}`}>
-                {order.type}
+              <span className={`font-semibold ${typeStyles[order.side]}`}>
+                {order.side}
               </span>
               <span className="text-slate-500 dark:text-slate-400">
-                {order.time}
+                {order.placedAt}
               </span>
             </div>
 
             <div className="mt-3 flex justify-between text-sm text-slate-700 dark:text-slate-300">
               <div>
-                Qty: <span className="font-medium">{order.quantity}</span>
+                Qty: <span className="font-medium">{order.qty}</span>
               </div>
               <div>
                 Price: <span className="font-medium">₹{order.price}</span>
@@ -167,7 +135,7 @@ const OrdersFO = () => {
             </div>
           </div>
         ))}
-      </div>
+      </div>}
     </div>
   );
 };

@@ -28,3 +28,9 @@ export const fetchStockOrders = () =>
 
 export const cancelStockOrder = (orderId) =>
   postApiWithToken(`${base}/portfolio/stocks/order/cancel`, { order_id: orderId });
+
+export const fetchFnoPositions = () =>
+  getApiWithToken(`${base}/portfolio/fno/positions`);
+
+export const fetchFnoOrders = () =>
+  getApiWithToken(`${base}/portfolio/fno/orders`);
