@@ -73,7 +73,7 @@ export const postApiWithToken = async (url, data) => {
     return res?.data;
     
   } catch (error) {
-    toastError(error.response?.data?.message || "API Error");
+    toastError(error.response?.data?.message || error.response?.data?.error || "API Error");
     return null;
   }
 };

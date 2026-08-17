@@ -39,21 +39,6 @@ const FundDetails = () => {
   const { isin } = useParams();
   const { code } = useParams();
   const [hideChart, setHideChart] = useState(false);
-
-  const fund = {
-    name: "SBI Gold Direct Plan Growth",
-    category: "Gold",
-    risk: "Very High Risk",
-    rating:"4.4",
-    nav: 37.67,
-    fundSize: "₹8,456 Cr",
-    expense: "0.35%",
-    minSip: 500,
-    minLumpsum: 1000,
-    annualRates: { 1: 0.10, 3: 0.27, 5: 0.18 },
-    holdings: [{ name: "SBI Gold ETF", sector: "Bank", instrument: "Mutual Fund", asset: 100.18 }],
-  };
-
   const [mode, setMode] = useState("sip");
   const [sipAmt, setSipAmt] = useState(5000);
   const [lumpAmt, setLumpAmt] = useState(10000);
@@ -62,10 +47,8 @@ const FundDetails = () => {
   const [hoverIndex, setHoverIndex] = useState(null);
   const [hoverIndex2, setHoverIndex2] = useState(null);
   const [saved, setSaved] = useState(false);
-  
-   const [fundsList, setFundsList] = useState([])
-    const [page, setPage] = useState(0)
-    const limit = 10;
+  const [fundsList, setFundsList] = useState(null);
+  const [buyModal, setBuyModal] = useState(false);
   
     const url = nodeUrl(import.meta.env.VITE_GET_ALL_FUNDS || "/master-scheme-list");
     const detailsUrl = nodeUrl(import.meta.env.VITE_SCHEME_DETAILS || "/scheme-details");
@@ -73,7 +56,7 @@ const FundDetails = () => {
   const { data: details, isLoading } = useQuery({
     queryKey: ["FUND_FULL_DETAILS", isin, code],
     queryFn: async () => 
-        postApi(url, {isin: isin }),
+        postApi(url, { isin, scheme_code: code }),
     enabled: !!isin && !!code,
     staleTime: 1000 * 60 * 2,
     refetchInterval: 1000 * 60 * 5,
@@ -115,7 +98,7 @@ const FundDetails = () => {
       //   ...(details?.meta?.data?.lists || []),
       // ];
 
-      setFundsList(details?.data?.lists?.[0] || []);
+      setFundsList(details?.data?.lists?.[0] || null);
 
     }, [details,chartData]);
     
@@ -135,21 +118,22 @@ const FundDetails = () => {
     return ((fv - invested) / invested) * 100;
   }
 
-  const annualR_for_duration = fund.annualRates[duration] ?? fund.annualRates[3];
+  const fund = fundsList?.name ? fundsList : { annualRates: { 1: 0, 3: 0, 5: 0 }, minSip: 500, minLumpsum: 1000, category: "", holdings: [] };
+  const annualR_for_duration = fund.annualRates?.[duration] ?? fund.annualRates?.[3] ?? 0;
 
   const totalSIPInvested = sipAmt * 12 * duration;
   const sipFV = Math.round(futureValueSIP(sipAmt, annualR_for_duration, duration));
   const sipGainPct = percentGain(sipFV, totalSIPInvested);
 
   const lumpResults = [1, 3, 5].map((yr) => {
-    const r = fund.annualRates[yr] ?? fund.annualRates[3];
+    const r = fund.annualRates?.[yr] ?? fund.annualRates?.[3] ?? 0;
     const invested = lumpAmt;
     const fv = Math.round(futureValueLumpsum(lumpAmt, r, yr));
     const gainPct = percentGain(fv, invested);
     return { yr, invested, fv, gainPct, r };
   });
 
-  const selectedLumpRate = fund.annualRates[duration] ?? fund.annualRates[3];
+  const selectedLumpRate = fund.annualRates?.[duration] ?? fund.annualRates?.[3] ?? 0;
   const lumpFV_selected = Math.round(futureValueLumpsum(lumpAmt, selectedLumpRate, duration));
   const lumpGainPct_selected = percentGain(lumpFV_selected, lumpAmt);
   
@@ -188,14 +172,11 @@ const FundDetails = () => {
     week52Low: 820,
   };
 
-   const shareWhatsApp = () => {
-    const msg = `Check ${baseStock.name } (${baseStock.symbol}) price ₹${livePrice} (${pctChange}%).`;
+  const shareWhatsApp = () => {
+    const msg = `Check ${fundsList?.name || "this fund"} on WealthCrop.`;
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
   };
-  const [livePrice, setLivePrice] = useState(baseStock.price);
-  const [buyModal, setBuyModal] = useState(false)
-  const pctChange = Math.round(((livePrice - baseStock.price) / baseStock.price) * 10000) / 100;
-   const openBuy = () => setBuyModal(true);
+  const openBuy = () => setBuyModal(true);
 
   const closeModal = () => setBuyModal(false);
 
@@ -277,16 +258,18 @@ const [activeInfo, setActiveInfo] = useState(null);
         {/* CATEGORY + RISK */}
         <div className="flex flex-wrap items-center gap-3 mt-1">
           <span className="text-sm text-[var(--text-secondary)]">
-            {fund.category}
+            {fundsList?.category || fund.category || "Mutual Fund"}
           </span>
 
+          {fundsList?.risk ? (
           <span className="
             px-2 py-1 rounded-full text-xs
             bg-amber-500/10 text-amber-400
             border border-amber-500/20
           ">
-            {fundsList?.risk}
+            {fundsList.risk}
           </span>
+          ) : null}
         </div>
 
         {/* SAVE + SHARE (SMALL) */}
@@ -359,23 +342,12 @@ const [activeInfo, setActiveInfo] = useState(null);
     <div>
       <div className="flex items-end gap-3">
         <h2 className="text-4xl font-extrabold text-emerald-500">
-          {fundsList?.returns?.["3Y"]}%
+          {fundsList?.returns?.["3Y"] != null ? `${fundsList.returns["3Y"]}%` : "—"}
           <span className="text-[var(--text-secondary)] text-sm font-medium ml-1">
             3Y annualized
           </span>
         </h2>
-
-        <div
-          className={`px-3 py-1 rounded-md text-sm font-semibold ${
-            pctChange >= 0 ? "text-emerald-400" : "text-red-400"
-          }`}
-        >
-          +0.11%
-          <span className="text-[var(--text-secondary)] text-sm font-medium ml-1">
-            1D
-          </span>
-        </div>
-      </div>
+    </div>
     </div>
 
     {/* INVEST */}
@@ -395,15 +367,17 @@ const [activeInfo, setActiveInfo] = useState(null);
         <div>
           Nav:
           <span className="text-[var(--text-primary)] font-medium ml-1">
-            {fundsList?.nav}
+            {fundsList?.nav != null ? `₹${Number(fundsList.nav).toFixed(2)}` : "—"}
           </span>
         </div>
+        {fundsList?.minLumpsum ? (
         <div>
-          Fund size:
+          Min lumpsum:
           <span className="text-[var(--text-primary)] font-medium ml-1">
-            {fundsList?.fundSize}
+            ₹{fundsList.minLumpsum}
           </span>
         </div>
+        ) : null}
       </div>
     </div>
 
@@ -423,46 +397,49 @@ const [activeInfo, setActiveInfo] = useState(null);
 >
   <div className="flex flex-col gap-4">
 
-    {/* Expense Ratio */}
+    {fundsList?.expense ? (
     <div className="bg-[var(--white-5)] p-3 rounded-lg dark:border border-[var(--border-color)]">
       <p className="text-xs text-[var(--text-secondary)]">
         Expense Ratio
       </p>
       <p className="text-lg font-semibold text-[var(--text-primary)]">
-        {fundsList?.expense ?? "--"}
+        {fundsList.expense}
       </p>
     </div>
+    ) : null}
 
-    {/* 52W Range */}
+    {fundsList?.week52Low != null && fundsList?.week52High != null ? (
     <div className="bg-[var(--white-5)] p-3 rounded-lg dark:border border-[var(--border-color)]">
       <p className="text-xs text-[var(--text-secondary)]">
         52W Range
       </p>
       <p className="text-sm font-semibold text-[var(--text-primary)]">
-        ₹{fundsList?.week52Low ?? "--"} - ₹{fundsList?.week52High ?? "--"}
+        ₹{fundsList.week52Low} - ₹{fundsList.week52High}
       </p>
     </div>
+    ) : null}
 
-    {/* Analyst Rating */}
+    {fundsList?.rating ? (
     <div className="bg-[var(--white-5)] p-3 rounded-lg dark:border border-[var(--border-color)]">
       <p className="text-xs text-[var(--text-secondary)]">
-        Analyst Rating
+        Rating
       </p>
-
       <div className="flex items-center gap-2">
         <div className="
           w-10 h-10 rounded-full
           bg-emerald-500 text-white
           flex items-center justify-center font-bold
         ">
-          {fundsList?.rating}
-        </div>
-
-        <div className="text-sm text-[var(--text-primary)]">
-          Strong Buy
+          {fundsList.rating}
         </div>
       </div>
     </div>
+    ) : (
+    <div className="bg-[var(--white-5)] p-3 rounded-lg dark:border border-[var(--border-color)]">
+      <p className="text-xs text-[var(--text-secondary)]">Scheme code</p>
+      <p className="text-sm font-semibold text-[var(--text-primary)]">{code}</p>
+    </div>
+    )}
 
   </div>
 </aside>
@@ -521,8 +498,7 @@ const [activeInfo, setActiveInfo] = useState(null);
     </div>
   </div>
 
-  <MFChart data={chartData?.data?.chartData
-[selectedTimeframe]} height={320} />
+  <MFChart data={chartData?.data?.chartData?.[selectedTimeframe]} height={320} />
 
   <div className="mt-4 grid grid-cols-2 gap-3">
     <div

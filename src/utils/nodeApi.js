@@ -12,6 +12,11 @@ export const laravelUrl = (path = "") => {
   return `${base}${suffix}`;
 };
 
+export const fundPath = (isin, code) =>
+  `/mutual_fund/${encodeURIComponent(isin || "")}/${encodeURIComponent(code || "")}`;
+
+export const fundBuyPath = (isin, code) => `${fundPath(isin, code)}/buy`;
+
 const RISK_RANK = { conservative: 1, moderate: 2, aggressive: 3 };
 const FUND_RISK_RANK = (fundRisk = "") => {
   const r = fundRisk.toLowerCase();

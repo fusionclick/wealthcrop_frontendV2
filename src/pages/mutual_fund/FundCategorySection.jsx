@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { postApi } from "../../api/api";
 import PageLoader from "../../components/PageLoader";
 import SmallLoader from "../../components/SmallLoader";
-import { nodeUrl } from "../../utils/nodeApi";
+import { nodeUrl, fundPath, fundBuyPath } from "../../utils/nodeApi";
 
 /* ---------------------------------------------
    DEMO FUND DATA FOR ALL COLLECTIONS
@@ -318,13 +318,6 @@ const FundCategorySection = () => {
     return list;
   }, [fundsList, filters, sort]);
 
-  const slugify = (text = "") =>
-    text
-      .toLowerCase()
-      .trim()
-      .replace(/\s+/g, "-")
-      .replace(/[^\w-]/g, "");
-
       // ! for automatic set curret page when scroll
 const containerRef = useRef(null);
 
@@ -446,7 +439,7 @@ const lastElementRef = useCallback(
         <div className="min-w-0">
           <p
             onClick={() =>
-              navigate(`/mutual_fund/${slugify(f.name)}`)
+              navigate(fundPath(f.scheme_isin, f.scheme_bse_code))
             }
             className="
               text-sm font-semibold cursor-pointer
@@ -463,7 +456,7 @@ const lastElementRef = useCallback(
           </p>
 
           <div className="mt-1 flex gap-2 text-[11px] flex-wrap">
-            <Stars rating={f.rating} />
+            {f.rating ? <Stars rating={f.rating} /> : null}
 
             <span
               className="
@@ -493,13 +486,13 @@ const lastElementRef = useCallback(
               {p}
             </p>
 
-            {f.returns[p] == null ? (
+            {f.returns?.[p] == null ? (
               <p className="text-slate-400 dark:text-[var(--text-secondary)]">
                 --
               </p>
             ) : (
               <p className="font-medium text-emerald-600 dark:text-[var(--chart-up)]">
-                +{f.returns[p].toFixed(2)}%
+                +{Number(f.returns[p]).toFixed(2)}%
               </p>
             )}
           </div>
@@ -509,9 +502,7 @@ const lastElementRef = useCallback(
       {/* BUY */}
       <button
         onClick={() =>
-          navigate(
-            `/mutual_fund/${slugify(f.name)}/purchase_fund`
-          )
+          navigate(fundBuyPath(f.scheme_isin, f.scheme_bse_code))
         }
         className="
           mt-2 sm:mt-0

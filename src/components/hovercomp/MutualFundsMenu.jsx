@@ -85,7 +85,7 @@ const isStocksActive = location.pathname.startsWith("/user/mutual_fund");
                 </p>
 
                 <button
-                  onClick={() => navigate("/mutual_fund")}
+                  onClick={() => navigate("/user/mutual_fund/explore")}
                   className="
                     inline-flex items-center gap-1 px-4 py-1.5 rounded-full
                     bg-gray-200 dark:bg-white/10

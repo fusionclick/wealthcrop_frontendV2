@@ -480,7 +480,7 @@ useEffect(() => {
               <Route path="/portfolio" element={<Portfolio />} />
               <Route path="/risk" element={<RiskProfilingPage />} />
               <Route
-                path="/mutual_fund/:name/purchase_fund"
+                path="/mutual_fund/:isin/:code/buy"
                 element={<MutualFundInvestPage />}
               />
               <Route path="/stockList/:name" element={<StockList />} />

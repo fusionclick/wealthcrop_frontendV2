@@ -45,7 +45,7 @@ const HeroSection = () => {
       </Link>
 
       <Link
-        to="/mutual-funds"
+        to="/user/mutual_fund/explore"
         className="
           border border-red-600 dark:border-red-500
           text-red-600 dark:text-red-400

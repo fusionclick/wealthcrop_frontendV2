@@ -1,9 +1,9 @@
 import { useRef, useEffect, useState } from "react";
 import { Search, ArrowLeft, Bookmark } from "lucide-react";
-import { postApiWithToken } from "../api/api";
+import { postApi } from "../api/api";
 import { searchStocks } from "../api/marketApi";
 import { useNavigate } from "react-router-dom";
-import { nodeUrl } from "../utils/nodeApi";
+import { nodeUrl, fundPath } from "../utils/nodeApi";
 
 export default function SearchPopup({ onClose }) {
   const containerRef = useRef(null);
@@ -83,7 +83,7 @@ export default function SearchPopup({ onClose }) {
 
     const url = nodeUrl(import.meta.env.VITE_GET_ALL_FUNDS || "/master-scheme-list");
     try {
-      const res = await postApiWithToken(url, payload);
+      const res = await postApi(url, payload);
 
       console.log("search assests ", res);
 
@@ -110,7 +110,7 @@ export default function SearchPopup({ onClose }) {
 
  const showFundPage = (isin,code) => {
   // const cleanName = fundName.replace(/\s+/g, "");
-  navigate(`/mutual_fund/${isin}/${code}`);
+  navigate(fundPath(isin, code));
 };
 
   useEffect(() => {

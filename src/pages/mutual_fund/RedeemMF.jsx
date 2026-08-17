@@ -1,36 +1,28 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getApiWithToken, postApiWithToken } from "../../api/api";
+import { postApiWithToken } from "../../api/api";
 import { toastError, toastSuccess } from "../../utils/notifyCustom";
 import { useSelector } from "react-redux";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { nodeUrl, validateInvestorReady, laravelUrl } from "../../utils/nodeApi";
 
 const RedeemMF = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: investorData } = useSelector((state) => state.investorData);
+  const ucc = investorData?.kyc?.ucc_code;
 
-  const [holdings, setHoldings] = useState([]);
-  const [loadingHoldings, setLoadingHoldings] = useState(true);
   const [selectedHolding, setSelectedHolding] = useState(null);
   const [redeemAmount, setRedeemAmount] = useState("");
   const [redeemAll, setRedeemAll] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    const fetchHoldings = async () => {
-      try {
-        const url = laravelUrl(import.meta.env.VITE_GET_FUNDLIST);
-        const res = await getApiWithToken(url);
-        const items = res?.data?.data;
-        if (Array.isArray(items)) setHoldings(items);
-      } catch (_) {
-        /* silent */
-      } finally {
-        setLoadingHoldings(false);
-      }
-    };
-    fetchHoldings();
-  }, []);
+  const { data: holdings = [], isLoading: loadingHoldings } = useQuery({
+    queryKey: ["bsePortfolio", ucc],
+    queryFn: () => postApiWithToken(nodeUrl("/getClientPortfolio"), { data: { ucc } }),
+    select: (res) => (Array.isArray(res?.data?.holdings) ? res.data.holdings : []),
+    enabled: !!ucc,
+  });
 
   const generateOrderRefId = () => String(Math.floor(100000 + Math.random() * 900000));
 
@@ -44,19 +36,29 @@ const RedeemMF = () => {
       toastError("Please select a fund to redeem.");
       return;
     }
+    if (!selectedHolding.folio) {
+      toastError("Folio is missing on this holding. Cannot redeem.");
+      return;
+    }
     if (!redeemAll && (!redeemAmount || Number(redeemAmount) <= 0)) {
       toastError("Please enter a valid redemption amount.");
       return;
     }
+    const invested = Number(selectedHolding.inv_amo || 0);
+    if (!redeemAll && invested && Number(redeemAmount) > invested) {
+      toastError("Redemption amount cannot exceed invested value.");
+      return;
+    }
 
     setSubmitting(true);
+    const memRef = generateOrderRefId();
     const payload = {
       data: {
         orders: [
           {
             type: "r",
-            mem_ord_ref_id: generateOrderRefId(),
-            investor: { ucc: investorData?.kyc?.ucc_code },
+            mem_ord_ref_id: memRef,
+            investor: { ucc },
             member: "91010",
             scheme: selectedHolding.scheme_bse_code || selectedHolding.scheme_code || "",
             amount: redeemAll ? 0 : Number(redeemAmount),
@@ -64,19 +66,12 @@ const RedeemMF = () => {
             is_units: false,
             all_units: redeemAll,
             min_redeem_flag: false,
-            folio: selectedHolding.folio || "",
+            folio: selectedHolding.folio,
             is_fresh: false,
             phys_or_demat: "d",
             holder: [{ holder_rank: "1", email: investorData?.email || "", mobnum: investorData?.phone || "" }],
             kyc_passed: true,
-            depository_acct: {
-              depository: "C",
-              dp_id: investorData?.kyc?.dp_id || "",
-              client_id: investorData?.kyc?.client_id || "",
-            },
             dpc: true,
-            is_nomination_opted: false,
-            nomination_auth_mode: "",
             email: investorData?.email || "",
             mobnum: investorData?.phone || "",
           },
@@ -88,13 +83,29 @@ const RedeemMF = () => {
       const url = nodeUrl(import.meta.env.VITE_FUND_ORDER_PLACE || "/purchaseNewOrder");
       const res = await postApiWithToken(url, payload);
       if (res?.status === 200 || res?.status === true || res?.status === "success") {
+        const orderId = res.data?.items?.[0]?.id;
+        const memberRefId = res.data?.items?.[0]?.mem_ord_ref_id || memRef;
+        if (orderId) {
+          await postApiWithToken(laravelUrl(import.meta.env.VITE_SEND_FUND_ORDER_DETAILS), {
+            bse_order_id: orderId,
+            mem_ord_ref_id: memberRefId,
+            scheme_name: selectedHolding.scheme_name,
+            scheme_bse_code: selectedHolding.scheme_bse_code,
+            inv_amo: redeemAll ? selectedHolding.inv_amo : Number(redeemAmount),
+            folio: selectedHolding.folio,
+            order_type: "redeem",
+            scheme_category: selectedHolding.scheme_category,
+          });
+        }
         toastSuccess("Redemption order placed successfully!");
+        queryClient.invalidateQueries({ queryKey: ["bsePortfolio"] });
+        queryClient.invalidateQueries({ queryKey: ["investedFunds"] });
         navigate("/user/order/mutual-funds");
       } else {
-        toastError(res?.message || "Redemption failed. Please try again.");
+        toastError(res?.message || res?.error || "Redemption failed. Please try again.");
       }
     } catch (err) {
-      toastError(err?.message || "Redemption failed. Please try again.");
+      toastError(err?.response?.data?.message || err?.message || "Redemption failed. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -113,7 +124,7 @@ const RedeemMF = () => {
       <div className="w-full max-w-lg bg-white dark:bg-[var(--card-bg)] rounded-2xl shadow-lg p-8 space-y-6 dark:border dark:border-[var(--border-color)]">
         <div>
           <h1 className="text-xl font-bold text-gray-800 dark:text-[var(--text-primary)]">Redeem Mutual Fund</h1>
-          <p className="text-sm text-gray-500 dark:text-[var(--text-secondary)] mt-1">Select a fund from your portfolio to redeem.</p>
+          <p className="text-sm text-gray-500 dark:text-[var(--text-secondary)] mt-1">Select a holding with a folio to redeem.</p>
         </div>
 
         {holdings.length === 0 ? (
@@ -133,7 +144,7 @@ const RedeemMF = () => {
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {holdings.map((h, idx) => (
                   <button
-                    key={idx}
+                    key={`${h.scheme_bse_code}-${h.folio}-${idx}`}
                     onClick={() => setSelectedHolding(h)}
                     className={`w-full text-left p-3 rounded-xl border transition ${
                       selectedHolding === h
@@ -142,7 +153,11 @@ const RedeemMF = () => {
                     }`}
                   >
                     <p className="font-medium text-gray-800 dark:text-[var(--text-primary)] text-sm">{h.scheme_name || "—"}</p>
-                    <p className="text-xs text-gray-500 dark:text-[var(--text-secondary)] mt-0.5">Invested: ₹{Number(h.inv_amo || 0).toLocaleString()}</p>
+                    <p className="text-xs text-gray-500 dark:text-[var(--text-secondary)] mt-0.5">
+                      Invested: ₹{Number(h.inv_amo || 0).toLocaleString()}
+                      {h.folio ? ` · Folio ${h.folio}` : " · Folio missing"}
+                      {h.units ? ` · ${h.units} units` : ""}
+                    </p>
                   </button>
                 ))}
               </div>
