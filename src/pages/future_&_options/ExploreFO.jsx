@@ -9,6 +9,7 @@ import { FaBookmark, FaRegBookmark } from "react-icons/fa";
 import axios from "axios";
 import { IoLinkSharp } from "react-icons/io5";
 import { fetchFno, fetchMarketMovers, fetchMarketProducts, fetchEtfs } from "../../api/marketApi";
+import FnoOrderPanel from "./FnoOrderPanel";
 
 const changeColor = (p) => (Number(p) >= 0 ? "text-green-600" : "text-red-600");
 
@@ -24,6 +25,7 @@ const ExploreFO = () => {
   const [indexFutures, setIndexFutures] = useState([]);
   const [products, setProducts] = useState([]);
   const [etfs, setEtfs] = useState([]);
+  const [orderInst, setOrderInst] = useState(null);
 
     // Close dropdown if clicked outside
   useEffect(() => {
@@ -96,6 +98,7 @@ const ExploreFO = () => {
           {topTraded.map((data, index) => (
             <div
               key={index}
+              onClick={() => setOrderInst(data)}
               className="
                 relative flex flex-col justify-between p-5 h-48 cursor-pointer
                 bg-white border border-gray-200 rounded-xl shadow-sm
@@ -281,6 +284,7 @@ const ExploreFO = () => {
                     {commodityCards.map((stock) => (
                       <div
                         key={stock.name}
+                        onClick={() => setOrderInst(stock)}
                         className="
                           relative flex flex-col justify-between p-5 h-48 cursor-pointer
                           bg-white border border-gray-200 rounded-xl shadow-sm
@@ -345,6 +349,7 @@ const ExploreFO = () => {
                     {indexFutures.map((stock) => (
                       <div
                         key={stock.name}
+                        onClick={() => setOrderInst(stock)}
                         className="
                           relative flex flex-col justify-between p-5 h-48 cursor-pointer
                           bg-white border border-gray-200 rounded-xl shadow-sm
@@ -523,6 +528,9 @@ const ExploreFO = () => {
                 </div>
 
 
+    {orderInst && (
+      <FnoOrderPanel instrument={orderInst} onClose={() => setOrderInst(null)} />
+    )}
     </div>
   )
 }
@@ -687,7 +695,6 @@ const MarketTable = ({ activeTab }) => {
     </div>
   )}
 </div>
-
   );
 };
 

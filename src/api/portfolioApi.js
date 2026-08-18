@@ -34,3 +34,6 @@ export const fetchFnoPositions = () =>
 
 export const fetchFnoOrders = () =>
   getApiWithToken(`${base}/portfolio/fno/orders`);
+
+export const placeFnoOrder = (payload) =>
+  postApiWithToken(`${base}/portfolio/fno/order`, payload);
