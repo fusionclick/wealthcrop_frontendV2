@@ -1,8 +1,8 @@
 import React from 'react'
 
-const DonutChart = ({data, hoverIndex, setHoverIndex}) => {
+const DonutChart = ({data, hoverIndex, setHoverIndex, center}) => {
     // TOTAL PERCENT
-  const total = data.reduce((a, b) => a + b.value, 0);
+  const total = (data || []).reduce((a, b) => a + b.value, 0);
 
   // SVG setup
   const radius = 70;
@@ -13,7 +13,7 @@ const DonutChart = ({data, hoverIndex, setHoverIndex}) => {
     <div className="relative w-88 h-58 flex items-center justify-center">
         <svg width="180" height="170" viewBox="0 0 200 200">
           <g transform="rotate(-90 100 100)">
-            {data.map((item, index) => {
+            {(data || []).map((item, index) => {
               const angle = (item.value / total) * 360;
               const startAngle = cumulative;
               const endAngle = cumulative + angle;
@@ -50,7 +50,7 @@ const DonutChart = ({data, hoverIndex, setHoverIndex}) => {
 
         {/* CENTER VALUE */}
         <div className="absolute text-lg font-semibold dark:text-[var(--text-secondary)]">
-          ₹32,710Cr
+          {center || ""}
         </div>
       </div>
   )

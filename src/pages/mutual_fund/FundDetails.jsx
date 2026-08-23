@@ -1,44 +1,23 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Line } from "react-chartjs-2";
-import {
-  Chart as ChartJS,
-  LineElement,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  Tooltip,
-} from "chart.js";
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as ReTooltip,
-  ResponsiveContainer,
-} from "recharts";
-import { MF_DATA } from "../../components/chart/mfNavData";
+﻿import React, { useMemo, useState } from "react";
 import { FiShare2 } from "react-icons/fi";
 import { AiOutlineStar } from "react-icons/ai";
 import { MdOutlineInfo } from "react-icons/md";
 import { useParams } from "react-router-dom";
 import DonutChart from "../../components/DonutChart";
-import logo from "../../assets/mutualFund/sbi.webp"
 import MFChart from "../../components/chart/MFChart";
 import MutualFundInvestPage from "./MutualFundInvestPage";
 import Riskometer from "../../components/Riskometer";
 import { postApi } from "../../api/api";
 import { useQuery } from "@tanstack/react-query";
-import PageLoader from "../../components/PageLoader";
 import FundDetailsPageSkeleton from "../../components/ui/skeleton/main/FundDetailsPageSkeleton";
 import { nodeUrl } from "../../utils/nodeApi";
 
-ChartJS.register(LineElement, CategoryScale, LinearScale, PointElement, Tooltip);
+const fmtPct = (v) => (v == null || Number.isNaN(Number(v)) ? "—" : `${Number(v).toFixed(2)}%`);
+const inr = (v) => (v == null || Number.isNaN(Number(v)) ? "—" : `₹${Number(v).toLocaleString("en-IN")}`);
 
 const FundDetails = () => {
   const { isin } = useParams();
   const { code } = useParams();
-  const [hideChart, setHideChart] = useState(false);
   const [mode, setMode] = useState("sip");
   const [sipAmt, setSipAmt] = useState(5000);
   const [lumpAmt, setLumpAmt] = useState(10000);
@@ -47,7 +26,6 @@ const FundDetails = () => {
   const [hoverIndex, setHoverIndex] = useState(null);
   const [hoverIndex2, setHoverIndex2] = useState(null);
   const [saved, setSaved] = useState(false);
-  const [fundsList, setFundsList] = useState(null);
   const [buyModal, setBuyModal] = useState(false);
   
     const url = nodeUrl(import.meta.env.VITE_GET_ALL_FUNDS || "/master-scheme-list");
@@ -55,53 +33,47 @@ const FundDetails = () => {
   
   const { data: details, isLoading } = useQuery({
     queryKey: ["FUND_FULL_DETAILS", isin, code],
-    queryFn: async () => 
-        postApi(url, { isin, scheme_code: code }),
+    queryFn: async () => postApi(url, { isin, scheme_code: code }),
     enabled: !!isin && !!code,
     staleTime: 1000 * 60 * 2,
     refetchInterval: 1000 * 60 * 5,
     refetchOnWindowFocus: true,
   });
 
-
     const { data: chartData, isLoading: loading2 } = useQuery({
     queryKey: ["CHART_DETAILS", isin, code],
-    queryFn: async () => 
-        postApi(detailsUrl, { isin: isin, scheme_code: code }),
+    queryFn: async () => postApi(detailsUrl, { isin: isin, scheme_code: code }),
     enabled: !!isin && !!code,
-    // staleTime: 1000 * 60 * 2, // 2 min
   });
 
-  // const { data: details, isLoading } = useQuery({
-  //   queryKey: ["FUND_FULL_DETAILS", isin, code],
-  //   queryFn: async () => {
-  //     const [res1, res2] = await Promise.all([
-  //       postApi(url, { source: "demo", scheme_isin: isin }),
-  //       postApi(url2, { source: "demo", bse_scheme_code: code }),
-  //     ]);
+  const schemeInfo = chartData?.data?.scheme_info;
+  const fundsList = useMemo(() => {
+    const base = details?.data?.lists?.[0] || {};
+    const extra = chartData?.data || {};
+    const returns = extra.returns || schemeInfo?.returns || base.returns || {};
+    const nav = schemeInfo?.current_nav ?? schemeInfo?.nav ?? base.nav;
+    return {
+      ...base,
+      ...schemeInfo,
+      nav,
+      returns,
+      name: schemeInfo?.name || base.name,
+      category: schemeInfo?.category || extra.scheme_info?.category || base.category,
+      minSip: schemeInfo?.minSip ?? base.minSip ?? 500,
+      minLumpsum: schemeInfo?.minLumpsum ?? base.minLumpsum ?? 5000,
+      minRedeem: schemeInfo?.minRedeem ?? base.minRedeem ?? 1000,
+      expense: schemeInfo?.expense ?? base.expense,
+      exitLoad: schemeInfo?.exitLoad ?? base.exitLoad,
+      risk: schemeInfo?.risk ?? base.risk,
+      holdings: extra.holdings || schemeInfo?.holdings || [],
+      assetSplit: extra.assetSplit || [],
+      sectors: extra.sectors || [],
+      categoryAvg: extra.categoryAvg || {},
+      rank: extra.rank || {},
+      advancedRatios: schemeInfo?.advancedRatios || extra.advancedRatios,
+    };
+  }, [details, chartData, schemeInfo]);
 
-  //     return {
-  //       details: res1,
-  //       meta: res2,
-  //     };
-  //   },
-  //   enabled: !!isin && !!code,
-  //   staleTime: 1000 * 60 * 2, // 2 min
-  // });
-  
-    useEffect(() => {
-      console.log("Fund Details", details);
-      console.log("Chart Details", chartData);
-      // console.log("Fund Details2", details2);
-      // const mergedLists = [
-      //   ...(details?.details?.data?.lists || []),
-      //   ...(details?.meta?.data?.lists || []),
-      // ];
-
-      setFundsList(details?.data?.lists?.[0] || null);
-
-    }, [details,chartData]);
-    
   function futureValueSIP(P, annualR, years) {
     const i = annualR / 12;
     const n = years * 12;
@@ -118,8 +90,24 @@ const FundDetails = () => {
     return ((fv - invested) / invested) * 100;
   }
 
-  const fund = fundsList?.name ? fundsList : { annualRates: { 1: 0, 3: 0, 5: 0 }, minSip: 500, minLumpsum: 1000, category: "", holdings: [] };
-  const annualR_for_duration = fund.annualRates?.[duration] ?? fund.annualRates?.[3] ?? 0;
+  const fund = {
+    ...fundsList,
+    annualRates: {
+      1: (Number(fundsList?.returns?.["1Y"]) || 0) / 100,
+      3: (Number(fundsList?.returns?.["3Y"]) || 0) / 100,
+      5: (Number(fundsList?.returns?.["5Y"]) || 0) / 100,
+    },
+    minSip: fundsList?.minSip || 500,
+    minLumpsum: fundsList?.minLumpsum || 1000,
+    category: fundsList?.category || "",
+    holdings: fundsList?.holdings || [],
+  };
+  const rateForYears = (y) => {
+    if (y <= 1) return fund.annualRates[1];
+    if (y <= 3) return fund.annualRates[3] || fund.annualRates[1];
+    return fund.annualRates[5] || fund.annualRates[3] || fund.annualRates[1];
+  };
+  const annualR_for_duration = rateForYears(duration);
 
   const totalSIPInvested = sipAmt * 12 * duration;
   const sipFV = Math.round(futureValueSIP(sipAmt, annualR_for_duration, duration));
@@ -133,44 +121,10 @@ const FundDetails = () => {
     return { yr, invested, fv, gainPct, r };
   });
 
-  const selectedLumpRate = fund.annualRates?.[duration] ?? fund.annualRates?.[3] ?? 0;
+  const selectedLumpRate = rateForYears(duration);
   const lumpFV_selected = Math.round(futureValueLumpsum(lumpAmt, selectedLumpRate, duration));
   const lumpGainPct_selected = percentGain(lumpFV_selected, lumpAmt);
   
-
-  const data = [
-    { label: "Technology", value: 35.5, color: "#15B7E6" },
-    { label: "Industrials", value: 18.5, color: "#3F61FF" },
-    { label: "Others", value: 5.9, color: "#FFB44C" },
-    { label: "Healthcare", value: 4.2, color: "#C45A8C" },
-    { label: "Financial", value: 3.0, color: "#FF5C73" },
-    { label: "Real Estate ", value: 2.3, color: "#B8C4FF" },
-    { label: "Materials", value: 2.2, color: "#FFE863" },
-  ];
-
-  const data2 = [
-    { label: "Commodities", value: 98.6, color: "#C5F7B1" },
-    { label: "Cash", value: 1.4, color: "#15B7E6" },
-  ];
-
-  const timeseries = useMemo(() => {
-    const arr = [];
-    let base = 1420;
-    for (let i = 29; i >= 0; i--) {
-      base += Math.sin(i / 3) * 5 + (Math.random() - 0.5) * 10;
-      arr.push({ x: `D-${i}`, price: Math.round(base * 100) / 100 });
-    }
-    return arr;
-  }, []);
-  const areaData = timeseries.map((d) => ({ name: d.x, price: d.price }));
-
-  const baseStock = {
-    name: "AetherTech Solutions Ltd.",
-    symbol: "AETHER",
-    price: 1489.6,
-    week52High: 1750,
-    week52Low: 820,
-  };
 
   const shareWhatsApp = () => {
     const msg = `Check ${fundsList?.name || "this fund"} on WealthCrop.`;
@@ -213,14 +167,14 @@ const advancedDefinitions = {
   "P/E Ratio": "Price-to-Earnings Ratio shows how much investors are willing to pay for each unit of earnings. A higher P/E may indicate growth expectations.",
   "P/B Ratio": "Price-to-Book Ratio compares a company's market price to its book value. A lower P/B can indicate undervaluation or financial stability.",
   "Alpha": "Alpha measures the excess return generated by an investment relative to its benchmark. Positive alpha means outperformance.",
-  "Beta": "Beta measures a stock’s volatility relative to the market. A beta above 1 indicates higher volatility; below 1 indicates more stability.",
+  "Beta": "Beta measures a stock's volatility relative to the market. A beta above 1 indicates higher volatility; below 1 indicates more stability.",
   "Sharpe": "Sharpe Ratio evaluates risk-adjusted returns by comparing excess returns to volatility. Higher Sharpe indicates better risk-adjusted performance.",
   "Sortino": "Sortino Ratio measures risk-adjusted returns but only considers downside volatility. It is more accurate for evaluating downside risk.",
 };
 
 const [activeInfo, setActiveInfo] = useState(null); 
 
-  if (isLoading) return <FundDetailsPageSkeleton />;  
+  if (isLoading || loading2) return <FundDetailsPageSkeleton />;  
 
   return (
 
@@ -498,7 +452,10 @@ const [activeInfo, setActiveInfo] = useState(null);
     </div>
   </div>
 
-  <MFChart data={chartData?.data?.chartData?.[selectedTimeframe]} height={320} />
+  <MFChart
+    data={chartData?.data?.chartData?.[selectedTimeframe] || chartData?.data?.chartData?.["30D"]}
+    height={320}
+  />
 
   <div className="mt-4 grid grid-cols-2 gap-3">
     <div
@@ -521,7 +478,7 @@ const [activeInfo, setActiveInfo] = useState(null);
           text-gray-900 dark:text-emerald-400
         "
       >
-        12.5%
+        {fmtPct(fundsList?.returns?.["1Y"])}
       </p>
     </div>
 
@@ -545,7 +502,7 @@ const [activeInfo, setActiveInfo] = useState(null);
           text-gray-900 dark:text-[var(--text-primary)]
         "
       >
-        ₹{fundsList?.minSip}
+        {inr(fundsList?.minSip)}
       </p>
     </div>
   </div>
@@ -734,277 +691,100 @@ const [activeInfo, setActiveInfo] = useState(null);
           <div className="flex flex-col gap-4">
             <div className="flex justify-between border-b py-2">
               <span className="text-gray-600 dark:text-[var(--text-secondary)]">Min. for 1st investment</span>
-              <span className="font-semibold dark:text-[var(--text-primary)]">₹5,000</span>
+              <span className="font-semibold dark:text-[var(--text-primary)]">{inr(fundsList?.minLumpsum)}</span>
             </div>
             <div className="flex justify-between border-b py-2">
               <span className="text-gray-600 dark:text-[var(--text-secondary)]">
                 Min. for 2nd investment onwards
               </span>
-              <span className="font-semibold dark:text-[var(--text-primary)]">₹1,000</span>
+              <span className="font-semibold dark:text-[var(--text-primary)]">{inr(fundsList?.minRedeem || fundsList?.minLumpsum)}</span>
             </div>
             <div className="flex justify-between py-2">
               <span className="text-gray-600 dark:text-[var(--text-secondary)]">Min. for SIP</span>
-              <span className="font-semibold dark:text-[var(--text-primary)]">₹{fundsList?.minSip}</span>
+              <span className="font-semibold dark:text-[var(--text-primary)]">{inr(fundsList?.minSip)}</span>
             </div>
           </div>
         </div>
       </div>
 
 
-      {/* Holdings */}
-     <div
-  className="
-    bg-[var(--white-10)]
-    border border-[var(--border-color)]
-    shadow-lg rounded-2xl p-6 max-w-4xl
-  "
->
-  <h2 className="text-2xl font-semibold mb-4 text-[var(--text-primary)]">
-    Holdings
-  </h2>
-
+      <div className="bg-[var(--white-10)] border border-[var(--border-color)] shadow-lg rounded-2xl p-6 max-w-4xl">
+  <h2 className="text-2xl font-semibold mb-4 text-[var(--text-primary)]">Holdings</h2>
   <div className="overflow-x-auto">
     <table className="w-full border-collapse">
-
-      {/* TABLE HEADER */}
       <thead>
-        <tr
-          className="
-            text-left
-            bg-[var(--white-5)]
-            border-b border-[var(--border-color)]
-          "
-        >
-          <th className="py-3 px-4 text-sm font-semibold text-[var(--text-secondary)]">
-            Name
-          </th>
-          <th className="py-3 px-4 text-sm font-semibold text-[var(--text-secondary)] hidden lg:table-cell">
-            Sector
-          </th>
-          <th className="py-3 px-4 text-sm font-semibold text-[var(--text-secondary)] hidden lg:table-cell">
-            Instrument
-          </th>
-          <th className="py-3 px-4 text-sm font-semibold text-[var(--text-secondary)]">
-            Assets
-          </th>
+        <tr className="text-left bg-[var(--white-5)] border-b border-[var(--border-color)]">
+          <th className="py-3 px-4 text-sm font-semibold text-[var(--text-secondary)]">Name</th>
+          <th className="py-3 px-4 text-sm font-semibold text-[var(--text-secondary)] hidden lg:table-cell">Sector</th>
+          <th className="py-3 px-4 text-sm font-semibold text-[var(--text-secondary)] hidden lg:table-cell">Instrument</th>
+          <th className="py-3 px-4 text-sm font-semibold text-[var(--text-secondary)]">Assets</th>
         </tr>
       </thead>
-
-      {/* TABLE BODY */}
       <tbody>
-        {fundsList?.holdings?.map((h, i) => (
-          <tr
-            key={i}
-            className="
-              border-b border-[var(--border-color)]
-              hover:bg-[var(--white-5)]
-              transition
-            "
-          >
-            <td className="py-3 px-4 text-[var(--text-primary)]">
-              {h.name}
-            </td>
-
-            <td className="py-3 px-4 text-[var(--text-secondary)] hidden lg:table-cell">
-              {h.sector}
-            </td>
-
-            <td className="py-3 px-4 text-[var(--text-secondary)] hidden lg:table-cell">
-              {h.instrument}
-            </td>
-
-            <td className="py-3 px-4 text-[var(--text-secondary)]">
-              {h.asset}%
-            </td>
+        {(fundsList?.holdings || []).map((h, i) => (
+          <tr key={i} className="border-b border-[var(--border-color)] hover:bg-[var(--white-5)]">
+            <td className="py-3 px-4 text-[var(--text-primary)]">{h.name}</td>
+            <td className="py-3 px-4 text-[var(--text-secondary)] hidden lg:table-cell">{h.sector}</td>
+            <td className="py-3 px-4 text-[var(--text-secondary)] hidden lg:table-cell">{h.instrument}</td>
+            <td className="py-3 px-4 text-[var(--text-secondary)]">{h.asset}%</td>
           </tr>
         ))}
       </tbody>
-
     </table>
   </div>
 </div>
 
-
-      {/* Holdings Analysis - Donut Charts */}
+      {(fundsList?.assetSplit || []).length ? (
       <div className="lg:flex gap-12 items-start mt-10 hidden">
-
-  {/* Equity / Debt / Cash Split */}
-  <div className="space-y-3 w-1/2">
-
-    <h2 className="text-lg font-semibold mb-3 text-[var(--text-primary)]">
-      Holding Analysis
-    </h2>
-
-    <p className="mb-3 text-[var(--text-secondary)]">
-      Equity / Debt / Cash Split
-    </p>
-
-    {data2.map((item, index) => {
-      const isActive = index === hoverIndex;
-
-      return (
-        <div
-          key={index}
-          className={`flex items-center gap-3 cursor-pointer transition-opacity duration-300
-            ${
-              hoverIndex === null || isActive
-                ? "opacity-100"
-                : "opacity-30"
-            }`}
-          onMouseEnter={() => setHoverIndex(index)}
-          onMouseLeave={() => setHoverIndex(null)}
-        >
-          {/* Color dot */}
-          <span
-            className="h-3 w-3 rounded-full"
-            style={{ background: item.color }}
-          />
-
-          {/* Label */}
-          <span
-            className={`text-[var(--text-primary)] ${
-              isActive ? "font-semibold" : ""
-            }`}
-          >
-            {item.label}
-          </span>
-
-          {/* Percentage */}
-          <span className="text-[var(--text-secondary)]">
-            {item.value}%
-          </span>
+        <div className="space-y-3 w-1/2">
+          <h2 className="text-lg font-semibold mb-3 text-[var(--text-primary)]">Holding Analysis</h2>
+          <p className="mb-3 text-[var(--text-secondary)]">Equity / Debt / Cash Split</p>
+          {fundsList.assetSplit.map((item, index) => (
+            <div key={item.label} className={`flex items-center gap-3 cursor-pointer ${hoverIndex === null || hoverIndex === index ? "opacity-100" : "opacity-30"}`}
+              onMouseEnter={() => setHoverIndex(index)} onMouseLeave={() => setHoverIndex(null)}>
+              <span className="h-3 w-3 rounded-full" style={{ background: item.color }} />
+              <span className="text-[var(--text-primary)]">{item.label}</span>
+              <span className="text-[var(--text-secondary)]">{item.value}%</span>
+            </div>
+          ))}
         </div>
-      );
-    })}
-  </div>
+        <div className="w-1/2">
+          <DonutChart data={fundsList.assetSplit} hoverIndex={hoverIndex} setHoverIndex={setHoverIndex} />
+        </div>
+      </div>
+      ) : null}
 
-  {/* Donut Chart */}
-  <div className="w-1/2">
-    <DonutChart
-      data={data2}
-      hoverIndex={hoverIndex}
-      setHoverIndex={setHoverIndex}
-    />
-  </div>
-
-</div>
-
-
-      {/* Equity Sector Donut */}
+      {(fundsList?.sectors || []).length ? (
       <div className="lg:flex gap-12 items-start mt-10 hidden">
-
-  {/* Equity Sector Allocation */}
-  <div className="space-y-3 w-1/2">
-
-    <h2 className="text-lg font-semibold mb-3 text-[var(--text-primary)]">
-      Equity Sector Allocation
-    </h2>
-
-    {data.map((item, index) => {
-      const isActive = index === hoverIndex2;
-
-      return (
-        <div
-          key={index}
-          className={`flex items-center gap-3 cursor-pointer transition-opacity duration-300
-            ${
-              hoverIndex2 === null || isActive
-                ? "opacity-100"
-                : "opacity-30"
-            }`}
-          onMouseEnter={() => setHoverIndex2(index)}
-          onMouseLeave={() => setHoverIndex2(null)}
-        >
-          {/* Color Dot */}
-          <span
-            className="h-3 w-3 rounded-full"
-            style={{ background: item.color }}
-          />
-
-          {/* Label */}
-          <span
-            className={`text-[var(--text-primary)] ${
-              isActive ? "font-semibold" : ""
-            }`}
-          >
-            {item.label}
-          </span>
-
-          {/* Percentage */}
-          <span className="text-[var(--text-secondary)]">
-            {item.value}%
-          </span>
+        <div className="space-y-3 w-1/2">
+          <h2 className="text-lg font-semibold mb-3 text-[var(--text-primary)]">Equity Sector Allocation</h2>
+          {fundsList.sectors.map((item, index) => (
+            <div key={item.label} className={`flex items-center gap-3 cursor-pointer ${hoverIndex2 === null || hoverIndex2 === index ? "opacity-100" : "opacity-30"}`}
+              onMouseEnter={() => setHoverIndex2(index)} onMouseLeave={() => setHoverIndex2(null)}>
+              <span className="h-3 w-3 rounded-full" style={{ background: item.color }} />
+              <span className="text-[var(--text-primary)]">{item.label}</span>
+              <span className="text-[var(--text-secondary)]">{item.value}%</span>
+            </div>
+          ))}
         </div>
-      );
-    })}
-  </div>
+        <div className="w-1/2">
+          <DonutChart data={fundsList.sectors} hoverIndex={hoverIndex2} setHoverIndex={setHoverIndex2} />
+        </div>
+      </div>
+      ) : null}
 
-  {/* Donut Chart */}
-  <div className="w-1/2">
-    <DonutChart
-      data={data}
-      hoverIndex={hoverIndex2}
-      setHoverIndex={setHoverIndex2}
-    />
-  </div>
-
-</div>
-
-
-      {/* Returns & Rankings */}
-      <div
-  className="
-    bg-[var(--white-10)]
-    backdrop-blur-lg
-    shadow-xl
-    rounded-3xl
-    p-6
-    max-w-4xl
-    mt-10
-    overflow-x-auto
-    border border-[var(--border-color)]
-  "
->
-  <h2 className="text-2xl font-bold mb-5 text-[var(--text-primary)] flex items-center gap-2">
-    📊 Returns & Rankings
-  </h2>
-
+      <div className="bg-[var(--white-10)] backdrop-blur-lg shadow-xl rounded-3xl p-6 max-w-4xl mt-10 overflow-x-auto border border-[var(--border-color)]">
+  <h2 className="text-2xl font-bold mb-5 text-[var(--text-primary)]">📊 Returns & Rankings</h2>
   <table className="min-w-full table-auto border-collapse text-sm sm:text-base">
-
-    {/* ===== HEADER ===== */}
     <thead>
-      <tr
-        className="
-          border-y border-[var(--border-color)]
-          bg-[var(--white-5)]
-        "
-      >
-        <th
-          colSpan={1}
-          className="py-3 px-4 font-semibold text-left text-[var(--text-secondary)]"
-        >
-          Category:{" "}
-          <span className="text-sky-400 font-bold">
-            Commodities Gold
-          </span>
-        </th>
-
-        <th className="py-3 px-4 font-semibold text-left text-emerald-400">
-          Annualised Returns
-        </th>
-
+      <tr className="border-y border-[var(--border-color)] bg-[var(--white-5)]">
         <th className="py-3 px-4 font-semibold text-left text-[var(--text-secondary)]">
-          Absolute Returns
+          Category: <span className="text-sky-400 font-bold">{fundsList?.category || "Mutual Fund"}</span>
         </th>
+        <th className="py-3 px-4 font-semibold text-left text-emerald-400">Annualised Returns</th>
+        <th className="py-3 px-4 font-semibold text-left text-[var(--text-secondary)]" colSpan={2}>Absolute Returns</th>
       </tr>
-
-      <tr
-        className="
-          text-xs sm:text-sm
-          bg-[var(--white-5)]
-          border-b border-[var(--border-color)]
-        "
-      >
+      <tr className="text-xs sm:text-sm bg-[var(--white-5)] border-b border-[var(--border-color)]">
         <th className="py-2 px-4"></th>
         <th className="py-2 px-4 text-[var(--text-secondary)]">1Y</th>
         <th className="py-2 px-4 text-[var(--text-secondary)]">3Y</th>
@@ -1012,81 +792,31 @@ const [activeInfo, setActiveInfo] = useState(null);
         <th className="py-2 px-4 text-[var(--text-secondary)]">All</th>
       </tr>
     </thead>
-
-    {/* ===== BODY ===== */}
     <tbody>
-
-      {/* Fund Returns */}
-      <tr className="hover:bg-[var(--white-5)] transition">
-        <td className="py-3 px-4 font-medium text-[var(--text-primary)]">
-          Fund returns
-        </td>
-        <td className="py-3 px-4 font-semibold text-emerald-400">60.3%</td>
-        <td className="py-3 px-4 font-semibold text-sky-400">30.7%</td>
-        <td className="py-3 px-4 font-semibold text-indigo-400">18.0%</td>
-        <td className="py-3 px-4 font-semibold text-[var(--text-secondary)]">
-          10.1%
-        </td>
+      <tr className="hover:bg-[var(--white-5)]">
+        <td className="py-3 px-4 font-medium text-[var(--text-primary)]">Fund returns</td>
+        <td className="py-3 px-4 font-semibold text-emerald-400">{fmtPct(fundsList?.returns?.["1Y"])}</td>
+        <td className="py-3 px-4 font-semibold text-sky-400">{fmtPct(fundsList?.returns?.["3Y"])}</td>
+        <td className="py-3 px-4 font-semibold text-indigo-400">{fmtPct(fundsList?.returns?.["5Y"])}</td>
+        <td className="py-3 px-4 font-semibold text-[var(--text-secondary)]">{fmtPct(fundsList?.returns?.ALL)}</td>
       </tr>
-
-      {/* Category Average */}
-      <tr
-        className="
-          hover:bg-[var(--white-5)]
-          transition
-          border-y border-[var(--border-color)]
-        "
-      >
-        <td className="py-3 px-4 font-medium text-[var(--text-primary)]">
-          Category average
-        </td>
-        <td className="py-3 px-4 text-emerald-400">60.2%</td>
-        <td className="py-3 px-4 text-sky-400">30.3%</td>
-        <td className="py-3 px-4 text-indigo-400">17.9%</td>
-        <td className="py-3 px-4 text-[var(--text-secondary)]">NA</td>
+      <tr className="hover:bg-[var(--white-5)] border-y border-[var(--border-color)]">
+        <td className="py-3 px-4 font-medium text-[var(--text-primary)]">Category average</td>
+        <td className="py-3 px-4 text-emerald-400">{fmtPct(fundsList?.categoryAvg?.["1Y"])}</td>
+        <td className="py-3 px-4 text-sky-400">{fmtPct(fundsList?.categoryAvg?.["3Y"])}</td>
+        <td className="py-3 px-4 text-indigo-400">{fmtPct(fundsList?.categoryAvg?.["5Y"])}</td>
+        <td className="py-3 px-4 text-[var(--text-secondary)]">{fundsList?.categoryAvg?.ALL != null ? fmtPct(fundsList.categoryAvg.ALL) : "NA"}</td>
       </tr>
-
-      {/* Rank */}
-      <tr className="hover:bg-[var(--white-5)] transition">
-        <td className="py-3 px-4 font-medium text-[var(--text-primary)]">
-          Rank within category
-        </td>
-
-        <td className="py-3 px-4">
-          <span className="
-            bg-emerald-500/15
-            text-emerald-400
-            px-3 py-1 rounded-full font-bold
-          ">
-            7
-          </span>
-        </td>
-
-        <td className="py-3 px-4">
-          <span className="
-            bg-sky-500/15
-            text-sky-400
-            px-3 py-1 rounded-full font-bold
-          ">
-            4
-          </span>
-        </td>
-
-        <td className="py-3 px-4">
-          <span className="
-            bg-indigo-500/15
-            text-indigo-400
-            px-3 py-1 rounded-full font-bold
-          ">
-            3
-          </span>
-        </td>
-
-        <td className="py-3 px-4 font-semibold text-[var(--text-secondary)]">
-          NA
-        </td>
+      <tr className="hover:bg-[var(--white-5)]">
+        <td className="py-3 px-4 font-medium text-[var(--text-primary)]">Rank within category</td>
+        {["1Y", "3Y", "5Y", "ALL"].map((k) => (
+          <td key={k} className="py-3 px-4">
+            {fundsList?.rank?.[k] != null ? (
+              <span className="bg-emerald-500/15 text-emerald-400 px-3 py-1 rounded-full font-bold">{fundsList.rank[k]}</span>
+            ) : "NA"}
+          </td>
+        ))}
       </tr>
-
     </tbody>
   </table>
 </div>
@@ -1121,7 +851,7 @@ const [activeInfo, setActiveInfo] = useState(null);
       Expense Ratio
     </p>
     <p className="text-[var(--text-primary)] mt-1">
-      0.10%
+      {fundsList?.expense != null ? String(fundsList.expense) : "—"}
     </p>
     <p className="text-[var(--text-secondary)] text-sm mt-1">
       Inclusive of GST
@@ -1140,7 +870,7 @@ const [activeInfo, setActiveInfo] = useState(null);
       Exit Load
     </p>
     <p className="text-[var(--text-secondary)] text-sm mt-1">
-      Exit load of 1% if redeemed within 15 days.
+      {fundsList?.exitLoad || "Not disclosed by the exchange."}
     </p>
   </div>
 
