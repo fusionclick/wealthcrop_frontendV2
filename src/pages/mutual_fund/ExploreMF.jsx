@@ -6,6 +6,7 @@ import { useState } from "react";
 import FundListSkeleton from "../../components/ui/skeleton/main/FundListSkeleton";
 import { nodeUrl, fundPath } from "../../utils/nodeApi";
 import AmcMark from "../../components/AmcMark";
+import { liveNav, useNavMap } from "../../utils/navSocket";
 
 const PAGE_SIZE = 20;
 const collections = [
@@ -22,6 +23,7 @@ const ExploreMF = () => {
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
+  const navs = useNavMap();
   const url = nodeUrl(import.meta.env.VITE_GET_ALL_FUNDS || "/master-scheme-list");
 
   const { data, isLoading, isFetching } = useQuery({
@@ -101,7 +103,7 @@ const ExploreMF = () => {
               <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">{fund.subType || fund.category || "Mutual Fund"}</p>
               <div className="flex justify-between items-center mt-4 text-sm">
                 <span className="font-medium text-slate-800 dark:text-[var(--text-primary)]">
-                  {fund.nav != null ? `NAV ₹${Number(fund.nav).toFixed(2)}` : "NAV —"}
+                  {liveNav(fund, navs) != null ? `NAV ₹${liveNav(fund, navs).toFixed(2)}` : "NAV —"}
                 </span>
                 <span className="text-xs text-slate-500">{fund.minLumpsum ? `Min ₹${fund.minLumpsum}` : ""}</span>
               </div>

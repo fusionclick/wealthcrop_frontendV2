@@ -6,6 +6,7 @@ import FundListSkeleton from "../../components/ui/skeleton/main/FundListSkeleton
 import { nodeUrl, fundPath } from "../../utils/nodeApi";
 import AmcMark from "../../components/AmcMark";
 import { collectionSearch, collectionSlug, MF_COLLECTIONS } from "../../utils/mfCollections";
+import { liveNav, useNavMap } from "../../utils/navSocket";
 
 const PAGE_SIZE = 20;
 const ICONS = {
@@ -23,6 +24,7 @@ const FundCategorySection = () => {
   const navigate = useNavigate();
   const category = collectionSlug(categorySlug);
   const search = collectionSearch(categorySlug);
+  const navs = useNavMap();
   const url = nodeUrl(import.meta.env.VITE_GET_ALL_FUNDS || "/master-scheme-list");
 
   const { data, isLoading } = useQuery({
@@ -81,7 +83,7 @@ const FundCategorySection = () => {
               <p className="text-sm font-semibold mt-3 line-clamp-2 min-h-10">{fund.name || "—"}</p>
               <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">{fund.subType || fund.category || "Mutual Fund"}</p>
               <p className="text-sm font-medium mt-4">
-                {fund.nav != null ? `NAV ₹${Number(fund.nav).toFixed(2)}` : "NAV —"}
+                {liveNav(fund, navs) != null ? `NAV ₹${liveNav(fund, navs).toFixed(2)}` : "NAV —"}
               </p>
             </button>
           ))}
