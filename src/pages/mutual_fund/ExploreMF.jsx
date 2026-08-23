@@ -33,6 +33,7 @@ const ExploreMF = () => {
         search: query,
       }),
     placeholderData: (prev) => prev,
+    staleTime: 5 * 60 * 1000,
   });
 
   const funds = data?.data?.lists || [];

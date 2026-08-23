@@ -34,6 +34,7 @@ const FundCategorySection = () => {
         category,
         search,
       }),
+    staleTime: 5 * 60 * 1000,
   });
 
   const funds = data?.data?.lists || [];
