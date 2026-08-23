@@ -196,11 +196,9 @@ const [activeInfo, setActiveInfo] = useState(null);
 
     {/* LOGO + TITLE */}
     <div className="flex items-start gap-4 flex-1 min-w-0">
-      <img
-        src={logo}
-        alt="logo"
-        className="w-16 h-16 rounded-xl object-cover shadow"
-      />
+      <div className="w-16 h-16 rounded-xl shadow bg-emerald-600 text-white flex items-center justify-center text-2xl font-bold">
+        {(fundsList?.logoText || fundsList?.name || "F").charAt(0).toUpperCase()}
+      </div>
 
       <div className="flex-1 min-w-0">
 
