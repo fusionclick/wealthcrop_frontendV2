@@ -12,7 +12,7 @@ function connect() {
   const path = raw.startsWith("http")
     ? `${new URL(raw).pathname.replace(/\/$/, "")}/socket.io`
     : `${raw}/socket.io`;
-  sock = io(url, { path, transports: ["websocket", "polling"] });
+  sock = io(url, { path, transports: ["polling", "websocket"] });
   sock.on("nav_update", (msg) => {
     shared = msg?.navs || {};
     listeners.forEach((fn) => fn(shared));
