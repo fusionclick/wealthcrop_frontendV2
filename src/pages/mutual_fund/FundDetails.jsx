@@ -40,7 +40,7 @@ const FundDetails = () => {
     refetchOnWindowFocus: true,
   });
 
-    const { data: chartData, isLoading: loading2 } = useQuery({
+    const { data: chartData } = useQuery({
     queryKey: ["CHART_DETAILS", isin, code],
     queryFn: async () => postApi(detailsUrl, { isin: isin, scheme_code: code }),
     enabled: !!isin && !!code,
@@ -174,7 +174,7 @@ const advancedDefinitions = {
 
 const [activeInfo, setActiveInfo] = useState(null); 
 
-  if (isLoading || loading2) return <FundDetailsPageSkeleton />;  
+  if (isLoading) return <FundDetailsPageSkeleton />;  
 
   return (
 

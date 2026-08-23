@@ -9,10 +9,9 @@ import React from "react";
   { label: "Very High", color: "#dc2626" },
 ];
 
-const Riskometer = ({ risk = "Moderate" }) => {
-     const index = RISK_LEVELS.findIndex(
-    (r) => r.label.toLowerCase() === risk.toLowerCase()
-  );
+const Riskometer = ({ risk }) => {
+  const needle = String(risk || "Moderate").toLowerCase();
+  const index = RISK_LEVELS.findIndex((r) => r.label.toLowerCase() === needle);
 
   const activeIndex = index === -1 ? 2 : index;
 
