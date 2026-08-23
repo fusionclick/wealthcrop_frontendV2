@@ -1,12 +1,21 @@
+import { FaLandmark, FaCoins, FaChartLine, FaChartPie } from "react-icons/fa";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { postApi } from "../../api/api";
 import FundListSkeleton from "../../components/ui/skeleton/main/FundListSkeleton";
 import { nodeUrl, fundPath } from "../../utils/nodeApi";
 import AmcMark from "../../components/AmcMark";
-import { collectionSearch, collectionSlug } from "../../utils/mfCollections";
+import { collectionSearch, collectionSlug, MF_COLLECTIONS } from "../../utils/mfCollections";
 
 const PAGE_SIZE = 20;
+const ICONS = {
+  gold_funds: <FaCoins size={28} className="text-amber-500" />,
+  large_cap: <FaChartPie size={28} className="text-indigo-500" />,
+  mid_cap: <FaChartLine size={28} className="text-cyan-500" />,
+  small_cap: <FaChartPie size={28} className="text-pink-500" />,
+  high_return: <FaChartLine size={28} className="text-emerald-500" />,
+  "5_star_funds": <FaLandmark size={28} className="text-sky-500" />,
+};
 
 const FundCategorySection = () => {
   const params = useParams();
@@ -35,10 +44,28 @@ const FundCategorySection = () => {
       <h2 className="text-xl font-semibold">{title}</h2>
       <p className="text-sm text-slate-500 mt-1">{funds.length ? `${funds.length} schemes` : "BSE StarMF collection"}</p>
 
+      <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 gap-3 mt-5">
+        {MF_COLLECTIONS.map((item) => {
+          const on = category === item.slug;
+          return (
+            <button
+              key={item.slug}
+              onClick={() => navigate(`/mutual_fund/collections/${item.slug}`)}
+              className={`rounded-2xl p-4 flex flex-col items-center gap-2 border transition ${
+                on
+                  ? "bg-white border-slate-300 shadow-md"
+                  : "bg-slate-100 border-transparent hover:bg-white hover:shadow-sm"
+              }`}
+            >
+              <div className="w-12 h-12 rounded-xl bg-white shadow-sm flex items-center justify-center">{ICONS[item.slug]}</div>
+              <p className="text-sm font-medium text-center leading-tight">{item.name}</p>
+            </button>
+          );
+        })}
+      </div>
+
       {isLoading ? (
-        <div className="mt-6">
-          {FundListSkeleton()}
-        </div>
+        <div className="mt-6">{FundListSkeleton()}</div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
           {funds.map((fund) => (

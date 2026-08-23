@@ -3,8 +3,8 @@ export const MF_COLLECTIONS = [
   { name: "Large Cap", slug: "large_cap", search: "LARGE CAP" },
   { name: "Mid Cap", slug: "mid_cap", search: "MID CAP" },
   { name: "Small Cap", slug: "small_cap", search: "SMALL CAP" },
-  { name: "High Return", slug: "high_return", search: "" },
-  { name: "5 Star Funds", slug: "5_star_funds", search: "" },
+  { name: "High Return", slug: "high_return", search: "FLEXI CAP" },
+  { name: "5 Star Funds", slug: "5_star_funds", search: "BLUECHIP" },
 ];
 
 export function collectionSlug(raw = "") {
