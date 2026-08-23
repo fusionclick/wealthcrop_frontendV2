@@ -418,7 +418,7 @@ useEffect(() => {
               <Route path="/mutual_fund/redeem" element={<RedeemMF />} />
               <Route path="/mutual_fund/switch" element={<SwitchMF />} />
               <Route
-                path="mutual_fund/collections/:categorySlug"
+                path="/mutual_fund/collections/:categorySlug"
                 element={<FundCategorySection />}
               />
 
