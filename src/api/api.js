@@ -3,6 +3,21 @@ import { toastError } from "../utils/notifyCustom";
 
 const api = axios.create({ timeout: 120000 });
 
+const bearerToken = () => {
+  const raw = String(localStorage.getItem("token") || "").trim();
+  if (!raw || raw === "null" || raw === "undefined") return "";
+  return raw.replace(/^Bearer\s+/i, "").replace(/^"|"$/g, "");
+};
+
+const authHeaders = () => {
+  const token = bearerToken();
+  if (!token) return null;
+  return {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
+};
+
 export const getApi = async (url) => {
   try {
     const response = await api.get(url);
@@ -14,20 +29,14 @@ export const getApi = async (url) => {
 };
 
 export const getApiWithToken = async (url) => {
-  const token = localStorage.getItem("token");
-
-  if (!token) {
+  const headers = authHeaders();
+  if (!headers) {
     toastError("User not authenticated");
     return null;
   }
 
   try {
-    const response = await api.get(url, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
+    const response = await api.get(url, { headers });
 
     // console.log("from get api",response);
     return response;
@@ -52,49 +61,33 @@ export const postApi = async (url, data) => {
   }
 };
 
-export const postApiWithToken = async (url, data) => {
-  const token = localStorage.getItem("token");
-  // console.log("Token", token);
-
-  if (!token) {
-    toastError("User not authenticated");
+export const postApiWithToken = async (url, data, { silent } = {}) => {
+  const headers = authHeaders();
+  if (!headers) {
+    if (!silent) toastError("User not authenticated");
     return null;
   }
 
   try {
-    const res = await axios.post(url, data, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
-
-    // console.log("response from post api", res);
+    const res = await axios.post(url, data, { headers });
     return res?.data;
-    
   } catch (error) {
-    toastError(error.response?.data?.message || error.response?.data?.error || "API Error");
+    if (!silent) {
+      toastError(error.response?.data?.message || error.response?.data?.error || "API Error");
+    }
     return null;
   }
 };
 
 export const deleteApiWithToken = async (url) => {
-  const token = localStorage.getItem("token");
-
-  if (!token) {
+  const headers = authHeaders();
+  if (!headers) {
     toastError("User not authenticated");
     return null;
   }
 
   try {
-    const response = await axios.delete(url, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
-
-    // console.log("from get api",response);
+    const response = await axios.delete(url, { headers });
     return response;
   } catch (error) {
     toastError(error.response?.data?.message || "API Error");

@@ -54,7 +54,7 @@ const FundDetails = () => {
 
   const { data: holdings = [] } = useQuery({
     queryKey: ["bsePortfolio", ucc],
-    queryFn: () => postApiWithToken(nodeUrl("/getClientPortfolio"), { data: { ucc } }),
+    queryFn: () => postApiWithToken(nodeUrl("/getClientPortfolio"), { data: { ucc } }, { silent: true }),
     select: (res) => (Array.isArray(res?.data?.holdings) ? res.data.holdings : []),
     enabled: !!ucc,
   });
