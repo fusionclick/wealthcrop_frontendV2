@@ -22,7 +22,6 @@ const FundDetails = () => {
   const [sipAmt, setSipAmt] = useState(5000);
   const [lumpAmt, setLumpAmt] = useState(10000);
   const [duration, setDuration] = useState(1);
-  const [selectedTimeframe, setSelectedTimeframe] = useState("30D");
   const [hoverIndex, setHoverIndex] = useState(null);
   const [hoverIndex2, setHoverIndex2] = useState(null);
   const [saved, setSaved] = useState(false);
@@ -412,46 +411,16 @@ const [activeInfo, setActiveInfo] = useState(null);
     p-6
   "
 >
-  <div className="flex items-center justify-between mb-4">
-    <div className="flex items-center gap-3 flex-wrap">
-      <span
-        className="
-          text-sm
-          text-gray-500
-          dark:text-[var(--text-secondary)]
-        "
-      >
-        Timeframe:
-      </span>
-
-      {["30D", "3M", "6M", "1Y", "3Y", "5Y", "10Y", "ALL"].map((tf) => (
-        <button
-          key={tf}
-          onClick={() => setSelectedTimeframe(tf)}
-          className={`px-3 py-1 rounded-md text-sm font-medium transition ${
-            selectedTimeframe === tf
-              ? "bg-blue-600 text-white"
-              : "bg-gray-100 text-gray-700 dark:bg-[var(--white-5)] dark:text-[var(--text-primary)]"
-          }`}
-        >
-          {tf}
-        </button>
-      ))}
-    </div>
-
-    <div
-      className="
-        text-sm
-        text-gray-500
-        dark:text-[var(--text-secondary)]
-      "
-    >
-      Updated: {new Date().toLocaleTimeString()}
+  <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+    <h3 className="text-sm font-semibold text-gray-700 dark:text-[var(--text-primary)]">NAV history</h3>
+    <div className="text-sm text-gray-500 dark:text-[var(--text-secondary)]">
+      {schemeInfo?.nav_date ? `NAV as on ${schemeInfo.nav_date}` : `Updated: ${new Date().toLocaleTimeString()}`}
     </div>
   </div>
 
   <MFChart
-    data={chartData?.data?.chartData?.[selectedTimeframe] || chartData?.data?.chartData?.["30D"]}
+    series={chartData?.data?.chartData || []}
+    synthetic={!!chartData?.data?.synthetic}
     height={320}
   />
 

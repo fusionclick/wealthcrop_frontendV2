@@ -6,7 +6,7 @@ import { useState } from "react";
 import FundListSkeleton from "../../components/ui/skeleton/main/FundListSkeleton";
 import { nodeUrl, fundPath } from "../../utils/nodeApi";
 import AmcMark from "../../components/AmcMark";
-import { liveNav, useNavMap } from "../../utils/navSocket";
+import { navLabel, navDate, useNavMap } from "../../utils/navSocket";
 
 const PAGE_SIZE = 20;
 const collections = [
@@ -54,7 +54,7 @@ const ExploreMF = () => {
         <div>
           <h2 className="text-xl font-semibold tracking-tight">All Mutual Funds</h2>
           <p className="text-sm text-slate-500 dark:text-[var(--text-secondary)] mt-1">
-            {total ? `${total.toLocaleString()} schemes` : "Live BSE StarMF demo catalogue"}
+            {total ? `${total.toLocaleString()} funds with live NAV` : "Loading catalogue…"}
           </p>
         </div>
         <form onSubmit={submitSearch} className="flex gap-2 w-full md:w-auto">
@@ -103,9 +103,11 @@ const ExploreMF = () => {
               <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">{fund.subType || fund.category || "Mutual Fund"}</p>
               <div className="flex justify-between items-center mt-4 text-sm">
                 <span className="font-medium text-slate-800 dark:text-[var(--text-primary)]">
-                  {liveNav(fund, navs) != null ? `NAV ₹${liveNav(fund, navs).toFixed(2)}` : "NAV —"}
+                  {navLabel(fund, navs)}
                 </span>
-                <span className="text-xs text-slate-500">{fund.minLumpsum ? `Min ₹${fund.minLumpsum}` : ""}</span>
+                <span className="text-xs text-slate-500">
+                  {fund.minLumpsum ? `Min ₹${fund.minLumpsum}` : navDate(fund, navs) || ""}
+                </span>
               </div>
             </button>
           ))}
