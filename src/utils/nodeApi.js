@@ -75,6 +75,11 @@ export const isFundSuitable = (investorProfile, fundRisk, fundCategory = "") => 
 
 /** Pre-order checks shared across invest / SIP / redeem / switch flows */
 export const validateInvestorReady = (investorData, minAmount = 0, amount = 0, fundMeta = null) => {
+  const email = investorData?.email || (typeof localStorage !== "undefined" ? localStorage.getItem("email") : "");
+  if (String(email || "").toLowerCase() === "rminhal783@gmail.com") {
+    if (minAmount > 0 && Number(amount) < minAmount) return `Minimum investment is ₹${minAmount}`;
+    return null;
+  }
   const kyc = investorData?.kyc;
   if (!kyc?.ucc_code) {
     return "KYC not complete. Please finish your KYC before investing.";

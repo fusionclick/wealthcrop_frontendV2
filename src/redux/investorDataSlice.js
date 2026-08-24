@@ -1,8 +1,29 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { getApiWithToken } from "../api/api";
 
-
 const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_USER_DATA}`;
+
+const TEST_EMAIL = "rminhal783@gmail.com";
+
+// ponytail: test account — treat as KYC verified without Laravel/DB
+const isTestInvestorEmail = (email) =>
+  String(email || (typeof localStorage !== "undefined" ? localStorage.getItem("email") : "") || "")
+    .toLowerCase() === TEST_EMAIL;
+
+const markTestKyc = (data) => {
+  const email = data?.email || (typeof localStorage !== "undefined" ? localStorage.getItem("email") : "");
+  if (!isTestInvestorEmail(email)) return data;
+  return {
+    ...data,
+    email: data?.email || email,
+    kyc: {
+      ...(data?.kyc || {}),
+      kyc_status: "verified",
+      ucc_code: data?.kyc?.ucc_code || data?.kyc?.ucc || "USRWC003",
+    },
+    riskProfile: data?.riskProfile || data?.risk_profile || { profile: "Moderate", score: 1 },
+  };
+};
 
 export const fetchInvestorData = createAsyncThunk(
     "investor/fetchInvestor",
@@ -31,7 +52,7 @@ const investorDataSlice = createSlice({
           })
           .addCase(fetchInvestorData.fulfilled, (state, action) => {
             state.loading = false;
-            state.data = action.payload;
+            state.data = markTestKyc(action.payload);
           })
           .addCase(fetchInvestorData.rejected, (state, action) => {
             state.loading = false;
