@@ -139,7 +139,7 @@ const DashBoardMF = () => {
 
           <div className="space-y-3">
             {sortedFunds.map((fund, idx) => (
-              <div key={idx} className="p-4 rounded-lg border bg-white dark:bg-[var(--white-10)] dark:border-[var(--border-color)] flex justify-between">
+              <div key={idx} className="p-4 rounded-lg border bg-white dark:bg-[var(--white-10)] dark:border-[var(--border-color)] flex justify-between gap-3">
                 <div>
                   <p className="font-medium text-sm">{fund.scheme_name}</p>
                   <p className="text-xs text-gray-500">{fund.scheme_category || "—"}</p>
@@ -149,6 +149,17 @@ const DashBoardMF = () => {
                   <p className={`text-xs ${Number(fund.ret_percentage) >= 0 ? "text-emerald-600" : "text-red-500"}`}>
                     {fund.ret_percentage != null ? `${fund.ret_percentage}%` : "—"}
                   </p>
+                  <button
+                    type="button"
+                    className="mt-2 text-xs px-3 py-1 rounded-md bg-red-600 text-white"
+                    onClick={() =>
+                      navigate("/mutual_fund/redeem", {
+                        state: { scheme_bse_code: fund.scheme_bse_code, code: fund.scheme_bse_code },
+                      })
+                    }
+                  >
+                    Sell
+                  </button>
                 </div>
               </div>
             ))}

@@ -15,6 +15,36 @@ export const laravelUrl = (path = "") => {
 export const fundPath = (isin, code) =>
   `/mutual_fund/${encodeURIComponent(isin || "")}/${encodeURIComponent(code || "")}`;
 
+export const MF_WATCHLIST_KEY = "wealthcrop_mf_watchlist";
+
+export const loadMfWatchlist = () => {
+  try {
+    const raw = JSON.parse(localStorage.getItem(MF_WATCHLIST_KEY) || "[]");
+    return Array.isArray(raw) ? raw : [];
+  } catch {
+    return [];
+  }
+};
+
+export const isMfSaved = (isin, code) =>
+  loadMfWatchlist().some((f) => f.isin === isin && String(f.code) === String(code));
+
+export const toggleMfWatchlist = (item) => {
+  const list = loadMfWatchlist();
+  const idx = list.findIndex((f) => f.isin === item.isin && String(f.code) === String(item.code));
+  const next = idx >= 0 ? list.filter((_, i) => i !== idx) : [...list, item];
+  localStorage.setItem(MF_WATCHLIST_KEY, JSON.stringify(next));
+  return idx < 0;
+};
+
+export const holdingMatchesScheme = (h, { isin, code, schemeBse }) => {
+  const codes = [code, schemeBse].filter(Boolean).map(String);
+  const hCodes = [h.scheme_bse_code, h.scheme_code, h.scheme].filter(Boolean).map(String);
+  if (codes.some((c) => hCodes.includes(c))) return true;
+  if (isin && [h.isin, h.scheme_isin].some((v) => v && String(v) === String(isin))) return true;
+  return false;
+};
+
 export const fundBuyPath = (isin, code) => `${fundPath(isin, code)}/buy`;
 
 const RISK_RANK = { conservative: 1, moderate: 2, aggressive: 3 };

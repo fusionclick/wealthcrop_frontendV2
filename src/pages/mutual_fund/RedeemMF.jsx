@@ -1,21 +1,175 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { postApiWithToken } from "../../api/api";
 import { toastError, toastSuccess } from "../../utils/notifyCustom";
 import { useSelector } from "react-redux";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { nodeUrl, validateInvestorReady, laravelUrl } from "../../utils/nodeApi";
+import { nodeUrl, validateInvestorReady, laravelUrl, holdingMatchesScheme } from "../../utils/nodeApi";
 
-const RedeemMF = () => {
-  const navigate = useNavigate();
+export async function submitRedeemOrder({ investorData, holding, redeemAll, redeemAmount, queryClient }) {
+  const err = validateInvestorReady(investorData);
+  if (err) return { ok: false, message: err };
+  if (!holding) return { ok: false, message: "Please select a fund to redeem." };
+  if (!holding.folio) return { ok: false, message: "Folio is missing on this holding. Cannot redeem." };
+  if (!redeemAll && (!redeemAmount || Number(redeemAmount) <= 0)) {
+    return { ok: false, message: "Please enter a valid redemption amount." };
+  }
+  const invested = Number(holding.inv_amo || 0);
+  if (!redeemAll && invested && Number(redeemAmount) > invested) {
+    return { ok: false, message: "Redemption amount cannot exceed invested value." };
+  }
+
+  const ucc = investorData?.kyc?.ucc_code;
+  const memRef = String(Math.floor(100000 + Math.random() * 900000));
+  const payload = {
+    data: {
+      orders: [
+        {
+          type: "r",
+          mem_ord_ref_id: memRef,
+          investor: { ucc },
+          member: "91010",
+          scheme: holding.scheme_bse_code || holding.scheme_code || "",
+          amount: redeemAll ? 0 : Number(redeemAmount),
+          cur: "INR",
+          is_units: false,
+          all_units: redeemAll,
+          min_redeem_flag: false,
+          folio: holding.folio,
+          is_fresh: false,
+          phys_or_demat: "d",
+          holder: [{ holder_rank: "1", email: investorData?.email || "", mobnum: investorData?.phone || "" }],
+          kyc_passed: true,
+          dpc: true,
+          email: investorData?.email || "",
+          mobnum: investorData?.phone || "",
+        },
+      ],
+    },
+  };
+
+  try {
+    const url = nodeUrl(import.meta.env.VITE_FUND_ORDER_PLACE || "/purchaseNewOrder");
+    const res = await postApiWithToken(url, payload);
+    if (res?.status === 200 || res?.status === true || res?.status === "success") {
+      const orderId = res.data?.items?.[0]?.id;
+      const memberRefId = res.data?.items?.[0]?.mem_ord_ref_id || memRef;
+      if (orderId) {
+        await postApiWithToken(laravelUrl(import.meta.env.VITE_SEND_FUND_ORDER_DETAILS), {
+          bse_order_id: orderId,
+          mem_ord_ref_id: memberRefId,
+          scheme_name: holding.scheme_name,
+          scheme_bse_code: holding.scheme_bse_code,
+          inv_amo: redeemAll ? holding.inv_amo : Number(redeemAmount),
+          folio: holding.folio,
+          order_type: "redeem",
+          scheme_category: holding.scheme_category,
+        });
+      }
+      queryClient?.invalidateQueries({ queryKey: ["bsePortfolio"] });
+      queryClient?.invalidateQueries({ queryKey: ["investedFunds"] });
+      return { ok: true };
+    }
+    return { ok: false, message: res?.message || res?.error || "Redemption failed. Please try again." };
+  } catch (err) {
+    return { ok: false, message: err?.response?.data?.message || err?.message || "Redemption failed. Please try again." };
+  }
+}
+
+export function RedeemForm({ holding, locked, onCancel, onSuccess }) {
   const queryClient = useQueryClient();
   const { data: investorData } = useSelector((state) => state.investorData);
-  const ucc = investorData?.kyc?.ucc_code;
-
-  const [selectedHolding, setSelectedHolding] = useState(null);
   const [redeemAmount, setRedeemAmount] = useState("");
   const [redeemAll, setRedeemAll] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const handleRedeem = async () => {
+    setSubmitting(true);
+    const result = await submitRedeemOrder({
+      investorData,
+      holding,
+      redeemAll,
+      redeemAmount,
+      queryClient,
+    });
+    setSubmitting(false);
+    if (!result.ok) {
+      toastError(result.message);
+      return;
+    }
+    toastSuccess("Redemption order placed successfully!");
+    onSuccess?.();
+  };
+
+  if (!holding) return null;
+
+  return (
+    <div className="space-y-4">
+      <div className="p-3 rounded-xl border border-gray-200 dark:border-[var(--border-color)] bg-gray-50 dark:bg-[var(--white-5)]">
+        <p className="font-medium text-gray-800 dark:text-[var(--text-primary)] text-sm">{holding.scheme_name || "—"}</p>
+        <p className="text-xs text-gray-500 dark:text-[var(--text-secondary)] mt-0.5">
+          Invested: ₹{Number(holding.inv_amo || 0).toLocaleString("en-IN")}
+          {holding.folio ? ` · Folio ${holding.folio}` : " · Folio missing"}
+          {holding.units ? ` · ${holding.units} units` : ""}
+        </p>
+      </div>
+
+      <label className="flex items-center gap-3 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={redeemAll}
+          onChange={(e) => setRedeemAll(e.target.checked)}
+          className="w-4 h-4"
+        />
+        <span className="text-sm text-gray-700 dark:text-[var(--text-secondary)]">Redeem all units</span>
+      </label>
+      {!redeemAll && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-[var(--text-secondary)] mb-1">
+            Redemption Amount (₹)
+          </label>
+          <input
+            type="number"
+            min="1"
+            value={redeemAmount}
+            onChange={(e) => setRedeemAmount(e.target.value)}
+            placeholder="Enter amount"
+            className="w-full border rounded-lg px-3 py-2 text-gray-800 dark:bg-[var(--white-10)] dark:text-[var(--text-primary)] dark:border-[var(--border-color)]"
+          />
+        </div>
+      )}
+
+      <div className="flex gap-3">
+        {onCancel ? (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 py-3 rounded-lg border border-gray-300 text-gray-700 dark:border-[var(--border-color)] dark:text-[var(--text-secondary)]"
+          >
+            Cancel
+          </button>
+        ) : null}
+        <button
+          type="button"
+          onClick={handleRedeem}
+          disabled={submitting || (locked && !holding)}
+          className="flex-1 py-3 rounded-lg bg-red-600 text-white font-medium disabled:opacity-50"
+        >
+          {submitting ? "Processing…" : "Redeem"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const RedeemMF = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { data: investorData } = useSelector((state) => state.investorData);
+  const ucc = investorData?.kyc?.ucc_code;
+  const pre = location.state || {};
+
+  const [selectedHolding, setSelectedHolding] = useState(null);
 
   const { data: holdings = [], isLoading: loadingHoldings } = useQuery({
     queryKey: ["bsePortfolio", ucc],
@@ -24,92 +178,13 @@ const RedeemMF = () => {
     enabled: !!ucc,
   });
 
-  const generateOrderRefId = () => String(Math.floor(100000 + Math.random() * 900000));
-
-  const handleRedeem = async () => {
-    const err = validateInvestorReady(investorData);
-    if (err) {
-      toastError(err);
-      return;
-    }
-    if (!selectedHolding) {
-      toastError("Please select a fund to redeem.");
-      return;
-    }
-    if (!selectedHolding.folio) {
-      toastError("Folio is missing on this holding. Cannot redeem.");
-      return;
-    }
-    if (!redeemAll && (!redeemAmount || Number(redeemAmount) <= 0)) {
-      toastError("Please enter a valid redemption amount.");
-      return;
-    }
-    const invested = Number(selectedHolding.inv_amo || 0);
-    if (!redeemAll && invested && Number(redeemAmount) > invested) {
-      toastError("Redemption amount cannot exceed invested value.");
-      return;
-    }
-
-    setSubmitting(true);
-    const memRef = generateOrderRefId();
-    const payload = {
-      data: {
-        orders: [
-          {
-            type: "r",
-            mem_ord_ref_id: memRef,
-            investor: { ucc },
-            member: "91010",
-            scheme: selectedHolding.scheme_bse_code || selectedHolding.scheme_code || "",
-            amount: redeemAll ? 0 : Number(redeemAmount),
-            cur: "INR",
-            is_units: false,
-            all_units: redeemAll,
-            min_redeem_flag: false,
-            folio: selectedHolding.folio,
-            is_fresh: false,
-            phys_or_demat: "d",
-            holder: [{ holder_rank: "1", email: investorData?.email || "", mobnum: investorData?.phone || "" }],
-            kyc_passed: true,
-            dpc: true,
-            email: investorData?.email || "",
-            mobnum: investorData?.phone || "",
-          },
-        ],
-      },
-    };
-
-    try {
-      const url = nodeUrl(import.meta.env.VITE_FUND_ORDER_PLACE || "/purchaseNewOrder");
-      const res = await postApiWithToken(url, payload);
-      if (res?.status === 200 || res?.status === true || res?.status === "success") {
-        const orderId = res.data?.items?.[0]?.id;
-        const memberRefId = res.data?.items?.[0]?.mem_ord_ref_id || memRef;
-        if (orderId) {
-          await postApiWithToken(laravelUrl(import.meta.env.VITE_SEND_FUND_ORDER_DETAILS), {
-            bse_order_id: orderId,
-            mem_ord_ref_id: memberRefId,
-            scheme_name: selectedHolding.scheme_name,
-            scheme_bse_code: selectedHolding.scheme_bse_code,
-            inv_amo: redeemAll ? selectedHolding.inv_amo : Number(redeemAmount),
-            folio: selectedHolding.folio,
-            order_type: "redeem",
-            scheme_category: selectedHolding.scheme_category,
-          });
-        }
-        toastSuccess("Redemption order placed successfully!");
-        queryClient.invalidateQueries({ queryKey: ["bsePortfolio"] });
-        queryClient.invalidateQueries({ queryKey: ["investedFunds"] });
-        navigate("/user/order/mutual-funds");
-      } else {
-        toastError(res?.message || res?.error || "Redemption failed. Please try again.");
-      }
-    } catch (err) {
-      toastError(err?.response?.data?.message || err?.message || "Redemption failed. Please try again.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  useEffect(() => {
+    if (!holdings.length) return;
+    const match = holdings.find((h) =>
+      holdingMatchesScheme(h, { isin: pre.isin, code: pre.code, schemeBse: pre.scheme_bse_code })
+    );
+    if (match) setSelectedHolding(match);
+  }, [holdings, pre.isin, pre.code, pre.scheme_bse_code]);
 
   if (loadingHoldings) {
     return (
@@ -145,9 +220,13 @@ const RedeemMF = () => {
                 {holdings.map((h, idx) => (
                   <button
                     key={`${h.scheme_bse_code}-${h.folio}-${idx}`}
+                    type="button"
                     onClick={() => setSelectedHolding(h)}
                     className={`w-full text-left p-3 rounded-xl border transition ${
-                      selectedHolding === h
+                      selectedHolding === h ||
+                      (selectedHolding &&
+                        selectedHolding.folio === h.folio &&
+                        selectedHolding.scheme_bse_code === h.scheme_bse_code)
                         ? "border-blue-600 bg-blue-50 dark:bg-blue-500/15 dark:border-blue-400"
                         : "border-gray-200 dark:border-[var(--border-color)]"
                     }`}
@@ -163,47 +242,22 @@ const RedeemMF = () => {
               </div>
             </div>
 
-            {selectedHolding && (
-              <div className="space-y-4">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={redeemAll}
-                    onChange={(e) => setRedeemAll(e.target.checked)}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm text-gray-700 dark:text-[var(--text-secondary)]">Redeem all units</span>
-                </label>
-                {!redeemAll && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-[var(--text-secondary)] mb-1">Redemption Amount (₹)</label>
-                    <input
-                      type="number"
-                      value={redeemAmount}
-                      onChange={(e) => setRedeemAmount(e.target.value)}
-                      placeholder="Enter amount"
-                      className="w-full border rounded-lg px-3 py-2 text-gray-800 dark:bg-[var(--white-10)] dark:text-[var(--text-primary)] dark:border-[var(--border-color)]"
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="flex gap-3">
+            {selectedHolding ? (
+              <RedeemForm
+                holding={selectedHolding}
+                locked
+                onCancel={() => navigate(-1)}
+                onSuccess={() => navigate("/user/order/mutual-funds")}
+              />
+            ) : (
               <button
+                type="button"
                 onClick={() => navigate(-1)}
-                className="flex-1 py-3 rounded-lg border border-gray-300 text-gray-700 dark:border-[var(--border-color)] dark:text-[var(--text-secondary)]"
+                className="w-full py-3 rounded-lg border border-gray-300 text-gray-700 dark:border-[var(--border-color)] dark:text-[var(--text-secondary)]"
               >
                 Cancel
               </button>
-              <button
-                onClick={handleRedeem}
-                disabled={submitting || !selectedHolding}
-                className="flex-1 py-3 rounded-lg bg-red-600 text-white font-medium disabled:opacity-50"
-              >
-                {submitting ? "Processing…" : "Redeem"}
-              </button>
-            </div>
+            )}
           </>
         )}
       </div>

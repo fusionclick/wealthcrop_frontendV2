@@ -2,15 +2,18 @@
 import { FiShare2 } from "react-icons/fi";
 import { AiOutlineStar } from "react-icons/ai";
 import { MdOutlineInfo } from "react-icons/md";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import DonutChart from "../../components/DonutChart";
 import MFChart from "../../components/chart/MFChart";
 import MutualFundInvestPage from "./MutualFundInvestPage";
+import { RedeemForm } from "./RedeemMF";
 import Riskometer from "../../components/Riskometer";
-import { postApi } from "../../api/api";
+import { postApi, postApiWithToken } from "../../api/api";
 import { useQuery } from "@tanstack/react-query";
+import { useSelector } from "react-redux";
 import FundDetailsPageSkeleton from "../../components/ui/skeleton/main/FundDetailsPageSkeleton";
-import { nodeUrl } from "../../utils/nodeApi";
+import { holdingMatchesScheme, isMfSaved, nodeUrl, toggleMfWatchlist } from "../../utils/nodeApi";
+import { toastSuccess } from "../../utils/notifyCustom";
 
 const fmtPct = (v) => (v == null || Number.isNaN(Number(v)) ? "—" : `${Number(v).toFixed(2)}%`);
 const inr = (v) => (v == null || Number.isNaN(Number(v)) ? "—" : `₹${Number(v).toLocaleString("en-IN")}`);
@@ -18,14 +21,18 @@ const inr = (v) => (v == null || Number.isNaN(Number(v)) ? "—" : `₹${Number(
 const FundDetails = () => {
   const { isin } = useParams();
   const { code } = useParams();
+  const navigate = useNavigate();
+  const { data: investorData } = useSelector((state) => state.investorData);
+  const ucc = investorData?.kyc?.ucc_code;
   const [mode, setMode] = useState("sip");
   const [sipAmt, setSipAmt] = useState(5000);
   const [lumpAmt, setLumpAmt] = useState(10000);
   const [duration, setDuration] = useState(1);
   const [hoverIndex, setHoverIndex] = useState(null);
   const [hoverIndex2, setHoverIndex2] = useState(null);
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState(() => isMfSaved(isin, code));
   const [buyModal, setBuyModal] = useState(false);
+  const [sellModal, setSellModal] = useState(false);
   
     const url = nodeUrl(import.meta.env.VITE_GET_ALL_FUNDS || "/master-scheme-list");
     const detailsUrl = nodeUrl(import.meta.env.VITE_SCHEME_DETAILS || "/scheme-details");
@@ -43,6 +50,13 @@ const FundDetails = () => {
     queryKey: ["CHART_DETAILS", isin, code],
     queryFn: async () => postApi(detailsUrl, { isin: isin, scheme_code: code }),
     enabled: !!isin && !!code,
+  });
+
+  const { data: holdings = [] } = useQuery({
+    queryKey: ["bsePortfolio", ucc],
+    queryFn: () => postApiWithToken(nodeUrl("/getClientPortfolio"), { data: { ucc } }),
+    select: (res) => (Array.isArray(res?.data?.holdings) ? res.data.holdings : []),
+    enabled: !!ucc,
   });
 
   const schemeInfo = chartData?.data?.scheme_info;
@@ -72,6 +86,18 @@ const FundDetails = () => {
       advancedRatios: schemeInfo?.advancedRatios || extra.advancedRatios,
     };
   }, [details, chartData, schemeInfo]);
+
+  const thisHolding = useMemo(
+    () =>
+      holdings.find((h) =>
+        holdingMatchesScheme(h, {
+          isin,
+          code,
+          schemeBse: fundsList?.scheme_bse_code,
+        })
+      ) || null,
+    [holdings, isin, code, fundsList?.scheme_bse_code]
+  );
 
   function futureValueSIP(P, annualR, years) {
     const i = annualR / 12;
@@ -125,13 +151,40 @@ const FundDetails = () => {
   const lumpGainPct_selected = percentGain(lumpFV_selected, lumpAmt);
   
 
-  const shareWhatsApp = () => {
-    const msg = `Check ${fundsList?.name || "this fund"} on WealthCrop.`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+  const shareFund = async () => {
+    const title = fundsList?.name || "WealthCrop fund";
+    const url = window.location.href;
+    const text = `Check ${title} on WealthCrop`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      toastSuccess("Link copied");
+    } catch (e) {
+      if (e?.name === "AbortError") return;
+      window.open(`https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`, "_blank");
+    }
   };
-  const openBuy = () => setBuyModal(true);
 
-  const closeModal = () => setBuyModal(false);
+  const toggleSave = () => {
+    const nowSaved = toggleMfWatchlist({
+      isin,
+      code,
+      name: fundsList?.name || "Fund",
+      nav: fundsList?.nav,
+    });
+    setSaved(nowSaved);
+    toastSuccess(nowSaved ? "Saved to watchlist" : "Removed from watchlist");
+  };
+
+  const openBuy = () => setBuyModal(true);
+  const openSell = () => setSellModal(true);
+  const closeModal = () => {
+    setBuyModal(false);
+    setSellModal(false);
+  };
 
 
 
@@ -226,7 +279,7 @@ const [activeInfo, setActiveInfo] = useState(null);
         {/* SAVE + SHARE (SMALL) */}
         <div className="flex md:hidden gap-3 mt-3">
           <button
-            onClick={() => setSaved(!saved)}
+            onClick={toggleSave}
             className={`flex items-center gap-2 px-3 py-2 rounded-xl transition
               ${
                 saved
@@ -238,7 +291,7 @@ const [activeInfo, setActiveInfo] = useState(null);
           </button>
 
           <button
-            onClick={shareWhatsApp}
+            onClick={shareFund}
             className="
               flex items-center gap-2 px-3 py-2 rounded-xl
               bg-[var(--white-5)]
@@ -257,7 +310,7 @@ const [activeInfo, setActiveInfo] = useState(null);
     {/* SAVE + SHARE (MD+) */}
     <div className="hidden md:flex md:items-center gap-3">
       <button
-        onClick={() => setSaved(!saved)}
+        onClick={toggleSave}
         className={`flex items-center gap-2 px-3 py-2 rounded-xl transition
           ${
             saved
@@ -270,7 +323,7 @@ const [activeInfo, setActiveInfo] = useState(null);
       </button>
 
       <button
-        onClick={shareWhatsApp}
+        onClick={shareFund}
         className="
           flex items-center gap-2 px-3 py-2 rounded-xl
           bg-[var(--white-5)]
@@ -312,6 +365,16 @@ const [activeInfo, setActiveInfo] = useState(null);
         "
       >
         Invest Now
+      </button>
+      <button
+        onClick={openSell}
+        className="
+          px-5 py-2 rounded-xl
+          bg-red-600 hover:bg-red-700
+          text-white font-semibold shadow
+        "
+      >
+        Sell
       </button>
 
       <div className="text-right text-sm text-[var(--text-secondary)]">
@@ -906,7 +969,6 @@ pt-5 p-4
       dark:border border-[var(--border-color)]
     "
   >
-    {/* Close button */}
     <button
       onClick={closeModal}
       className="
@@ -928,6 +990,53 @@ pt-5 p-4
 
             )
           }
+
+          {sellModal && (
+            <div
+              onClick={closeModal}
+              className="fixed inset-0 z-50 flex items-start lg:items-center justify-center bg-black/50 pt-5 p-4"
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-lg bg-white dark:bg-[var(--card-bg)] rounded-2xl shadow-2xl p-6 relative dark:border border-[var(--border-color)]"
+              >
+                <button
+                  onClick={closeModal}
+                  className="absolute top-4 right-5 text-3xl text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  aria-label="Close modal"
+                >
+                  ×
+                </button>
+                <h2 className="text-xl font-semibold pr-8">Sell / Redeem</h2>
+                <p className="text-sm text-slate-500 mt-1 mb-4">{fundsList?.name}</p>
+                {thisHolding ? (
+                  <RedeemForm
+                    holding={thisHolding}
+                    locked
+                    onCancel={closeModal}
+                    onSuccess={() => {
+                      closeModal();
+                      navigate("/user/order/mutual-funds");
+                    }}
+                  />
+                ) : (
+                  <div className="text-sm text-slate-500 space-y-4">
+                    <p>You don’t hold this fund yet, so there’s nothing to sell.</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSellModal(false);
+                        setBuyModal(true);
+                      }}
+                      className="px-5 py-2 rounded-xl bg-emerald-600 text-white font-semibold"
+                    >
+                      Invest Now
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
 
     </div>
