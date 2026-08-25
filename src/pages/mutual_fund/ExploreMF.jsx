@@ -39,6 +39,8 @@ const ExploreMF = () => {
   });
 
   const funds = data?.data?.lists || [];
+  // ponytail: `total` BSE ke poore master ka count hai (28k+) — us mein wo schemes bhi
+  // hain jo backend filter kar deta hai. Paging ke liye theek hai, ginti ke liye jhoot.
   const total = Number(data?.data?.total ?? data?.data?.count ?? 0);
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -54,7 +56,7 @@ const ExploreMF = () => {
         <div>
           <h2 className="text-xl font-semibold tracking-tight">All Mutual Funds</h2>
           <p className="text-sm text-slate-500 dark:text-[var(--text-secondary)] mt-1">
-            {total ? `${total.toLocaleString()} funds with live NAV` : "Loading catalogue…"}
+            {funds.length ? `${funds.length} funds on this page` : "Loading catalogue…"}
           </p>
         </div>
         <form onSubmit={submitSearch} className="flex gap-2 w-full md:w-auto">
