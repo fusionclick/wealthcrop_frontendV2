@@ -19,7 +19,10 @@ const markTestKyc = (data) => {
     kyc: {
       ...(data?.kyc || {}),
       kyc_status: "verified",
-      ucc_code: data?.kyc?.ucc_code || data?.kyc?.ucc || "USRWC003",
+      // ponytail: backend ka fallback bhi yehi hai (mf/order.js investorUcc). Dono ka
+      // ek hona zaroori hai, warna requireMatchingUcc 403 de deta hai. USRWC003 BSE par
+      // PENDING_VERIFICATION hai aur order nahi leti; USRWC56442 APPROVED hai.
+      ucc_code: data?.kyc?.ucc_code || data?.kyc?.ucc || "USRWC56442",
     },
     riskProfile: data?.riskProfile || data?.risk_profile || { profile: "Moderate", score: 1 },
   };
