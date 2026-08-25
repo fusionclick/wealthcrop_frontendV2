@@ -165,6 +165,28 @@ export const mergePortfolio = (laravelOrders = [], bseHoldings = []) => {
   return Array.from(map.values());
 };
 
+/**
+ * External holdings ke totals. `navOf(row)` NAV deta hai (socket map se) — jis row ki
+ * NAV na mile uski current value invested ke barabar rakhi jaati hai, warna P&L jhoot
+ * bolta hai. `priced` batata hai kitni rows par asli NAV lagi.
+ */
+export const externalTotals = (rows = [], navOf = () => null) => {
+  let invested = 0;
+  let current = 0;
+  let priced = 0;
+  rows.forEach((r) => {
+    const inv = Number(r.invested_amount) || 0;
+    const units = Number(r.units) || 0;
+    const nav = Number(navOf(r));
+    const value = units > 0 && Number.isFinite(nav) && nav > 0 ? units * nav : null;
+    invested += inv;
+    current += value == null ? inv : value;
+    if (value != null) priced += 1;
+  });
+  const pnl = current - invested;
+  return { invested, current, pnl, pnlPct: invested ? (pnl / invested) * 100 : 0, priced };
+};
+
 /** Register UPI autopay mandate after SIP */
 export const buildMandatePayload = (ucc, investorData, amount = 5000) => ({
   data: {

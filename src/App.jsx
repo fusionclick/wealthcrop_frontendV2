@@ -48,6 +48,7 @@ import BottomHeader from "./components/BottomHeader";
 import ExploreMF from "./pages/mutual_fund/ExploreMF";
 import WatchlistMF from "./pages/mutual_fund/WatchlistMF";
 import DashBoardMF from "./pages/mutual_fund/DashBoardMF";
+import ExternalMF from "./pages/mutual_fund/ExternalMF";
 import SIPs from "./pages/mutual_fund/SIPs";
 import FundDetails from "./pages/mutual_fund/FundDetails";
 // import StockDetails from "./components/StockDetails";
@@ -401,6 +402,7 @@ useEffect(() => {
                 <Route index element={<Navigate to="explore" replace />} />
                 <Route path="explore" element={<ExploreMF />} />
                 <Route path="investments" element={<DashBoardMF />} />
+                <Route path="external" element={<ExternalMF />} />
                 <Route path="sip" element={<SIPs />} />
                 <Route path="watchlist" element={<WatchlistMF />} />
               </Route>

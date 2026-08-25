@@ -41,7 +41,8 @@ const MFDashboard = () => {
 
  const topTabs = [
   { name: "Explore", link: "explore" },
-  { name: "Dashboard", link: "investments" },
+  { name: "Internal Portfolio", link: "investments" },
+  { name: "External Portfolio", link: "external" },
   { name: "SIPs", link: "sip" },
   { name: "Watchlist", link: "watchlist" },
 ];

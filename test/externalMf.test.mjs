@@ -1,0 +1,22 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { externalTotals } from "../src/utils/nodeApi.js";
+
+const rows = [
+  { units: 100, invested_amount: 1000, scheme_isin: "IN1" }, // NAV 12 → 1200
+  { units: 50, invested_amount: 2000, scheme_isin: "IN2" },  // NAV nahi → 2000
+];
+const navOf = (r) => (r.scheme_isin === "IN1" ? 12 : null);
+
+test("prices what it can and falls back to invested for the rest", () => {
+  const t = externalTotals(rows, navOf);
+  assert.equal(t.invested, 3000);
+  assert.equal(t.current, 3200);
+  assert.equal(t.pnl, 200);
+  assert.equal(t.priced, 1);
+});
+
+test("empty list is flat, not NaN", () => {
+  const t = externalTotals([], navOf);
+  assert.deepEqual(t, { invested: 0, current: 0, pnl: 0, pnlPct: 0, priced: 0 });
+});

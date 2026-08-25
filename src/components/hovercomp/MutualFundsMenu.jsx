@@ -50,6 +50,30 @@ const isStocksActive = location.pathname.startsWith("/user/mutual_fund");
 </button>
 
 
+      {/* PORTFOLIO DROPDOWN — logged in par mega menu ki jagah sirf do options */}
+      {openMenu && token && (
+        <div
+          className="
+            absolute left-0 top-full z-50 w-72 p-2
+            rounded-xl border border-gray-200 dark:border-white/10
+            bg-white dark:bg-gray-900 shadow-lg
+          "
+        >
+          <MenuItem
+            icon={BarChart2}
+            title="Internal Portfolio"
+            desc="Isi platform se khareede hue funds."
+            onClick={() => navigate("/user/mutual_fund/investments")}
+          />
+          <MenuItem
+            icon={Layers}
+            title="External Portfolio"
+            desc="Doosri jagah se liye funds — sirf tracking."
+            onClick={() => navigate("/user/mutual_fund/external")}
+          />
+        </div>
+      )}
+
       {/* MEGA MENU */}
       {openMenu && !token && (
         <div
@@ -126,6 +150,20 @@ const isStocksActive = location.pathname.startsWith("/user/mutual_fund");
                     title="Track Funds"
                     desc="Monitor all investments in one place."
                     onClick={() => navigate("/track")}
+                  />
+
+                  <MenuItem
+                    icon={BarChart2}
+                    title="Internal Portfolio"
+                    desc="Isi platform se khareede hue funds."
+                    onClick={() => navigate("/user/mutual_fund/investments")}
+                  />
+
+                  <MenuItem
+                    icon={Layers}
+                    title="External Portfolio"
+                    desc="Doosri jagah se liye funds — sirf tracking."
+                    onClick={() => navigate("/user/mutual_fund/external")}
                   />
                 </div>
 
