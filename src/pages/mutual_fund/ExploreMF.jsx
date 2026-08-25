@@ -2,7 +2,7 @@ import { FaLandmark, FaCoins, FaChartLine, FaChartPie } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { postApi } from "../../api/api";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import FundListSkeleton from "../../components/ui/skeleton/main/FundListSkeleton";
 import { nodeUrl, fundPath } from "../../utils/nodeApi";
 import AmcMark from "../../components/AmcMark";
@@ -23,6 +23,7 @@ const ExploreMF = () => {
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
+  const [sort, setSort] = useState("");
   const navs = useNavMap();
   const url = nodeUrl(import.meta.env.VITE_GET_ALL_FUNDS || "/master-scheme-list");
 
@@ -44,6 +45,19 @@ const ExploreMF = () => {
   const total = Number(data?.data?.total ?? data?.data?.count ?? 0);
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  // ponytail: sort sirf isi page par lagta hai — paging BSE ke apne master par chalti
+  // hai aur poora catalogue (28k) load karna 1GB box ko mar deta hai. Isi liye label
+  // par "this page" likha hai. Server-side sort chahiye to BSE ka sort param dhoondna
+  // parega, master ko yahan kheenchna nahi.
+  const shown = useMemo(() => {
+    const nav = (f) => Number(f?.nav) || 0;
+    const rows = [...funds];
+    if (sort === "name") return rows.sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+    if (sort === "nav_desc") return rows.sort((a, b) => nav(b) - nav(a));
+    if (sort === "nav_asc") return rows.sort((a, b) => nav(a) - nav(b));
+    return rows;
+  }, [funds, sort]);
+
   const submitSearch = (e) => {
     e.preventDefault();
     setPage(0);
@@ -56,10 +70,22 @@ const ExploreMF = () => {
         <div>
           <h2 className="text-xl font-semibold tracking-tight">All Mutual Funds</h2>
           <p className="text-sm text-slate-500 dark:text-[var(--text-secondary)] mt-1">
-            {funds.length ? `${funds.length} funds on this page` : "Loading catalogue…"}
+            {funds.length
+              ? `${funds.length} funds you can buy${sort ? " · sorted on this page" : ""}`
+              : "Loading catalogue…"}
           </p>
         </div>
         <form onSubmit={submitSearch} className="flex gap-2 w-full md:w-auto">
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            className="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white shadow-sm dark:bg-[var(--white-10)] dark:border-[var(--border-color)]"
+          >
+            <option value="">Sort: BSE order</option>
+            <option value="name">Name A–Z</option>
+            <option value="nav_desc">NAV: high to low</option>
+            <option value="nav_asc">NAV: low to high</option>
+          </select>
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -90,7 +116,7 @@ const ExploreMF = () => {
         FundListSkeleton()
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {funds.map((fund) => (
+          {shown.map((fund) => (
             <button
               key={`${fund.scheme_isin || fund.scheme_isin}-${fund.scheme_bse_code || fund.scheme_bse_code}`}
               onClick={() =>
