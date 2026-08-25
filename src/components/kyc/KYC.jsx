@@ -2,7 +2,7 @@
 // ✔ Compact steps + ✔ Left gradient illustration + ✔ Dark mode polish
 // ✔ State management for all steps + ✔ Final API submit
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Select from "react-select";
 import {
@@ -32,6 +32,7 @@ export default function KYCFlow() {
   const [userStep, setUserStep] = useState()
 const [loadingStep, setLoadingStep] = useState(false);
 const [isUccCreated, setIsUccCreated] = useState(false)
+const uccRequested = useRef(false)
 const [uccResponseData, setUccResponseData] = useState()
 const [customBank, setCustomBank] = useState("");
 
@@ -442,6 +443,17 @@ useEffect(() => {
 
 useEffect(() => {
   if (step !== 4 || !userData) return;
+  // ponytail: UCC ek hi dafa banni chahiye. Ye effect `userData` par dobara chalta hai
+  // (react-query har refetch par naya object deta hai) aur har run BSE par ek aur UCC
+  // bhej deta tha — usi PAN par teen ban chuki hain (USRWC003/004/005) aur har baar
+  // verification zero par reset ho jati thi, is liye transaction_ready kabhi TRUE nahi
+  // hui. Pehle se UCC hai to haath mat lagao; warna is session mein sirf ek koshish.
+  if (userData?.kyc?.ucc_code) {
+    setIsUccCreated(true);
+    return;
+  }
+  if (uccRequested.current) return;
+  uccRequested.current = true;
 
   const createUCC = async () => {
 
