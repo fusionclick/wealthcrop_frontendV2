@@ -38,6 +38,10 @@ const MutualFundInvestPage = ({ fundsList: fundsProp, setBuyModal }) => {
   const nav = Number(fundsList?.nav || 0);
   const minLumpsum = Number(fundsList?.minLumpsum || 1000);
   const estimatedUnits = useMemo(() => (amount && nav > 0 ? amount / nav : 0), [amount, nav]);
+  // BSE batata hai ke scheme demat mein rakhi ja sakti hai ya sirf physical mein. UCC
+  // demat par bana hai, to physical-only scheme ka form bharwana bekaar hai — order
+  // hamesha reject hoga. holding_modes na ho to raasta khula rehta hai.
+  const dematBlocked = fundsList?.holding_modes?.demat === false;
 
   const generateOrderRefId = () => String(Math.floor(100000 + Math.random() * 900000));
 
@@ -202,6 +206,12 @@ const MutualFundInvestPage = ({ fundsList: fundsProp, setBuyModal }) => {
         {nav > 0 && (
           <p className="text-xs text-slate-500">Est. units: {estimatedUnits.toFixed(3)}</p>
         )}
+        {dematBlocked && (
+          <p className="text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-xl p-3">
+            This scheme can only be held physically. Your BSE account is registered for
+            demat, so it cannot be purchased here.
+          </p>
+        )}
 
         <div className="flex gap-3">
           <button
@@ -210,7 +220,11 @@ const MutualFundInvestPage = ({ fundsList: fundsProp, setBuyModal }) => {
           >
             Cancel
           </button>
-          <button onClick={handleInvest} className="flex-1 py-3 rounded-lg bg-emerald-600 text-white font-medium">
+          <button
+            onClick={handleInvest}
+            disabled={dematBlocked}
+            className="flex-1 py-3 rounded-lg bg-emerald-600 text-white font-medium disabled:opacity-50"
+          >
             Confirm & Invest
           </button>
         </div>
