@@ -34,22 +34,15 @@ const FundDetails = () => {
   const [buyModal, setBuyModal] = useState(false);
   const [sellModal, setSellModal] = useState(false);
   
-    const url = nodeUrl(import.meta.env.VITE_GET_ALL_FUNDS || "/master-scheme-list");
     const detailsUrl = nodeUrl(import.meta.env.VITE_SCHEME_DETAILS || "/scheme-details");
   
   const { data: details, isLoading } = useQuery({
     queryKey: ["FUND_FULL_DETAILS", isin, code],
-    queryFn: async () => postApi(url, { isin, scheme_code: code }),
+    queryFn: async () => postApi(detailsUrl, { isin, scheme_code: code }),
     enabled: !!isin && !!code,
     staleTime: 1000 * 60 * 2,
     refetchInterval: 1000 * 60 * 5,
     refetchOnWindowFocus: true,
-  });
-
-    const { data: chartData } = useQuery({
-    queryKey: ["CHART_DETAILS", isin, code],
-    queryFn: async () => postApi(detailsUrl, { isin: isin, scheme_code: code }),
-    enabled: !!isin && !!code,
   });
 
   const { data: holdings = [] } = useQuery({
@@ -59,10 +52,10 @@ const FundDetails = () => {
     enabled: !!ucc,
   });
 
-  const schemeInfo = chartData?.data?.scheme_info;
+  const schemeInfo = details?.data?.scheme_info;
   const fundsList = useMemo(() => {
     const base = details?.data?.lists?.[0] || {};
-    const extra = chartData?.data || {};
+    const extra = details?.data || {};
     const returns = extra.returns || schemeInfo?.returns || base.returns || {};
     const nav = schemeInfo?.current_nav ?? schemeInfo?.nav ?? base.nav;
     return {
@@ -85,7 +78,7 @@ const FundDetails = () => {
       rank: extra.rank || {},
       advancedRatios: schemeInfo?.advancedRatios || extra.advancedRatios,
     };
-  }, [details, chartData, schemeInfo]);
+  }, [details, schemeInfo]);
 
   const thisHolding = useMemo(
     () =>
@@ -482,8 +475,8 @@ const [activeInfo, setActiveInfo] = useState(null);
   </div>
 
   <MFChart
-    series={chartData?.data?.chartData || []}
-    synthetic={!!chartData?.data?.synthetic}
+    series={details?.data?.chartData || []}
+    synthetic={!!details?.data?.synthetic}
     height={320}
   />
 

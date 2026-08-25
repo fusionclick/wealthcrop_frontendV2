@@ -157,28 +157,32 @@ export default function PaymentPromptModal({
               {linkLoading ? <Loader /> : "Skip for Now"}
             </button>
 
-            <button
-              //   onClick={onProceed}
-              onClick={() => {
-                const w = window.open(paymentLink, "_blank");
-                console.log("window", w);
-              }}
-              className="
+            {/* ponytail: anchor, window.open nahi — modal link aane se pehle khulta hai,
+                to khali URL par click kuch nahi karta tha. Anchor ko popup blocker bhi
+                nahi rokta. Link na ho to button disabled dikhta hai. */}
+            <a
+              href={paymentLink || undefined}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-disabled={!paymentLink}
+              className={`
                 flex-1
                 py-3
                 rounded-xl
                 text-sm font-medium
                 text-white
+                text-center
 
                 bg-green-600
                 hover:bg-green-700
 
                 shadow-lg
                 shadow-green-600/20
-              "
+                ${paymentLink ? "" : "opacity-50 pointer-events-none"}
+              `}
             >
-              {linkLoading ? <Loader /> : "Proceed to Payment"}
-            </button>
+              {linkLoading || !paymentLink ? <Loader /> : "Proceed to Payment"}
+            </a>
           </div>
         </div>
       </div>

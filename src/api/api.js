@@ -14,6 +14,7 @@ const authHeaders = () => {
   if (!token) return null;
   return {
     Authorization: `Bearer ${token}`,
+    "X-Authorization": `Bearer ${token}`,
     "Content-Type": "application/json",
   };
 };
