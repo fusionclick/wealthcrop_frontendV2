@@ -86,7 +86,9 @@ const MutualFundInvestPage = ({ fundsList: fundsProp, setBuyModal }) => {
           investor: { ucc: investor?.kyc?.ucc_code },
           order_ids: [orderId],
           requested_method: "exch_pg_page",
-          payment_mode: ["upi", "netbanking", "mandate"],
+          // ponytail: mandate tab tak nahi jab tak NACH/UPI-autopay register na ho —
+          // warna BSE page par "Select Mandate → No data available" khali khara rehta hai.
+          payment_mode: ["upi", "netbanking"],
           redirection_url: `${window.location.origin}/user/mutual_fund/investments`,
         },
       });
