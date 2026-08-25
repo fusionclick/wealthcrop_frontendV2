@@ -171,12 +171,18 @@ const RedeemMF = () => {
 
   const [selectedHolding, setSelectedHolding] = useState(null);
 
-  const { data: holdings = [], isLoading: loadingHoldings } = useQuery({
+  const { data: portfolio, isLoading: loadingHoldings } = useQuery({
     queryKey: ["bsePortfolio", ucc],
     queryFn: () => postApiWithToken(nodeUrl("/getClientPortfolio"), { data: { ucc } }),
-    select: (res) => (Array.isArray(res?.data?.holdings) ? res.data.holdings : []),
+    select: (res) => ({
+      list: Array.isArray(res?.data?.holdings) ? res.data.holdings : [],
+      pending: Number(res?.data?.pending || 0),
+    }),
     enabled: !!ucc,
   });
+  const holdings = portfolio?.list || [];
+  // Orders placed but not yet paid — they are not holdings, but "invest first" is a lie.
+  const pendingOrders = portfolio?.pending || 0;
 
   useEffect(() => {
     if (!holdings.length) return;
@@ -204,12 +210,19 @@ const RedeemMF = () => {
 
         {holdings.length === 0 ? (
           <div className="text-center py-8 text-gray-500 dark:text-[var(--text-secondary)]">
-            <p>No holdings found. Invest first to redeem.</p>
+            {pendingOrders > 0 ? (
+              <p>
+                {pendingOrders === 1 ? "1 order is" : `${pendingOrders} orders are`} awaiting payment.
+                Units are allotted only after payment, so there is nothing to redeem yet.
+              </p>
+            ) : (
+              <p>No holdings found. Invest first to redeem.</p>
+            )}
             <button
-              onClick={() => navigate("/user/mutual_fund/explore")}
+              onClick={() => navigate(pendingOrders > 0 ? "/user/mutual_fund/investments" : "/user/mutual_fund/explore")}
               className="mt-4 px-5 py-2 bg-blue-600 text-white rounded-lg text-sm"
             >
-              Explore Funds
+              {pendingOrders > 0 ? "View Orders" : "Explore Funds"}
             </button>
           </div>
         ) : (
