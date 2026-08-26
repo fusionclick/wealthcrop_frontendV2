@@ -21,27 +21,29 @@ const IpoDashboardPage = () => {
 
   // FILTERS
   const filteredIpos = useMemo(() => {
+    const q = search.trim().toLowerCase();
     return ipos.filter((ipo) => {
       const marketMatch =
         marketFilter === "ALL" ? true : ipo.marketType === marketFilter;
       const statusMatch = ipo.status === statusFilter;
-      const searchMatch =
-        ipo.name.toLowerCase().includes(search.toLowerCase()) ||
-        ipo.symbol.toLowerCase().includes(search.toLowerCase());
+      // name/symbol DB se null aa sakte hain — pehle yahan .toLowerCase() crash karta tha.
+      const hay = `${ipo.name || ""} ${ipo.symbol || ""}`.toLowerCase();
 
-      return marketMatch && statusMatch && searchMatch;
+      return marketMatch && statusMatch && hay.includes(q);
     });
-  }, [marketFilter, statusFilter, search]);
+  }, [ipos, marketFilter, statusFilter, search]);
 
   // SUMMARY
-  const summary = useMemo(() => {
-    return {
-      openCount: IPO_DUMMY_DATA.filter((i) => i.status === "OPEN").length,
-      closedCount: IPO_DUMMY_DATA.filter((i) => i.status === "CLOSED").length,
-      upcomingCount: IPO_DUMMY_DATA.filter((i) => i.status === "UPCOMING")
-        .length,
-    };
-  }, []);
+  // ponytail: counts fetched `ipos` se aate hain. Pehle yahan IPO_DUMMY_DATA tha jo
+  // kahin define hi nahi — poore page ko white screen kar deta tha.
+  const summary = useMemo(
+    () => ({
+      openCount: ipos.filter((i) => i.status === "OPEN").length,
+      closedCount: ipos.filter((i) => i.status === "CLOSED").length,
+      upcomingCount: ipos.filter((i) => i.status === "UPCOMING").length,
+    }),
+    [ipos]
+  );
 
   const statusLabelMap = {
     OPEN: "Open IPOs",

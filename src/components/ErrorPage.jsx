@@ -1,9 +1,9 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 
-const ErrorPage = () => {
+const ErrorPage = ({ message }) => {
   const location = useLocation();
-  const errorMessage = location.state?.message;
+  const errorMessage = message || location.state?.message;
 
   return (
  <div

@@ -110,6 +110,7 @@ import ResetPin from "./pages/ResetPin";
 import Notifications from "./pages/Notifications";
 import StockList from "./pages/stocks/StockList";
 import PageLoader from "./components/PageLoader";
+import ErrorBoundary from "./components/ErrorBoundary";
 import { toastError } from "./utils/notifyCustom";
 import { getApiWithToken } from "./api/api";
 import { fetchInvestorData } from "./redux/investorDataSlice";
@@ -383,6 +384,8 @@ useEffect(() => {
 
       {/*  Page Content */}
       <main className="min-h-screen bg-white dark:bg-[var(--app-bg)]">
+        {/* Ek page ka crash poori app ko safed na kare. Route badalne par khud reset. */}
+        <ErrorBoundary resetKey={pathname}>
         <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* Protected routes */}
@@ -425,7 +428,9 @@ useEffect(() => {
               />
 
               {/* F&O and Mutual Fund */}
-              <Route path="/user/f&o" element={<FODashboard />} />
+              {/* Purana duplicate route — asli F&O dashboard /user/future_and_options par hai,
+                  yahan Outlet khali tha is liye page blank aata tha. */}
+              <Route path="/user/f&o" element={<Navigate to="/user/future_and_options" replace />} />
               {/* <Route path="/user/mutual_fund" element={<MFDashboard />} /> */}
 
               {/* Profile Order */}
@@ -593,6 +598,7 @@ useEffect(() => {
             ))}
           </Routes>
         </Suspense>
+        </ErrorBoundary>
       </main>
 
       {/* ================= FOOTER ================= */}

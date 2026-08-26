@@ -115,7 +115,18 @@ const calculators = [
     icon: BarChart3,
     bg: "from-green-100 to-emerald-200",
   },
-  
+  {
+    name: "Income Tax Calculator",
+    path: "/calculator/income-tax-calculator",
+    icon: IndianRupee,
+    bg: "from-rose-100 to-red-200",
+  },
+  {
+    name: "Rent vs Buy Calculator",
+    path: "/calculator/rent-calculator",
+    icon: Landmark,
+    bg: "from-teal-100 to-cyan-200",
+  },
 ];
 
 

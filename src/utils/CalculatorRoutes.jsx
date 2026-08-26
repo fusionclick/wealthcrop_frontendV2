@@ -15,6 +15,8 @@ import { elements } from "chart.js";
 import ELSSPlannerCalculator from "../pages/calculators/ELSSPlannerCalculator";
 import LTCGCalculator from "../pages/calculators/LTCGCalculator";
 import EightyCTracker from "../pages/calculators/EightyCTracker";
+import IncomeTaxCalculator from "../pages/calculators/IncomeTaxCalculator";
+import RentCalculator from "../pages/calculators/RentCalculator";
 
 
 export const calculatorRoutes = [
@@ -31,8 +33,8 @@ export const calculatorRoutes = [
   { path: "inflation-calculator", element: <InflationCalculator /> },
   { path: "hra-calculator", element: <HraCalculator /> },
   { path: "education-cost-calculator", element: <EducationCalculator/> },
-  { path: "income-tax-calculator", },
-  { path: "rent-calculator",},
+  { path: "income-tax-calculator", element: <IncomeTaxCalculator/> },
+  { path: "rent-calculator", element: <RentCalculator/> },
   { path: "elss-calculator", element: <ELSSPlannerCalculator/> },
   { path: "ltcg-calculator", element: <LTCGCalculator/> },
   { path: "eightyC-calculator", element: <EightyCTracker/> },
