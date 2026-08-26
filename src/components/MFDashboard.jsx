@@ -43,6 +43,7 @@ const MFDashboard = () => {
   { name: "Explore", link: "explore" },
   { name: "Internal Portfolio", link: "investments" },
   { name: "External Portfolio", link: "external" },
+  { name: "Combined Portfolio", link: "combined" },
   { name: "SIPs", link: "sip" },
   { name: "Watchlist", link: "watchlist" },
 ];

@@ -199,6 +199,111 @@ export const unitsFor = (amount, nav) => {
   return a > 0 && n > 0 ? Number((a / n).toFixed(4)) : null;
 };
 
+/**
+ * Internal (BSE/Laravel orders) aur External (khud add ki hui) holdings ko ek
+ * portfolio mein jorrta hai. Ek hi scheme dono taraf ho to wo ek line ban jati
+ * hai aur dono badge rakhti hai — yahi "combined" ka matlab hai.
+ *
+ * `navOf(row)` sirf external rows ke liye chalta hai (socket/stored NAV). Internal
+ * rows ki current value BSE ke ret_percentage se banti hai, wahi source of truth hai.
+ * ponytail: match scheme code par hota hai, name par nahi — do AMC ke same naam
+ * wale plans warna galat jurr jate. Jis row par code na ho wo apni line rakhti hai.
+ */
+export const combinePortfolio = (internal = [], external = [], navOf = () => null) => {
+  const map = new Map();
+  // Merged row dono splits mein poora gin liya jaye to Internal + External kabhi total
+  // ke barabar nahi hote. Is liye har side ka hissa yahan alag jama hota hai.
+  const tally = {
+    internal: { invested: 0, current: 0, count: 0 },
+    external: { invested: 0, current: 0, count: 0 },
+  };
+
+  const add = (row) => {
+    const prev = map.get(row.key);
+    if (!prev) return map.set(row.key, row);
+    map.set(row.key, {
+      ...prev,
+      invested: prev.invested + row.invested,
+      current: prev.current + row.current,
+      units: (prev.units || 0) + (row.units || 0) || null,
+      nav: prev.nav ?? row.nav,
+      sources: [...new Set([...prev.sources, ...row.sources])],
+      priced: prev.priced && row.priced,
+    });
+  };
+
+  const keyOf = (code, name, fallback) => {
+    const c = String(code || "").trim().toUpperCase();
+    return c ? `c:${c}` : `n:${String(name || fallback).trim().toUpperCase()}`;
+  };
+
+  internal.forEach((f, i) => {
+    const invested = Number(f.inv_amo) || 0;
+    const pct = Number(f.ret_percentage) || 0;
+    tally.internal.invested += invested;
+    tally.internal.current += invested + (invested * pct) / 100;
+    tally.internal.count += 1;
+    add({
+      key: keyOf(f.scheme_bse_code, f.scheme_name, `i${i}`),
+      name: f.scheme_name || "Fund",
+      category: f.scheme_category || f.category || "Other",
+      invested,
+      current: invested + (invested * pct) / 100,
+      units: Number(f.units) || null,
+      nav: Number(f.nav) || null,
+      folio: f.folio || "",
+      scheme_bse_code: f.scheme_bse_code || "",
+      sources: ["internal"],
+      priced: true,
+    });
+  });
+
+  external.forEach((r, i) => {
+    const invested = Number(r.invested_amount) || 0;
+    const units = Number(r.units) || 0;
+    const nav = Number(navOf(r));
+    // NAV na mile to current value ko invested ke barabar rakhte hain — warna P&L jhoot bolta hai.
+    const value = units > 0 && Number.isFinite(nav) && nav > 0 ? units * nav : null;
+    tally.external.invested += invested;
+    tally.external.current += value == null ? invested : value;
+    tally.external.count += 1;
+    add({
+      key: keyOf(r.scheme_bse_code || r.scheme_isin, r.scheme_name, `e${i}`),
+      name: r.scheme_name || "Fund",
+      category: r.scheme_category || "Other",
+      invested,
+      current: value == null ? invested : value,
+      units: units || null,
+      nav: value == null ? null : nav,
+      folio: r.folio || "",
+      scheme_bse_code: r.scheme_bse_code || "",
+      sources: ["external"],
+      priced: value != null,
+    });
+  });
+
+  const rows = [...map.values()];
+  const withPnl = ({ invested, current, count }) => ({
+    invested,
+    current,
+    pnl: current - invested,
+    pnlPct: invested ? ((current - invested) / invested) * 100 : 0,
+    count,
+  });
+
+  return {
+    rows,
+    totals: withPnl({
+      invested: rows.reduce((a, r) => a + r.invested, 0),
+      current: rows.reduce((a, r) => a + r.current, 0),
+      count: rows.length,
+    }),
+    internal: withPnl(tally.internal),
+    external: withPnl(tally.external),
+    unpriced: rows.filter((r) => !r.priced).length,
+  };
+};
+
 /** Register UPI autopay mandate after SIP */
 export const buildMandatePayload = (ucc, investorData, amount = 5000) => ({
   data: {
