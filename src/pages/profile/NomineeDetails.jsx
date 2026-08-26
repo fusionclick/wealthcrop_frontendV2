@@ -311,6 +311,7 @@ const { data: nominees, error, isLoading, refetch } = useQuery({
               </label>
               <input
                 type="date"
+                max={new Date().toLocaleDateString("en-CA")}
                 className="
         w-full border p-2 rounded-lg mt-1
         bg-white text-gray-900

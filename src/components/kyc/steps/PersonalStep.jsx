@@ -21,6 +21,7 @@ export default function PersonalStep({ next, prev, update }) {
 
       <input
         type="date"
+        max={new Date().toLocaleDateString("en-CA")}
         className="w-full border px-4 py-2 mb-4 rounded-lg"
         onChange={(e) => setDob(e.target.value)}
       />

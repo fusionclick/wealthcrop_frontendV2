@@ -2,7 +2,9 @@ import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toastError, toastSuccess } from "../../utils/notifyCustom";
 import { Clock10Icon } from "lucide-react";
-import { getApiWithToken, postApiWithToken } from "../../api/api";
+import { getApiWithToken, postApi, postApiWithToken } from "../../api/api";
+import { laravelUrl, nodeUrl } from "../../utils/nodeApi";
+import Combo from "../../components/ui/Combo";
 import axios from "axios";
 
 /* ===============================
@@ -32,7 +34,6 @@ export default function CreateBasket() {
   const [type, setType] = useState("stock");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
-  const [selectedAsset, setSelectedAsset] = useState(null);
   const [weight, setWeight] = useState("");
   const [error, setError] = useState("")
 
@@ -46,57 +47,51 @@ export default function CreateBasket() {
   const remainingWeight = 100 - totalWeight;
 
   /* ===============================
-     SEARCH LOGIC (STATIC)
+     SEARCH LOGIC
      =============================== */
-  // const searchAssets = (text) => {
-  //   setQuery(text);
-  //   setSelectedAsset(null);
-
-  //   if (text.length < 2) {
-  //     setResults([]);
-  //     return;
-  //   }
-
-  //   const matches = ASSETS[type]
-  //     .filter((a) =>
-  //       a.name.toLowerCase().includes(text.toLowerCase())
-  //     )
-  //     .slice(0, 4); // show max 4 results
-
-  //   setResults(matches);
-  // };
-  const searchAssets = async (text) => {
-    setQuery(text);
-    setSelectedAsset(null);
-
-    if (text.length < 2) {
+  // ponytail: mutual funds BSE ke master se aati hain (28k schemes, wahi endpoint jo
+  // External Portfolio use karta hai). Stocks Laravel ki `assets` table se — wo abhi
+  // khali hai, is liye stock search tab tak khali rahegi jab tak usay bhara na jaye.
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) {
       setResults([]);
       return;
     }
+    // 250ms debounce — har keystroke par request nahi.
+    const t = setTimeout(async () => {
+      if (type === "mutual_fund") {
+        const res = await postApi(nodeUrl(import.meta.env.VITE_GET_ALL_FUNDS || "/master-scheme-list"), {
+          start: 0,
+          length: 20,
+          search: q,
+        });
+        setResults(
+          (res?.data?.lists || []).map((f) => ({
+            code: f.scheme_bse_code || f.scheme_isin,
+            name: f.name,
+            hint: f.subType,
+          }))
+        );
+      } else {
+        // encodeURIComponent zaroori hai — "L&T" jaise naam URL tod dete hain.
+        const res = await getApiWithToken(
+          laravelUrl(`/assets/search?query=${encodeURIComponent(q)}&type=${type}`)
+        );
+        setResults(
+          (res?.data?.data || []).map((a) => ({
+            code: a.code || String(a.id),
+            name: a.name,
+            hint: a.category || a.amc,
+          }))
+        );
+      }
+    }, 250);
+    return () => clearTimeout(t);
+  }, [query, type]);
 
-    const url = `${import.meta.env.VITE_URL}/assets/search?query=${text}&type=${type}`
-    const res = await getApiWithToken(url)
-
-    if(res?.status === 200 || res?.status === true){
-
-      setResults(res?.data?.data)
-      console.log("basket search assests ", res);
-    }
-    
-
-    // const matches = ASSETS[type]
-    //   .filter((a) =>
-    //     a.name.toLowerCase().includes(text.toLowerCase())
-    //   )
-    //   .slice(0, 4); // show max 4 results
-
-    // setResults(matches);
-  };
-
-  useEffect(() => {
-console.log("Search results", results);
-
-  },[results])
+  // Add Asset tabhi khulta hai jab naam list se match kare — free text par nahi.
+  const selectedAsset = results.find((r) => r.name === query.trim());
 
   /* ===============================
      ADD ASSET
@@ -112,29 +107,33 @@ console.log("Search results", results);
       return;
     }
 
+    if (assets.some((a) => a.code === selectedAsset.code)) {
+      setError("Ye asset pehle se basket mein hai");
+      return;
+    }
+
     setAssets([
       ...assets,
       {
-        id: selectedAsset.id,
-        asset_id: selectedAsset.id,
+        code: selectedAsset.code,
         name: selectedAsset.name,
         asset_type: type,
         weight: w,
       },
     ]);
 
+    setError("");
     setQuery("");
     setResults([]);
-    setSelectedAsset(null);
     setWeight("");
   };
 
   /* ===============================
      REMOVE ASSET
      =============================== */
-  const removeAsset = (id) => {
+  const removeAsset = (code) => {
     setError("")
-    setAssets(assets.filter((a) => a.id !== id));
+    setAssets(assets.filter((a) => a.code !== code));
   };
 
   /* ===============================
@@ -154,7 +153,8 @@ console.log("Search results", results);
     const payload = {
       name,
       holdings: assets.map((item) => ({
-        asset_id: item.asset_id,
+        code: item.code,
+        name: item.name,
         asset_type: item.asset_type,
         weight: item.weight,
       }))
@@ -280,68 +280,23 @@ console.log("Search results", results);
       </div>
 
       {/* SEARCH */}
-      <div className="relative">
-        <label
-          className="
-            text-sm font-medium mb-1 block
-            text-slate-700
-            dark:text-[var(--text-secondary)]
-          "
-        >
-          Search Asset
-        </label>
+      <Combo
+        id="basket-asset"
+        label="Search Asset"
+        value={query}
+        onChange={setQuery}
+        placeholder={type === "stock" ? "Search stock (e.g. Reliance)" : "Search mutual fund"}
+        className="
+          w-full p-3 pr-9 rounded-xl
+          border border-[#d4dbe5]
+          bg-[#f9fbff]
 
-        <input
-          className="
-            w-full p-3 rounded-xl
-            border border-[#d4dbe5]
-            bg-[#f9fbff]
-
-            dark:bg-[var(--white-5)]
-            dark:border-[var(--border-color)]
-            dark:text-[var(--text-primary)]
-          "
-          placeholder={
-            type === "stock"
-              ? "Search stock (e.g. Reliance)"
-              : "Search mutual fund"
-          }
-          value={query}
-          onChange={(e) => searchAssets(e.target.value)}
-        />
-
-        {results.length > 0 && (
-          <div
-            className="
-              absolute z-10 w-full mt-1 rounded-xl shadow overflow-hidden md:w-[460px] overflow-y-auto
-              bg-white border border-[#e0e7ef] h-54
-
-              dark:bg-[var(--card-bg)]
-              dark:border-[var(--border-color)]
-            "
-          >
-            {results.map((asset) => (
-              <div
-                key={asset.id}
-                onClick={() => {
-                  setSelectedAsset(asset);
-                  setQuery(asset.name);
-                  setResults([]);
-                }}
-                className="
-                  px-4 py-2 text-sm cursor-pointer
-                  hover:bg-blue-50
-
-                  dark:hover:bg-blue-500/15
-                  dark:text-[var(--text-primary)]
-                "
-              >
-                {asset.name}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+          dark:bg-[var(--white-5)]
+          dark:border-[var(--border-color)]
+          dark:text-[var(--text-primary)]
+        "
+        options={results.map((r) => ({ key: r.code, label: r.name, hint: r.hint }))}
+      />
 
       {/* WEIGHT */}
       <div>
@@ -380,9 +335,9 @@ console.log("Search results", results);
     {/* ADD BUTTON */}
     <button
       onClick={addAsset}
-      disabled={!selectedAsset || weight === 0}
+      disabled={!selectedAsset || !(Number(weight) > 0)}
       className={`mt-5 px-6 py-2.5 rounded-xl shadow transition ${
-        selectedAsset && weight > 0
+        selectedAsset && Number(weight) > 0
           ? "bg-blue-500 text-white hover:bg-blue-600"
           : "bg-gray-300 text-gray-500 cursor-not-allowed"
       }`}
@@ -436,7 +391,7 @@ console.log("Search results", results);
 
       {assets.map((a) => (
         <div
-          key={a.id}
+          key={a.code}
           className="
             flex justify-between items-center py-3 text-sm
             border-b
@@ -472,7 +427,7 @@ console.log("Search results", results);
             </span>
 
             <button
-              onClick={() => removeAsset(a.id)}
+              onClick={() => removeAsset(a.code)}
               className="text-red-500 text-xs hover:underline"
             >
               Remove

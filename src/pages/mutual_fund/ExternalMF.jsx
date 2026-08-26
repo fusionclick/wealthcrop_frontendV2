@@ -10,6 +10,9 @@ import FundDashboardSkeleton from "../../components/ui/skeleton/main/FundDashboa
 const EXTERNAL_URL = () => laravelUrl(import.meta.env.VITE_EXTERNAL_MF || "/portfolio/mf/external");
 const money = (n) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 const EMPTY = { units: "", invested_amount: "", folio: "", source: "", purchased_at: "" };
+// Aaj se aage ki tareekh purchase date nahi ho sakti. en-CA isi liye — YYYY-MM-DD local mein,
+// toISOString UTC deta hai to IST ki raat ko ek din peeche chala jata.
+const today = () => new Date().toLocaleDateString("en-CA");
 
 const ExternalMF = () => {
   const qc = useQueryClient();
@@ -196,6 +199,7 @@ const ExternalMF = () => {
             <Field
               label="Purchase date (optional)"
               type="date"
+              max={today()}
               value={form.purchased_at}
               onChange={(v) => setForm((p) => ({ ...p, purchased_at: v }))}
             />
@@ -277,12 +281,13 @@ const Card = ({ label, value, tone = "" }) => (
   </div>
 );
 
-const Field = ({ label, value, onChange, type = "text", step, placeholder }) => (
+const Field = ({ label, value, onChange, type = "text", step, placeholder, max }) => (
   <label className="block">
     <span className="text-[11px] text-slate-500">{label}</span>
     <input
       type={type}
       step={step}
+      max={max}
       placeholder={placeholder}
       value={value}
       onChange={(e) => onChange(e.target.value)}
