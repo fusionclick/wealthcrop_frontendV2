@@ -187,6 +187,18 @@ export const externalTotals = (rows = [], navOf = () => null) => {
   return { invested, current, pnl, pnlPct: invested ? (pnl / invested) * 100 : 0, priced };
 };
 
+/**
+ * Amount se units — external holding ka default, user edit kar sakta hai.
+ * 4 decimals kyunke DB column decimal(18,4) hai.
+ * ponytail: aaj ki NAV par, purchase-date ki NAV par nahi — uske liye historical
+ * NAV API chahiye. Jisay theek units maloom hain wo field mein type kar de.
+ */
+export const unitsFor = (amount, nav) => {
+  const a = Number(amount);
+  const n = Number(nav);
+  return a > 0 && n > 0 ? Number((a / n).toFixed(4)) : null;
+};
+
 /** Register UPI autopay mandate after SIP */
 export const buildMandatePayload = (ucc, investorData, amount = 5000) => ({
   data: {

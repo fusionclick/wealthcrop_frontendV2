@@ -1,33 +1,23 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Trash2, Plus, Search } from "lucide-react";
+import { Trash2, Plus } from "lucide-react";
 import { deleteApiWithToken, getApiWithToken, postApi, postApiWithToken } from "../../api/api";
-import { externalTotals, laravelUrl, nodeUrl } from "../../utils/nodeApi";
+import { externalTotals, laravelUrl, nodeUrl, unitsFor } from "../../utils/nodeApi";
 import { useNavMap, liveNav } from "../../utils/navSocket";
+import Combo from "../../components/ui/Combo";
 import FundDashboardSkeleton from "../../components/ui/skeleton/main/FundDashboardSkeleton";
 
 const EXTERNAL_URL = () => laravelUrl(import.meta.env.VITE_EXTERNAL_MF || "/portfolio/mf/external");
 const money = (n) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
-const EMPTY = {
-  scheme_name: "",
-  scheme_isin: "",
-  scheme_bse_code: "",
-  scheme_category: "",
-  units: "",
-  invested_amount: "",
-  folio: "",
-  source: "",
-  purchased_at: "",
-};
+const EMPTY = { units: "", invested_amount: "", folio: "", source: "", purchased_at: "" };
 
 const ExternalMF = () => {
   const qc = useQueryClient();
   const navs = useNavMap();
   const [form, setForm] = useState(EMPTY);
   const [showForm, setShowForm] = useState(false);
+  const [schemeText, setSchemeText] = useState("");
   const [schemeQuery, setSchemeQuery] = useState("");
-  const [matches, setMatches] = useState([]);
-  const [searching, setSearching] = useState(false);
   const [error, setError] = useState("");
 
   const { data: rows = [], isLoading } = useQuery({
@@ -44,8 +34,7 @@ const ExternalMF = () => {
         return;
       }
       setForm(EMPTY);
-      setSchemeQuery("");
-      setMatches([]);
+      setSchemeText("");
       setShowForm(false);
       qc.invalidateQueries({ queryKey: ["externalMf"] });
     },
@@ -57,56 +46,54 @@ const ExternalMF = () => {
   });
 
   const navOf = (row) =>
-    liveNav({ scheme_isin: row.scheme_isin, scheme_bse_code: row.scheme_bse_code }, navs);
+    liveNav({ scheme_isin: row.scheme_isin, scheme_bse_code: row.scheme_bse_code, nav: row.nav }, navs);
   const totals = useMemo(() => externalTotals(rows, navOf), [rows, navs]);
 
-  // ponytail: wahi catalogue endpoint jo Explore use karta hai — scheme chunne se isin/code
-  // mil jaate hain aur NAV apne aap lag jati hai. Na mile to free-text naam bhi chalta hai.
-  const searchSchemes = async () => {
-    const q = schemeQuery.trim();
-    if (!q) return;
-    setSearching(true);
-    const res = await postApi(nodeUrl(import.meta.env.VITE_GET_ALL_FUNDS || "/master-scheme-list"), {
-      start: 0,
-      length: 8,
-      search: q,
-    });
-    setMatches(res?.data?.lists || []);
-    setSearching(false);
-  };
+  useEffect(() => {
+    const t = setTimeout(() => setSchemeQuery(schemeText.trim()), 250);
+    return () => clearTimeout(t);
+  }, [schemeText]);
 
-  const pickScheme = (f) => {
-    setForm((p) => ({
-      ...p,
-      scheme_name: f.name,
-      scheme_isin: f.scheme_isin || "",
-      scheme_bse_code: f.scheme_bse_code || "",
-      scheme_category: f.category || "",
-    }));
-    setMatches([]);
-    setSchemeQuery(f.name);
-  };
+  // ponytail: wahi catalogue endpoint jo Explore use karta hai — server-side filter,
+  // 28k schemes browser mein nahi aa sakte. Khali field par pehla page dikhta hai.
+  const { data: schemes = [] } = useQuery({
+    queryKey: ["externalSchemeSearch", schemeQuery],
+    queryFn: () =>
+      postApi(nodeUrl(import.meta.env.VITE_GET_ALL_FUNDS || "/master-scheme-list"), {
+        start: 0,
+        length: 50,
+        search: schemeQuery,
+      }),
+    select: (res) => res?.data?.lists || [],
+    placeholderData: (prev) => prev,
+    staleTime: 5 * 60 * 1000,
+    enabled: showForm,
+  });
+
+  const picked = schemes.find((f) => f.name === schemeText.trim());
+  // Catalogue sirf priced schemes deta hai, is liye chuni hui fund par NAV hamesha hoti hai.
+  const pickedNav = picked?.nav ?? null;
+  const derived = unitsFor(form.invested_amount, pickedNav);
+  const units = form.units !== "" ? Number(form.units) : derived;
+  const preview = units > 0 && pickedNav ? units * pickedNav : null;
 
   const submit = (e) => {
     e.preventDefault();
     setError("");
-    const scheme_name = (form.scheme_name || schemeQuery).trim();
-    if (!scheme_name) {
-      setError("Fund ka naam zaroori hai");
-      return;
-    }
-    if (!(Number(form.units) > 0)) {
-      setError("Units 0 se zyada honi chahiye");
-      return;
-    }
-    if (!(Number(form.invested_amount) > 0)) {
-      setError("Invested amount 0 se zyada honi chahiye");
-      return;
-    }
+    const scheme_name = schemeText.trim();
+    if (!scheme_name) return setError("Fund ka naam zaroori hai");
+    if (!(Number(form.invested_amount) > 0)) return setError("Invested amount 0 se zyada honi chahiye");
+    if (!(units > 0)) return setError("Units 0 se zyada honi chahiye — ya list se fund chuno");
     addMutation.mutate({
       ...form,
       scheme_name,
-      units: Number(form.units),
+      scheme_isin: picked?.scheme_isin || "",
+      scheme_bse_code: picked?.scheme_bse_code || "",
+      scheme_category: picked?.category || "",
+      // NAV bhi save hoti hai: AMFI kuch schemes publish nahi karta aur socket map usi
+      // par bana hai — warna aisi holding ki current value hamesha "—" rehti.
+      nav: pickedNav,
+      units,
       invested_amount: Number(form.invested_amount),
       purchased_at: form.purchased_at || null,
     });
@@ -147,7 +134,7 @@ const ExternalMF = () => {
       {totals.priced < rows.length && (
         <p className="text-[11px] text-amber-600 mb-4">
           {rows.length - totals.priced} holding(s) ki NAV nahi mili — un ki current value invested
-          ke barabar dikh rahi hai.
+          ke barabar dikh rahi hai. Fund ko list se chun kar dobara add karo.
         </p>
       )}
 
@@ -156,59 +143,45 @@ const ExternalMF = () => {
           onSubmit={submit}
           className="bg-white dark:bg-[var(--white-10)] border dark:border-[var(--border-color)] rounded-xl p-4 mb-5 space-y-3"
         >
-          <div className="flex gap-2">
-            <input
-              value={schemeQuery}
-              onChange={(e) => setSchemeQuery(e.target.value)}
-              placeholder="Fund ka naam (search karke chuno)"
-              className="flex-1 border rounded-md px-3 py-2 text-sm dark:bg-transparent dark:border-[var(--border-color)]"
-            />
-            <button
-              type="button"
-              onClick={searchSchemes}
-              className="bg-blue-600 text-white px-3 rounded-md text-xs flex items-center gap-1"
-            >
-              <Search size={14} /> {searching ? "…" : "Search"}
-            </button>
-          </div>
+          <Combo
+            id="external-scheme"
+            value={schemeText}
+            onChange={setSchemeText}
+            placeholder="Fund ka naam likhna shuru karo, ya poori list ke liye click karo"
+            className="w-full border rounded-md px-3 py-2 pr-9 text-sm dark:bg-transparent dark:border-[var(--border-color)]"
+            options={schemes.map((f) => ({
+              key: f.scheme_bse_code || f.scheme_isin,
+              label: f.name,
+              hint: `${f.subType} · NAV ₹${Number(f.nav || 0).toFixed(2)}`,
+            }))}
+          />
 
-          {!!matches.length && (
-            <div className="border rounded-md divide-y dark:border-[var(--border-color)] max-h-52 overflow-y-auto">
-              {matches.map((f) => (
-                <button
-                  type="button"
-                  key={`${f.scheme_isin}-${f.scheme_bse_code}`}
-                  onClick={() => pickScheme(f)}
-                  className="w-full text-left px-3 py-2 text-xs hover:bg-blue-50 dark:hover:bg-white/5"
-                >
-                  <p className="font-medium">{f.name}</p>
-                  <p className="text-[10px] text-slate-500">
-                    {f.subType} · NAV ₹{Number(f.nav || 0).toFixed(2)}
-                  </p>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {form.scheme_isin && (
+          {picked ? (
             <p className="text-[11px] text-emerald-600">
-              Linked: {form.scheme_isin} · {form.scheme_bse_code} (NAV auto)
+              Linked: {picked.scheme_isin} · {picked.scheme_bse_code} · NAV ₹{pickedNav.toFixed(2)}
             </p>
+          ) : (
+            !!schemeText.trim() && (
+              <p className="text-[11px] text-amber-600">
+                List se chuna nahi gaya — NAV nahi lagegi, units khud likhni hongi.
+              </p>
+            )
           )}
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            <Field
-              label="Units"
-              type="number"
-              step="0.0001"
-              value={form.units}
-              onChange={(v) => setForm((p) => ({ ...p, units: v }))}
-            />
             <Field
               label="Invested Amount (₹)"
               type="number"
               value={form.invested_amount}
               onChange={(v) => setForm((p) => ({ ...p, invested_amount: v }))}
+            />
+            <Field
+              label="Units"
+              type="number"
+              step="0.0001"
+              placeholder={derived ? `${derived} (auto)` : ""}
+              value={form.units}
+              onChange={(v) => setForm((p) => ({ ...p, units: v }))}
             />
             <Field
               label="Folio (optional)"
@@ -227,6 +200,12 @@ const ExternalMF = () => {
               onChange={(v) => setForm((p) => ({ ...p, purchased_at: v }))}
             />
           </div>
+
+          {preview != null && (
+            <p className="text-[11px] text-slate-500">
+              {units} units × NAV ₹{pickedNav.toFixed(2)} = <b>{money(preview)}</b> aaj ki value
+            </p>
+          )}
 
           {error && <p className="text-xs text-red-500">{error}</p>}
 
@@ -298,12 +277,13 @@ const Card = ({ label, value, tone = "" }) => (
   </div>
 );
 
-const Field = ({ label, value, onChange, type = "text", step }) => (
+const Field = ({ label, value, onChange, type = "text", step, placeholder }) => (
   <label className="block">
     <span className="text-[11px] text-slate-500">{label}</span>
     <input
       type={type}
       step={step}
+      placeholder={placeholder}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       className="w-full border rounded-md px-3 py-2 text-sm mt-1 dark:bg-transparent dark:border-[var(--border-color)]"
