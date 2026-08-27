@@ -43,8 +43,12 @@ export const toastSuccess = (msg) =>
     className: "toast-success-custom",
   });
 
-export const toastError = (msg) =>
-  toast(renderToastContent(FaTimesCircle, msg), {
+export const clearToasts = () => toast.dismiss();
+
+export const toastError = (msg) => {
+  toast.dismiss("app-error");
+  return toast(renderToastContent(FaTimesCircle, msg), {
+    toastId: "app-error",
     position: "top-right",
     autoClose: 3000,
     hideProgressBar: false,
@@ -57,6 +61,7 @@ export const toastError = (msg) =>
     icon: false,
     className: "toast-error-custom",
   });
+};
 
 export const toastInfo = (msg) =>
   toast(renderToastContent(FaInfoCircle, msg), {

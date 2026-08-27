@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from "react";
 import { postApiWithToken } from "../../api/api";
 import { toastError, toastSuccess } from "../../utils/notifyCustom";
 import { useSelector } from "react-redux";
-import { nodeUrl, mapXspToSip } from "../../utils/nodeApi";
+import { nodeUrl, mapXspToSip, xspItems } from "../../utils/nodeApi";
 
 const SIP_HISTORY_PLACEHOLDER = [];
 
@@ -35,17 +35,13 @@ const ManageSipPage = () => {
             start: 0,
             length: 50,
             filter_param: {
-              sxp_type: ["SIP"],
-              ucc: [ucc],
+              sxp_type: "SIP",
+              ucc,
             },
           },
         };
         const res = await postApiWithToken(url, payload);
-        const items =
-          res?.data?.items ||
-          res?.response?.data?.items ||
-          res?.items ||
-          [];
+        const items = xspItems(res);
         if (Array.isArray(items) && items.length) {
           setSips(items.map((item, i) => mapXspToSip(item, i)));
           // Fetch SIP transaction history for first active SIP
@@ -55,8 +51,8 @@ const ManageSipPage = () => {
             const histRes = await postApiWithToken(histUrl, {
               data: { reg_no: active.reg_no || active.id, sxp_type: "SIP" },
             });
-            const histItems = histRes?.data?.items || histRes?.response?.data?.items || [];
-            if (Array.isArray(histItems)) {
+            const histItems = xspItems(histRes);
+            if (histItems.length) {
               setSipHistory(histItems.map((h) => ({
                 id: h.id || h.txn_id,
                 date: h.txn_date || h.date || "—",

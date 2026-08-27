@@ -60,10 +60,15 @@ export const postApi = async (url, data) => {
   }
 };
 
-export const postApiWithToken = async (url, data, { silent } = {}) => {
+export const postApiWithToken = async (url, data, { silent, throwOnError } = {}) => {
   const headers = authHeaders();
   if (!headers) {
     if (!silent) toastError("User not authenticated");
+    if (throwOnError) {
+      const error = new Error("User not authenticated");
+      error.reason = "no_bearer_token";
+      throw error;
+    }
     return null;
   }
 
@@ -74,6 +79,7 @@ export const postApiWithToken = async (url, data, { silent } = {}) => {
     if (!silent) {
       toastError(error.response?.data?.message || error.response?.data?.error || "API Error");
     }
+    if (throwOnError) throw error;
     return null;
   }
 };

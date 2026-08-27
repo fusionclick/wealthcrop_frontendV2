@@ -12,6 +12,18 @@ export const laravelUrl = (path = "") => {
   return `${base}${suffix}`;
 };
 
+export const apiErrorMessage = (error, fallback = "Something went wrong. Please try again.") => {
+  const data = error?.response?.data || error || {};
+  const reason = data.reason || error?.reason;
+  if (reason === "no_bearer_token" || reason === "token_rejected") {
+    return "Your login session is no longer valid. Please sign in again.";
+  }
+  if (reason === "upstream_unreachable") {
+    return "We could not verify your login right now. Please try again.";
+  }
+  return String(data.message || data.error || error?.message || fallback);
+};
+
 export const fundPath = (isin, code) =>
   `/mutual_fund/${encodeURIComponent(isin || "")}/${encodeURIComponent(code || "")}`;
 
@@ -108,6 +120,19 @@ export const calcXirr = (funds = []) => {
   return ((returns / invested) * 100).toFixed(2);
 };
 
+/** Read the documented BSE `data.lists` response, with old shapes as fallbacks. */
+export const xspItems = (response) => {
+  const items =
+    response?.data?.lists ||
+    response?.data?.items ||
+    response?.response?.data?.lists ||
+    response?.response?.data?.items ||
+    response?.lists ||
+    response?.items ||
+    [];
+  return Array.isArray(items) ? items : [];
+};
+
 /** Map getAllXsp BSE response items to frontend SIP card shape */
 export const mapXspToSip = (item, idx = 0) => ({
   id: item.reg_no || item.id || idx + 1,
@@ -117,10 +142,10 @@ export const mapXspToSip = (item, idx = 0) => ({
   sipAmount: Number(item.amount || 0),
   frequency: item.freq === "m" ? "Monthly" : item.freq === "q" ? "Quarterly" : item.freq === "w" ? "Weekly" : "Monthly",
   sipDay: item.txn_date || 1,
-  nextInstallment: item.next_installment_date || "—",
+  nextInstallment: item.next_due_date || item.next_schedule_at || item.next_installment_date || "—",
   startDate: item.start_date || "—",
-  investedSoFar: Number(item.invested_amount || 0),
-  currentValue: Number(item.current_value || item.invested_amount || 0),
+  investedSoFar: Number(item.total_amt_paid || item.invested_amount || 0),
+  currentValue: Number(item.current_value || item.total_amt_paid || item.invested_amount || 0),
   mandateStatus: item.mandate_status || "Active",
   status: (item.status || "ACTIVE").toUpperCase(),
 });

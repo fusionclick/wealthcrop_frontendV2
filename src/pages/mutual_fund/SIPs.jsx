@@ -3,7 +3,7 @@ import emptySip from "../../assets/mutualFund/sipEmpty2.svg";
 import { useNavigate } from "react-router-dom";
 import { postApiWithToken } from "../../api/api";
 import { useSelector } from "react-redux";
-import { nodeUrl, mapXspToSip } from "../../utils/nodeApi";
+import { nodeUrl, mapXspToSip, xspItems } from "../../utils/nodeApi";
 
 const SIPs = () => {
   const navigate = useNavigate();
@@ -25,13 +25,10 @@ const SIPs = () => {
             fields: ["ALL"],
             start: 0,
             length: 50,
-            filter_param: { sxp_type: ["SIP"], ucc: [ucc] },
+            filter_param: { sxp_type: "SIP", ucc },
           },
         });
-        const items = res?.data?.items || res?.response?.data?.items || res?.items || [];
-        if (Array.isArray(items)) {
-          setSips(items.map((item, i) => mapXspToSip(item, i)).filter((s) => s.status === "ACTIVE"));
-        }
+        setSips(xspItems(res).map((item, i) => mapXspToSip(item, i)));
       } catch (_) {
         /* empty */
       } finally {
@@ -54,7 +51,7 @@ const SIPs = () => {
       {sips.length === 0 ? (
         <div className="min-h-[400px] flex flex-col justify-center items-center space-y-5">
           <img src={emptySip} className="w-72 opacity-90" alt="" />
-          <h1 className="text-2xl font-semibold dark:text-[var(--text-primary)]">No active SIPs</h1>
+          <h1 className="text-2xl font-semibold dark:text-[var(--text-primary)]">No SIPs yet</h1>
           <p className="text-slate-500 dark:text-[var(--text-secondary)] text-sm">
             When you start an SIP, it will appear here.
           </p>

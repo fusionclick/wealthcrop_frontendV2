@@ -3,7 +3,6 @@ import {
   Routes,
   Route,
   Navigate,
-  useNavigate,
   useLocation,
 } from "react-router-dom";
 import Header from "./components/Header";
@@ -112,7 +111,7 @@ import Notifications from "./pages/Notifications";
 import StockList from "./pages/stocks/StockList";
 import PageLoader from "./components/PageLoader";
 import ErrorBoundary from "./components/ErrorBoundary";
-import { toastError } from "./utils/notifyCustom";
+import { clearToasts, toastError } from "./utils/notifyCustom";
 import { getApiWithToken } from "./api/api";
 import { fetchInvestorData } from "./redux/investorDataSlice";
 
@@ -296,6 +295,7 @@ const StockDetails = lazy(() => import("./components/StockDetails"));
 
   useEffect(() => {
     window.scrollTo(0, 0);
+    clearToasts();
   }, [pathname]);
 
   const [activeCategory, setActiveCategory] = useState("stocks");
@@ -308,16 +308,12 @@ const StockDetails = lazy(() => import("./components/StockDetails"));
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const navigate = useNavigate();
-
   //   useEffect(() => {
   //   if (window.innerWidth < 1024) {
   //     setActiveCategory("stocks"); // default
   //     navigate("/user/stocks/explore");
   //   }
   // }, []);
-
-  const location = useLocation();
 
 useEffect(() => {
   const check = () => {
@@ -332,14 +328,6 @@ useEffect(() => {
 
   return () => clearInterval(interval);
 }, [token]);
-
-  useEffect(() => {
-    if (window.innerWidth < 1024) {
-      if (location.pathname === "/") {
-        navigate("/user/stocks/explore", { replace: true });
-      }
-    }
-  }, []);
 
     const dispatch = useDispatch();
 
@@ -514,10 +502,7 @@ useEffect(() => {
             </Route>
 
             {/* Public routes */}
-            <Route
-              path="/"
-              element={token ? <Navigate to="/user/stocks" /> : <Home />}
-            />
+            <Route path="/" element={<Home />} />
             <Route path="*" element={<ErrorPage />} />
 
             <Route path="/login" element={<Login />} />

@@ -2,10 +2,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { postApi, postApiWithToken } from "../../api/api";
 import { useSelector } from "react-redux";
-import { toastError, toastSuccess } from "../../utils/notifyCustom";
+import { clearToasts, toastError, toastSuccess } from "../../utils/notifyCustom";
 import InvestLoader from "../../components/InvestLoader";
 import PaymentPromptModal from "../../components/PaymentPromptModal";
-import { nodeUrl, laravelUrl, validateInvestorReady } from "../../utils/nodeApi";
+import { apiErrorMessage, nodeUrl, laravelUrl, validateInvestorReady } from "../../utils/nodeApi";
 
 const MutualFundInvestPage = ({ fundsList: fundsProp, setBuyModal }) => {
   const { isin, code } = useParams();
@@ -17,6 +17,7 @@ const MutualFundInvestPage = ({ fundsList: fundsProp, setBuyModal }) => {
   const [linkLoading, setLinkLoading] = useState(false);
   const [showPaymentPopup, setShowPaymentPopup] = useState(false);
   const [paymentLink, setPaymentLink] = useState("");
+  const [orderError, setOrderError] = useState("");
 
   useEffect(() => {
     if (fundsProp?.scheme_bse_code) {
@@ -106,6 +107,8 @@ const MutualFundInvestPage = ({ fundsList: fundsProp, setBuyModal }) => {
   };
 
   const handleInvest = async () => {
+    clearToasts();
+    setOrderError("");
     const err = validateInvestorReady(investor, minLumpsum, amount, {
       risk: fundsList?.risk,
       category: fundsList?.category || fundsList?.subType,
@@ -149,7 +152,11 @@ const MutualFundInvestPage = ({ fundsList: fundsProp, setBuyModal }) => {
     };
 
     try {
-      const res = await postApiWithToken(nodeUrl(import.meta.env.VITE_FUND_ORDER_PLACE || "/purchaseNewOrder"), payload);
+      const res = await postApiWithToken(
+        nodeUrl(import.meta.env.VITE_FUND_ORDER_PLACE || "/purchaseNewOrder"),
+        payload,
+        { silent: true, throwOnError: true }
+      );
       if (res?.status === 200 || res?.status === true || res?.status === "success") {
         toastSuccess("Order placed successfully");
         const orderId = res.data?.items?.[0]?.id;
@@ -161,10 +168,14 @@ const MutualFundInvestPage = ({ fundsList: fundsProp, setBuyModal }) => {
         }
         setShowPaymentPopup(true);
       } else {
-        toastError(res?.message || res?.error || "Order placement failed");
+        const message = res?.message || res?.error || "Order placement failed. Please try again.";
+        setOrderError(message);
+        toastError(message);
       }
     } catch (error) {
-      toastError(error?.response?.data?.message || error?.message || "Order placement failed");
+      const message = apiErrorMessage(error, "Order placement failed. Please try again.");
+      setOrderError(message);
+      toastError(message);
     } finally {
       setLoading(false);
     }
@@ -199,7 +210,11 @@ const MutualFundInvestPage = ({ fundsList: fundsProp, setBuyModal }) => {
             type="number"
             min={minLumpsum}
             value={amount}
-            onChange={(e) => setAmount(Number(e.target.value))}
+            onChange={(e) => {
+              clearToasts();
+              setOrderError("");
+              setAmount(Number(e.target.value));
+            }}
             className="mt-1 w-full border rounded-lg px-3 py-2 dark:bg-[var(--white-10)] dark:border-[var(--border-color)]"
           />
         </label>
@@ -212,10 +227,20 @@ const MutualFundInvestPage = ({ fundsList: fundsProp, setBuyModal }) => {
             demat, so it cannot be purchased here.
           </p>
         )}
+        {orderError && (
+          <p role="alert" className="text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl p-3">
+            {orderError}
+          </p>
+        )}
 
         <div className="flex gap-3">
           <button
-            onClick={() => (setBuyModal ? setBuyModal(false) : navigate(-1))}
+            onClick={() => {
+              clearToasts();
+              setOrderError("");
+              if (setBuyModal) setBuyModal(false);
+              else navigate(-1);
+            }}
             className="flex-1 py-3 rounded-lg border"
           >
             Cancel
