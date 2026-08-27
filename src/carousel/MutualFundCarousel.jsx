@@ -19,7 +19,8 @@ function MutualFundCarousel() {
 
   const { data: stockData } = useQuery({
     queryKey: ["ticker-stocks"],
-    queryFn: () => fetchStockList("NIFTY 50", 25, { quick: true }),
+    // ponytail: quick=true lastPrice 0 deta hai — ticker 0.00 dikhata tha
+    queryFn: () => fetchStockList("NIFTY 50", 25),
     enabled: mode === "stocks",
     staleTime: 60_000,
   });

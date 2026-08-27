@@ -10,6 +10,7 @@ import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import { getApi } from "../../api/api";
 import { fetchMarketIndices, fetchMarketProducts, fetchStockList, fetchEtfs } from "../../api/marketApi";
+import { fetchHoldings } from "../../api/portfolioApi";
 import { useSelector } from "react-redux";
 import WatchlistPopup from "../../components/WatchlistPopup";
 import { stockLogoUrl } from "../../utils/stockLogo";
@@ -133,6 +134,17 @@ const Explore = () => {
 
 //! from redux
 const stockList =  useSelector((state) => state.stocks.stockList)
+
+  // ponytail: Explore sidebar — pehle hardcoded empty tha, ab Kotak holdings
+  const { data: myHoldings = [] } = useQuery({
+    queryKey: ["explore-holdings"],
+    queryFn: async () => {
+      const res = await fetchHoldings(false);
+      return Array.isArray(res?.data?.data) ? res.data.data : [];
+    },
+    staleTime: 60_000,
+    retry: false,
+  });
 
 
   // const [stocks, setStocks] = useState([]);
@@ -750,15 +762,42 @@ const stockList =  useSelector((state) => state.stocks.stockList)
     <div
       className="
         bg-white rounded-xl shadow flex-col p-4
-        text-center h-[250px] flex items-center justify-center
+        text-center min-h-[250px] flex items-center justify-center
         text-gray-500
         dark:bg-[var(--card-bg)]
         dark:text-[var(--text-secondary)]
         dark:shadow-white/5
       "
     >
-      <img src={topInvest} alt="" />
-      <p className="mt-5">You haven’t invested yet</p>
+      {myHoldings.length === 0 ? (
+        <>
+          <img src={topInvest} alt="" />
+          <p className="mt-5">You haven’t invested yet</p>
+          <Link to="/user/stocks/holdings" className="mt-3 text-xs text-emerald-600 font-medium">
+            Link Kotak / Holdings
+          </Link>
+        </>
+      ) : (
+        <div className="w-full text-left space-y-2 max-h-[250px] overflow-y-auto">
+          {myHoldings.slice(0, 5).map((h) => (
+            <Link
+              key={h.symbol || h.tradingsymbol}
+              to={`/stocks/${encodeURIComponent(h.symbol || h.tradingsymbol)}`}
+              className="flex justify-between gap-2 text-sm py-1 border-b border-gray-100 dark:border-white/10"
+            >
+              <span className="font-medium text-slate-800 dark:text-[var(--text-primary)] truncate">
+                {h.symbol || h.tradingsymbol}
+              </span>
+              <span className="text-slate-500 shrink-0">
+                {h.qty ?? h.quantity ?? 0} qty
+              </span>
+            </Link>
+          ))}
+          <Link to="/user/stocks/holdings" className="block text-center text-xs text-emerald-600 pt-1">
+            See all holdings
+          </Link>
+        </div>
+      )}
     </div>
   </div>
 
