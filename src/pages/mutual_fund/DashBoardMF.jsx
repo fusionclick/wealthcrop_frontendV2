@@ -9,6 +9,7 @@ import { useSelector } from "react-redux";
 import { laravelUrl, nodeUrl, mergePortfolio, calcXirr } from "../../utils/nodeApi";
 
 const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#6366f1"];
+const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 
 const DashBoardMF = () => {
   const [sortBy, setSortBy] = useState("name");
@@ -109,13 +110,27 @@ const DashBoardMF = () => {
             <div className="h-56">
               <ResponsiveContainer>
                 <PieChart>
-                  <Pie data={allocation} dataKey="value" nameKey="name" outerRadius={80} label>
+                  <Pie
+                    data={allocation}
+                    dataKey="value"
+                    nameKey="name"
+                    outerRadius={80}
+                    label={({ name, value }) => `${name}: ${money(value)}`}
+                  >
                     {allocation.map((_, i) => (
                       <Cell key={i} fill={COLORS[i % COLORS.length]} />
                     ))}
                   </Pie>
                 </PieChart>
               </ResponsiveContainer>
+            </div>
+            <div className="flex flex-wrap gap-3 mt-2 justify-center">
+              {allocation.map((item, i) => (
+                <span key={item.name} className="text-[11px] text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+                  <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: COLORS[i % COLORS.length] }} />
+                  {item.name}: {money(item.value)}
+                </span>
+              ))}
             </div>
           </div>
 
