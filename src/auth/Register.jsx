@@ -58,7 +58,9 @@ export default function Register() {
         setFormSnapshot(formData);
         setOtpSent(true);
         setOtp(["", "", "", "", "", ""]);
-        toastSuccess(res?.otp ? `OTP: ${res.otp}` : res?.message || "OTP sent");
+        toastSuccess(
+          import.meta.env.DEV && res?.otp ? `OTP: ${res.otp}` : res?.message || "OTP sent"
+        );
       }
     } catch (error) {
       toastError(error?.message || "Failed to send OTP");

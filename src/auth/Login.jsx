@@ -132,9 +132,8 @@ if (!otpSent) {
 console.log("Otp response", res);
 
     if (res.status === 200 || res.status === true) {
-      setSaveOTP(res?.otp)
-      console.log("otp",res?.otp);
-      
+      // ponytail: never trust/store OTP from API body in prod (SMS path)
+      if (import.meta.env.DEV && res?.otp) setSaveOTP(res.otp);
       setOtpSent(true);
       setOtp(["", "", "", "", "", ""]);
       toastSuccess(res?.message);
