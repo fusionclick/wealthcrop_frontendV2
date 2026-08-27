@@ -16,7 +16,11 @@ cd "$DIR"
 docker ps -aq --filter name=watchtower | xargs -r docker rm -f
 docker ps -aq --filter name=_wealthcrop_frontendv2-web-1 | xargs -r docker rm -f
 
-cat >/usr/local/bin/wc-image-update <<EOF
+# Purana shared unit backend installer se overwrite hota tha; dono apps ka apna unit ho.
+systemctl disable --now wc-image-update.timer 2>/dev/null || true
+rm -f /etc/systemd/system/wc-image-update.{service,timer} /usr/local/bin/wc-image-update
+
+cat >/usr/local/bin/wc-frontend-image-update <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$DIR"
@@ -31,19 +35,19 @@ if [ "\$BEFORE" != "\$AFTER" ]; then
   docker image prune -f >/dev/null   # purani image ki jagah khali karo — disk tang hai
 fi
 EOF
-chmod +x /usr/local/bin/wc-image-update
+chmod +x /usr/local/bin/wc-frontend-image-update
 
-cat >/etc/systemd/system/wc-image-update.service <<'EOF'
+cat >/etc/systemd/system/wc-frontend-image-update.service <<'EOF'
 [Unit]
-Description=Naya image aaya to container update karo
+Description=Naya frontend image aaya to container update karo
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/wc-image-update
+ExecStart=/usr/local/bin/wc-frontend-image-update
 EOF
 
-cat >/etc/systemd/system/wc-image-update.timer <<'EOF'
+cat >/etc/systemd/system/wc-frontend-image-update.timer <<'EOF'
 [Unit]
-Description=Har minute naya image check karo
+Description=Har minute naya frontend image check karo
 [Timer]
 OnBootSec=1min
 OnUnitActiveSec=1min
@@ -52,8 +56,8 @@ WantedBy=timers.target
 EOF
 
 systemctl daemon-reload
-systemctl enable --now wc-image-update.timer
+systemctl enable --now wc-frontend-image-update.timer
 
 echo "== abhi ek dafa chala kar dekhte hain =="
-/usr/local/bin/wc-image-update
-echo "done. logs: journalctl -u wc-image-update -f"
+/usr/local/bin/wc-frontend-image-update
+echo "done. logs: journalctl -u wc-frontend-image-update -f"
