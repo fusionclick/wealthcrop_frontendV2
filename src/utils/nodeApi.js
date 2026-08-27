@@ -199,16 +199,27 @@ export const externalTotals = (rows = [], navOf = () => null) => {
   return { invested, current, pnl, pnlPct: invested ? (pnl / invested) * 100 : 0, priced };
 };
 
-/**
- * Amount se units — external holding ka default, user edit kar sakta hai.
- * 4 decimals kyunke DB column decimal(18,4) hai.
- * ponytail: aaj ki NAV par, purchase-date ki NAV par nahi — uske liye historical
- * NAV API chahiye. Jisay theek units maloom hain wo field mein type kar de.
- */
+/** Amount ko supplied current/purchase NAV se 4-decimal units mein badlo. */
 export const unitsFor = (amount, nav) => {
   const a = Number(amount);
   const n = Number(nav);
   return a > 0 && n > 0 ? Number((a / n).toFixed(4)) : null;
+};
+
+/** Latest published NAV on or before a YYYY-MM-DD purchase date. */
+export const navForDate = (series = [], date = "") => {
+  const end = Date.parse(`${date}T23:59:59Z`) / 1000;
+  if (!date || !Number.isFinite(end)) return null;
+
+  let match = null;
+  series.forEach((point) => {
+    const timestamp = Number(point.timestamp);
+    const nav = Number(point.nav);
+    if (timestamp <= end && nav > 0 && (!match || timestamp > match.timestamp)) {
+      match = { timestamp, nav };
+    }
+  });
+  return match?.nav ?? null;
 };
 
 /**

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Trash2, Plus } from "lucide-react";
 import { deleteApiWithToken, getApiWithToken, postApi, postApiWithToken } from "../../api/api";
-import { externalTotals, laravelUrl, navLooksPlausible, nodeUrl, unitsFor } from "../../utils/nodeApi";
+import { externalTotals, laravelUrl, navForDate, navLooksPlausible, nodeUrl, unitsFor } from "../../utils/nodeApi";
 import { useNavMap, liveNav } from "../../utils/navSocket";
 import { ensureExternalNav } from "../../utils/externalNav";
 import Combo from "../../components/ui/Combo";
@@ -100,7 +100,20 @@ const ExternalMF = () => {
   const picked = schemes.find((f) => f.name === schemeText.trim());
   // Catalogue sirf priced schemes deta hai, is liye chuni hui fund par NAV hamesha hoti hai.
   const pickedNav = picked?.nav ?? null;
-  const derived = unitsFor(form.invested_amount, pickedNav);
+  const { data: historical, isFetching: isFetchingHistoricalNav } = useQuery({
+    queryKey: ["externalPurchaseNav", picked?.scheme_isin, picked?.scheme_bse_code],
+    queryFn: () =>
+      postApi(nodeUrl(import.meta.env.VITE_SCHEME_DETAILS || "/scheme-details"), {
+        isin: picked.scheme_isin,
+        scheme_code: picked.scheme_bse_code,
+      }),
+    enabled: Boolean(picked && form.purchased_at),
+    staleTime: 6 * 60 * 60 * 1000,
+  });
+  const purchaseNav = historical?.data?.synthetic
+    ? null
+    : navForDate(historical?.data?.chartData, form.purchased_at);
+  const derived = unitsFor(form.invested_amount, form.purchased_at ? purchaseNav : pickedNav);
   const units = form.units !== "" ? Number(form.units) : derived;
   const preview = units > 0 && pickedNav ? units * pickedNav : null;
 
@@ -111,7 +124,13 @@ const ExternalMF = () => {
     if (!scheme_name) return setError("Fund ka naam zaroori hai");
     if (!picked) return setError("List se fund chuno — tabhi published NAV milti hai");
     if (!(Number(form.invested_amount) > 0)) return setError("Invested amount 0 se zyada honi chahiye");
-    if (!(units > 0)) return setError("Units 0 se zyada honi chahiye — ya list se fund chuno");
+    if (!(units > 0)) {
+      return setError(
+        form.purchased_at
+          ? "Selected date ki NAV nahi mili — units manually enter karo"
+          : "Units 0 se zyada honi chahiye — ya list se fund chuno"
+      );
+    }
     if (!(pickedNav > 0)) return setError("Is fund ki NAV catalogue mein nahi mili");
     addMutation.mutate({
       ...form,
@@ -195,6 +214,16 @@ const ExternalMF = () => {
                 List se chuna nahi gaya — NAV nahi lagegi, units khud likhni hongi.
               </p>
             )
+          )}
+
+          {picked && form.purchased_at && (
+            <p className={`text-[11px] ${purchaseNav ? "text-emerald-600" : "text-amber-600"}`}>
+              {isFetchingHistoricalNav
+                ? "Selected date ki NAV fetch ho rahi hai…"
+                : purchaseNav
+                  ? `${form.purchased_at} ki purchase NAV ₹${purchaseNav.toFixed(4)}`
+                  : "Selected date ki published NAV nahi mili — units manually enter karo"}
+            </p>
           )}
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">

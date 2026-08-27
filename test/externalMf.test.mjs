@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { externalTotals, unitsFor } from "../src/utils/nodeApi.js";
+import { externalTotals, navForDate, unitsFor } from "../src/utils/nodeApi.js";
 
 const rows = [
   { units: 100, invested_amount: 1000, scheme_isin: "IN1" }, // NAV 12 → 1200
@@ -28,4 +28,17 @@ test("units amount se nikalti hain, NAV ke bagair nahi", () => {
   assert.equal(unitsFor(10000, null), null);
   assert.equal(unitsFor("", 11.04), null);
   assert.equal(unitsFor(10000, 0), null);
+});
+
+test("purchase date par us din ya pichle published din ki NAV lagti hai", () => {
+  const series = [
+    { timestamp: Date.parse("2026-08-26T00:00:00Z") / 1000, nav: 940 },
+    { timestamp: Date.parse("2026-08-27T00:00:00Z") / 1000, nav: 945 },
+    { timestamp: Date.parse("2026-08-28T00:00:00Z") / 1000, nav: 950 },
+  ];
+
+  assert.equal(navForDate(series, "2026-08-27"), 945);
+  assert.equal(navForDate(series, "2026-08-26"), 940);
+  assert.equal(navForDate(series.slice(0, 2), "2026-08-28"), 945);
+  assert.equal(navForDate(series, ""), null);
 });
