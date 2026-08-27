@@ -70,7 +70,8 @@ test("NAV invested/units se 5x door ho to unpriced — jhoota -99% P&L nahi", ()
   assert.equal(c.totals.current, 10000);
   assert.equal(c.totals.pnl, 0);
   assert.equal(c.rows[0].priced, false);
-  assert.equal(c.rows[0].nav, null);
+  // published NAV display pe rehti hai; P&L skip
+  assert.equal(c.rows[0].nav, 11.04);
 });
 
 test("unpriced har external part ginna hai, merged rows nahi", () => {

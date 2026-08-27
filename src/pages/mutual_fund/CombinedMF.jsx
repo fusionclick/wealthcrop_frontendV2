@@ -1,11 +1,12 @@
-import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { getApiWithToken, postApiWithToken } from "../../api/api";
 import { laravelUrl, nodeUrl, mergePortfolio, combinePortfolio } from "../../utils/nodeApi";
 import { useNavMap, liveNav } from "../../utils/navSocket";
+import { ensureExternalNav } from "../../utils/externalNav";
 import FundDashboardSkeleton from "../../components/ui/skeleton/main/FundDashboardSkeleton";
 
 const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#6366f1"];
@@ -39,6 +40,27 @@ const CombinedMF = () => {
     queryFn: () => getApiWithToken(laravelUrl(import.meta.env.VITE_EXTERNAL_MF || "/portfolio/mf/external")),
     select: (res) => (Array.isArray(res?.data?.data) ? res.data.data : []),
   });
+
+  const qc = useQueryClient();
+
+  // published NAV catalogue se backfill — formula AMC ki taraf calculate hoti hai
+  useEffect(() => {
+    let cancelled = false;
+    const need = externalRows.filter((r) => !r.scheme_isin || !(Number(r.nav) > 0));
+    if (!need.length) return undefined;
+    (async () => {
+      let patched = 0;
+      for (const row of need) {
+        if (cancelled) return;
+        const res = await ensureExternalNav(row, navs);
+        if (res.patched) patched += 1;
+      }
+      if (!cancelled && patched > 0) qc.invalidateQueries({ queryKey: ["externalMf"] });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [externalRows, navs, qc]);
 
   const internal = useMemo(
     () => mergePortfolio(laravelOrders, bseHoldings),
@@ -208,7 +230,7 @@ const CombinedMF = () => {
                       ))}
                       {!r.priced && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
-                          NAV missing / mismatch
+                          {r.nav ? "Units/invested check karo" : "NAV fetch pending"}
                         </span>
                       )}
                       <span className="text-[11px] text-gray-500">{r.category}</span>

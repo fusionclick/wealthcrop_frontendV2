@@ -4,6 +4,7 @@ import { Trash2, Plus } from "lucide-react";
 import { deleteApiWithToken, getApiWithToken, postApi, postApiWithToken } from "../../api/api";
 import { externalTotals, laravelUrl, navLooksPlausible, nodeUrl, unitsFor } from "../../utils/nodeApi";
 import { useNavMap, liveNav } from "../../utils/navSocket";
+import { ensureExternalNav } from "../../utils/externalNav";
 import Combo from "../../components/ui/Combo";
 import FundDashboardSkeleton from "../../components/ui/skeleton/main/FundDashboardSkeleton";
 
@@ -52,6 +53,29 @@ const ExternalMF = () => {
     liveNav({ scheme_isin: row.scheme_isin, scheme_bse_code: row.scheme_bse_code, nav: row.nav }, navs);
   const totals = useMemo(() => externalTotals(rows, navOf), [rows, navs]);
 
+  // ponytail: published NAV catalogue/AMFI se lao — Assets−Liabilities formula AMC calculate karti hai
+  useEffect(() => {
+    let cancelled = false;
+    const need = rows.filter((r) => !r.scheme_isin || !(Number(r.nav) > 0));
+    if (!need.length) return undefined;
+
+    (async () => {
+      let patched = 0;
+      for (const row of need) {
+        if (cancelled) return;
+        const res = await ensureExternalNav(row, navs);
+        if (res.patched) patched += 1;
+      }
+      if (!cancelled && patched > 0) {
+        qc.invalidateQueries({ queryKey: ["externalMf"] });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [rows, navs, qc]);
+
   useEffect(() => {
     const t = setTimeout(() => setSchemeQuery(schemeText.trim()), 250);
     return () => clearTimeout(t);
@@ -85,8 +109,10 @@ const ExternalMF = () => {
     setError("");
     const scheme_name = schemeText.trim();
     if (!scheme_name) return setError("Fund ka naam zaroori hai");
+    if (!picked) return setError("List se fund chuno — tabhi published NAV milti hai");
     if (!(Number(form.invested_amount) > 0)) return setError("Invested amount 0 se zyada honi chahiye");
     if (!(units > 0)) return setError("Units 0 se zyada honi chahiye — ya list se fund chuno");
+    if (!(pickedNav > 0)) return setError("Is fund ki NAV catalogue mein nahi mili");
     addMutation.mutate({
       ...form,
       scheme_name,
@@ -246,15 +272,20 @@ const ExternalMF = () => {
                 <div className="min-w-0">
                   <p className="font-medium text-sm truncate">{row.scheme_name}</p>
                   <div className="flex flex-wrap items-center gap-1 mt-0.5">
-                    {!ok && (
+                    {nav == null && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
-                        NAV missing / mismatch
+                        NAV fetch pending — list se dubara add karo
+                      </span>
+                    )}
+                    {nav != null && !ok && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+                        Units/invested check karo
                       </span>
                     )}
                   </div>
                   <p className="text-xs text-gray-500">
                     {units} units
-                    {ok && nav ? ` · NAV ₹${nav.toFixed(2)}` : " · NAV —"}
+                    {nav != null ? ` · NAV ₹${Number(nav).toFixed(2)}` : " · NAV —"}
                     {row.folio ? ` · Folio ${row.folio}` : ""}
                     {row.source ? ` · ${row.source}` : ""}
                   </p>
@@ -268,7 +299,7 @@ const ExternalMF = () => {
                       {money(pnl)}
                     </p>
                   ) : (
-                    <p className="text-[11px] text-amber-600">P&amp;L pending NAV</p>
+                    <p className="text-[11px] text-amber-600">P&amp;L after units fix</p>
                   )}
                   <button
                     onClick={() => removeMutation.mutate(row.id)}

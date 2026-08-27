@@ -302,7 +302,8 @@ export const combinePortfolio = (internal = [], external = [], navOf = () => nul
     const ok = navLooksPlausible(invested, units, rawNav);
     const value = ok ? units * rawNav : null;
     const current = value == null ? invested : value;
-    const nav = value == null ? null : rawNav;
+    // published NAV display ke liye rakho chahe P&L skip ho
+    const nav = Number.isFinite(rawNav) && rawNav > 0 ? rawNav : null;
     const folio = r.folio || "";
     tally.external.invested += invested;
     tally.external.current += current;

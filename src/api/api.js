@@ -38,8 +38,6 @@ export const getApiWithToken = async (url) => {
 
   try {
     const response = await api.get(url, { headers });
-
-    // console.log("from get api",response);
     return response;
   } catch (error) {
     toastError(error.response?.data?.message || "API Error");
@@ -92,6 +90,24 @@ export const deleteApiWithToken = async (url) => {
     return response;
   } catch (error) {
     toastError(error.response?.data?.message || "API Error");
+    return null;
+  }
+};
+
+export const putApiWithToken = async (url, data, { silent } = {}) => {
+  const headers = authHeaders();
+  if (!headers) {
+    if (!silent) toastError("User not authenticated");
+    return null;
+  }
+
+  try {
+    const res = await axios.put(url, data, { headers });
+    return res?.data;
+  } catch (error) {
+    if (!silent) {
+      toastError(error.response?.data?.message || error.response?.data?.error || "API Error");
+    }
     return null;
   }
 };
