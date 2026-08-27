@@ -125,8 +125,8 @@ const CombinedMF = () => {
 
           {combined.unpriced > 0 && (
             <p className="text-[11px] text-amber-600 mb-4">
-              {combined.unpriced} holding(s) ki NAV nahi mili — un ki current value invested ke
-              barabar dikh rahi hai. Fund ko list se chun kar dobara add karo.
+              {combined.unpriced} holding(s) ki NAV missing ya invested se match nahi karti — un ki
+              current value invested ke barabar dikh rahi hai. Fund ko list se chun kar dobara add karo.
             </p>
           )}
 
@@ -135,13 +135,29 @@ const CombinedMF = () => {
             <div className="h-56">
               <ResponsiveContainer>
                 <PieChart>
-                  <Pie data={allocation} dataKey="value" nameKey="name" outerRadius={80} label>
+                  <Pie
+                    data={allocation}
+                    dataKey="value"
+                    nameKey="name"
+                    outerRadius={80}
+                    label={({ name, percent }) =>
+                      `${name} ${((percent || 0) * 100).toFixed(0)}%`
+                    }
+                  >
                     {allocation.map((_, i) => (
                       <Cell key={i} fill={COLORS[i % COLORS.length]} />
                     ))}
                   </Pie>
                 </PieChart>
               </ResponsiveContainer>
+            </div>
+            <div className="flex flex-wrap gap-3 mt-2 justify-center">
+              {allocation.map((a, i) => (
+                <span key={a.name} className="text-[11px] text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+                  <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: COLORS[i % COLORS.length] }} />
+                  {a.name}: {money(a.value)}
+                </span>
+              ))}
             </div>
           </div>
 
@@ -180,32 +196,32 @@ const CombinedMF = () => {
             {shown.map((r) => {
               const pnl = r.current - r.invested;
               const pct = r.invested ? (pnl / r.invested) * 100 : 0;
-              return (
-                <div
-                  key={r.key}
-                  className="p-4 rounded-lg border bg-white dark:bg-[var(--white-10)] dark:border-[var(--border-color)] flex justify-between gap-3"
-                >
+              const merged = r.parts.length > 1;
+
+              const body = (
+                <>
                   <div className="min-w-0">
                     <p className="font-medium text-sm truncate">{r.name}</p>
                     <div className="flex flex-wrap items-center gap-1 mt-1">
                       {r.sources.map((s) => (
-                        <span
-                          key={s}
-                          className={`text-[10px] px-1.5 py-0.5 rounded ${
-                            s === "internal"
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-blue-100 text-blue-700"
-                          }`}
-                        >
-                          {s === "internal" ? "Internal" : "External"}
-                        </span>
+                        <SourceTag key={s} source={s} />
                       ))}
+                      {!r.priced && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+                          NAV missing / mismatch
+                        </span>
+                      )}
                       <span className="text-[11px] text-gray-500">{r.category}</span>
                     </div>
                     <p className="text-[11px] text-gray-500 mt-0.5">
                       {r.units ? `${r.units} units` : "—"}
-                      {r.nav ? ` · NAV ₹${r.nav.toFixed(2)}` : ""}
+                      {r.nav ? ` · NAV ₹${r.nav.toFixed(2)}` : " · NAV —"}
                       {r.folio ? ` · Folio ${r.folio}` : ""}
+                      {merged && (
+                        <span className="ml-1 text-blue-600 group-open:hidden">
+                          · breakdown dekhne ke liye click karo
+                        </span>
+                      )}
                     </p>
                   </div>
                   <div className="text-right shrink-0">
@@ -218,18 +234,70 @@ const CombinedMF = () => {
                     {r.sources.includes("internal") && r.scheme_bse_code && (
                       <button
                         type="button"
-                        onClick={() =>
+                        // preventDefault warna <summary> ke andar click row ko toggle kar deta hai
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
                           navigate("/mutual_fund/redeem", {
                             state: { scheme_bse_code: r.scheme_bse_code, code: r.scheme_bse_code },
-                          })
-                        }
+                          });
+                        }}
                         className="mt-2 text-xs px-3 py-1 rounded-md bg-red-600 text-white"
                       >
                         Sell
                       </button>
                     )}
                   </div>
-                </div>
+                </>
+              );
+
+              const shell =
+                "p-4 rounded-lg border bg-white dark:bg-[var(--white-10)] dark:border-[var(--border-color)]";
+
+              // ponytail: expand/collapse native <details> se — koi state, koi library nahi.
+              // Sirf merged rows khulti hain; single-source row ke andar dikhane ko kuch nahi.
+              if (!merged) {
+                return (
+                  <div key={r.key} className={`${shell} flex justify-between gap-3`}>
+                    {body}
+                  </div>
+                );
+              }
+
+              return (
+                <details key={r.key} className={`${shell} group`}>
+                  <summary className="flex justify-between gap-3 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                    {body}
+                  </summary>
+                  <div className="mt-3 pt-3 border-t dark:border-[var(--border-color)] space-y-2">
+                    {r.parts.map((p) => {
+                      const ppnl = p.current - p.invested;
+                      const ppct = p.invested ? (ppnl / p.invested) * 100 : 0;
+                      return (
+                        <div key={p.source} className="flex justify-between gap-3 text-xs">
+                          <div className="min-w-0">
+                            <SourceTag source={p.source} />
+                            <span className="ml-2 text-[11px] text-gray-500">
+                              {p.units ? `${p.units} units` : "—"}
+                              {p.nav ? ` · NAV ₹${p.nav.toFixed(2)}` : ""}
+                              {p.folio ? ` · Folio ${p.folio}` : ""}
+                            </span>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className="font-semibold">{money(p.current)}</span>
+                            <span className="text-[11px] text-slate-500 ml-2">
+                              Invested {money(p.invested)}
+                            </span>
+                            <span className={`ml-2 ${ppnl >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                              {ppnl >= 0 ? "+" : ""}
+                              {money(ppnl)} ({ppct.toFixed(2)}%)
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </details>
               );
             })}
           </div>
@@ -238,6 +306,16 @@ const CombinedMF = () => {
     </div>
   );
 };
+
+const SourceTag = ({ source }) => (
+  <span
+    className={`text-[10px] px-1.5 py-0.5 rounded ${
+      source === "internal" ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"
+    }`}
+  >
+    {source === "internal" ? "Internal" : "External"}
+  </span>
+);
 
 const Card = ({ label, value, tone = "" }) => (
   <div className="bg-white dark:bg-[var(--white-10)] p-4 rounded-xl border shadow-sm dark:border-[var(--border-color)]">

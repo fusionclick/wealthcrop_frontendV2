@@ -172,6 +172,28 @@ const Dashboard = () => {
       />
     </div>
 
+    {/* ponytail: tabs aur indices ke beech MF portfolio shortcuts */}
+    <div className="flex flex-wrap gap-2 px-10 pb-3">
+      {[
+        { name: "Internal Portfolio", to: "/user/mutual_fund/investments" },
+        { name: "External Portfolio", to: "/user/mutual_fund/external" },
+        { name: "Combine Portfolio", to: "/user/mutual_fund/combined" },
+      ].map((b) => (
+        <Link
+          key={b.to}
+          to={b.to}
+          className="
+            px-3 py-1.5 text-xs font-medium rounded-md border
+            border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-blue-800 hover:text-blue-800
+            dark:border-[var(--border-color)] dark:text-[var(--text-secondary)]
+            dark:hover:bg-[var(--white-5)] dark:hover:text-[var(--text-primary)]
+          "
+        >
+          {b.name}
+        </Link>
+      ))}
+    </div>
+
     {/* Market indexes */}
     <div
       className="
@@ -246,6 +268,21 @@ const Dashboard = () => {
     ))}
   </nav>
 </div>
+    <div className="flex gap-2 mt-2 overflow-x-auto scrollbar-hide px-1">
+      {[
+        { name: "Internal Portfolio", to: "/user/mutual_fund/investments" },
+        { name: "External Portfolio", to: "/user/mutual_fund/external" },
+        { name: "Combine Portfolio", to: "/user/mutual_fund/combined" },
+      ].map((b) => (
+        <Link
+          key={b.to}
+          to={b.to}
+          className="shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-300 text-slate-700 dark:border-white/10 dark:text-slate-300"
+        >
+          {b.name}
+        </Link>
+      ))}
+    </div>
  </div>
 
   {/* DESKTOP OUTLET */}

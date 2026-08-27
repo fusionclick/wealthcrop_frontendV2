@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Trash2, Plus } from "lucide-react";
 import { deleteApiWithToken, getApiWithToken, postApi, postApiWithToken } from "../../api/api";
-import { externalTotals, laravelUrl, nodeUrl, unitsFor } from "../../utils/nodeApi";
+import { externalTotals, laravelUrl, navLooksPlausible, nodeUrl, unitsFor } from "../../utils/nodeApi";
 import { useNavMap, liveNav } from "../../utils/navSocket";
 import Combo from "../../components/ui/Combo";
 import FundDashboardSkeleton from "../../components/ui/skeleton/main/FundDashboardSkeleton";
@@ -233,8 +233,11 @@ const ExternalMF = () => {
         <div className="space-y-3">
           {rows.map((row) => {
             const nav = navOf(row);
-            const value = nav && Number(row.units) > 0 ? Number(row.units) * nav : null;
-            const pnl = value == null ? null : value - Number(row.invested_amount || 0);
+            const inv = Number(row.invested_amount || 0);
+            const units = Number(row.units) || 0;
+            const ok = navLooksPlausible(inv, units, nav);
+            const value = ok ? units * nav : null;
+            const pnl = value == null ? null : value - inv;
             return (
               <div
                 key={row.id}
@@ -242,21 +245,30 @@ const ExternalMF = () => {
               >
                 <div className="min-w-0">
                   <p className="font-medium text-sm truncate">{row.scheme_name}</p>
+                  <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                    {!ok && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+                        NAV missing / mismatch
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-gray-500">
-                    {Number(row.units)} units
+                    {units} units
+                    {ok && nav ? ` · NAV ₹${nav.toFixed(2)}` : " · NAV —"}
                     {row.folio ? ` · Folio ${row.folio}` : ""}
                     {row.source ? ` · ${row.source}` : ""}
                   </p>
-                  {nav && <p className="text-[10px] text-slate-400 mt-0.5">NAV ₹{nav.toFixed(2)}</p>}
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="font-semibold text-sm">{value == null ? "—" : money(value)}</p>
-                  <p className="text-[11px] text-slate-500">Invested {money(row.invested_amount)}</p>
-                  {pnl != null && (
+                  <p className="font-semibold text-sm">{value == null ? money(inv) : money(value)}</p>
+                  <p className="text-[11px] text-slate-500">Invested {money(inv)}</p>
+                  {pnl != null ? (
                     <p className={`text-xs ${pnl >= 0 ? "text-emerald-600" : "text-red-500"}`}>
                       {pnl >= 0 ? "+" : ""}
                       {money(pnl)}
                     </p>
+                  ) : (
+                    <p className="text-[11px] text-amber-600">P&amp;L pending NAV</p>
                   )}
                   <button
                     onClick={() => removeMutation.mutate(row.id)}

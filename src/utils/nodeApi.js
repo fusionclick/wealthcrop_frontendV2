@@ -170,6 +170,17 @@ export const mergePortfolio = (laravelOrders = [], bseHoldings = []) => {
  * NAV na mile uski current value invested ke barabar rakhi jaati hai, warna P&L jhoot
  * bolta hai. `priced` batata hai kitni rows par asli NAV lagi.
  */
+export const navLooksPlausible = (invested, units, nav) => {
+  const inv = Number(invested);
+  const u = Number(units);
+  const n = Number(nav);
+  if (!(u > 0) || !(n > 0) || !Number.isFinite(n)) return false;
+  if (!(inv > 0)) return true; // invested na ho to cost-check skip
+  const avg = inv / u;
+  // ponytail: avg cost se 5× door NAV = galat scheme/stale NAV (jaise 10 units @ ₹11 vs ₹10k invested)
+  return n <= avg * 5 && n >= avg / 5;
+};
+
 export const externalTotals = (rows = [], navOf = () => null) => {
   let invested = 0;
   let current = 0;
@@ -178,7 +189,8 @@ export const externalTotals = (rows = [], navOf = () => null) => {
     const inv = Number(r.invested_amount) || 0;
     const units = Number(r.units) || 0;
     const nav = Number(navOf(r));
-    const value = units > 0 && Number.isFinite(nav) && nav > 0 ? units * nav : null;
+    const ok = navLooksPlausible(inv, units, nav);
+    const value = ok ? units * nav : null;
     invested += inv;
     current += value == null ? inv : value;
     if (value != null) priced += 1;
@@ -218,6 +230,26 @@ export const combinePortfolio = (internal = [], external = [], navOf = () => nul
     external: { invested: 0, current: 0, count: 0 },
   };
 
+  // Ek side ke kai holdings (do folio, do orders) us side ki ek hi entry banti hain,
+  // taake row khulne par sirf "Internal itna, External itna" dikhe.
+  const mergeParts = (list) => {
+    const m = new Map();
+    list.forEach((p) => {
+      const prev = m.get(p.source);
+      if (!prev) return m.set(p.source, p);
+      m.set(p.source, {
+        source: p.source,
+        invested: prev.invested + p.invested,
+        current: prev.current + p.current,
+        units: (prev.units || 0) + (p.units || 0) || null,
+        nav: prev.nav ?? p.nav,
+        folio: prev.folio || p.folio,
+        priced: Boolean(prev.priced && p.priced),
+      });
+    });
+    return [...m.values()];
+  };
+
   const add = (row) => {
     const prev = map.get(row.key);
     if (!prev) return map.set(row.key, row);
@@ -227,7 +259,7 @@ export const combinePortfolio = (internal = [], external = [], navOf = () => nul
       current: prev.current + row.current,
       units: (prev.units || 0) + (row.units || 0) || null,
       nav: prev.nav ?? row.nav,
-      sources: [...new Set([...prev.sources, ...row.sources])],
+      parts: mergeParts([...prev.parts, ...row.parts]),
       priced: prev.priced && row.priced,
     });
   };
@@ -240,20 +272,24 @@ export const combinePortfolio = (internal = [], external = [], navOf = () => nul
   internal.forEach((f, i) => {
     const invested = Number(f.inv_amo) || 0;
     const pct = Number(f.ret_percentage) || 0;
+    const current = invested + (invested * pct) / 100;
+    const units = Number(f.units) || null;
+    const nav = Number(f.nav) || null;
+    const folio = f.folio || "";
     tally.internal.invested += invested;
-    tally.internal.current += invested + (invested * pct) / 100;
+    tally.internal.current += current;
     tally.internal.count += 1;
     add({
       key: keyOf(f.scheme_bse_code, f.scheme_name, `i${i}`),
       name: f.scheme_name || "Fund",
       category: f.scheme_category || f.category || "Other",
       invested,
-      current: invested + (invested * pct) / 100,
-      units: Number(f.units) || null,
-      nav: Number(f.nav) || null,
-      folio: f.folio || "",
+      current,
+      units,
+      nav,
+      folio,
       scheme_bse_code: f.scheme_bse_code || "",
-      sources: ["internal"],
+      parts: [{ source: "internal", invested, current, units, nav, folio, priced: true }],
       priced: true,
     });
   });
@@ -261,28 +297,33 @@ export const combinePortfolio = (internal = [], external = [], navOf = () => nul
   external.forEach((r, i) => {
     const invested = Number(r.invested_amount) || 0;
     const units = Number(r.units) || 0;
-    const nav = Number(navOf(r));
-    // NAV na mile to current value ko invested ke barabar rakhte hain — warna P&L jhoot bolta hai.
-    const value = units > 0 && Number.isFinite(nav) && nav > 0 ? units * nav : null;
+    const rawNav = Number(navOf(r));
+    // NAV na mile / cost se bilkul match na kare to current = invested — warna P&L jhoot bolta hai.
+    const ok = navLooksPlausible(invested, units, rawNav);
+    const value = ok ? units * rawNav : null;
+    const current = value == null ? invested : value;
+    const nav = value == null ? null : rawNav;
+    const folio = r.folio || "";
     tally.external.invested += invested;
-    tally.external.current += value == null ? invested : value;
+    tally.external.current += current;
     tally.external.count += 1;
     add({
       key: keyOf(r.scheme_bse_code || r.scheme_isin, r.scheme_name, `e${i}`),
       name: r.scheme_name || "Fund",
       category: r.scheme_category || "Other",
       invested,
-      current: value == null ? invested : value,
+      current,
       units: units || null,
-      nav: value == null ? null : nav,
-      folio: r.folio || "",
+      nav,
+      folio,
       scheme_bse_code: r.scheme_bse_code || "",
-      sources: ["external"],
+      parts: [{ source: "external", invested, current, units: units || null, nav, folio, priced: value != null }],
       priced: value != null,
     });
   });
 
-  const rows = [...map.values()];
+  // `sources` parts se hi banti hai — do jagah sach rakhne ka koi faida nahi.
+  const rows = [...map.values()].map((r) => ({ ...r, sources: r.parts.map((p) => p.source) }));
   const withPnl = ({ invested, current, count }) => ({
     invested,
     current,
@@ -290,6 +331,12 @@ export const combinePortfolio = (internal = [], external = [], navOf = () => nul
     pnlPct: invested ? ((current - invested) / invested) * 100 : 0,
     count,
   });
+
+  // ponytail: merged row nahi — har external part ginna jiska NAV missing/galat hai
+  const unpriced = rows.reduce(
+    (n, r) => n + r.parts.filter((p) => p.source === "external" && !p.priced).length,
+    0
+  );
 
   return {
     rows,
@@ -300,7 +347,7 @@ export const combinePortfolio = (internal = [], external = [], navOf = () => nul
     }),
     internal: withPnl(tally.internal),
     external: withPnl(tally.external),
-    unpriced: rows.filter((r) => !r.priced).length,
+    unpriced,
   };
 };
 

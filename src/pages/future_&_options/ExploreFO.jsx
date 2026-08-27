@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { FaAngleRight } from "react-icons/fa6";
-import fnoExplore from "../../assets/future_options/fno-rejected.svg"
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { CandlestickChart, Bookmark } from "lucide-react";
@@ -407,22 +406,32 @@ const ExploreFO = () => {
           {/* Investments */}
           <div>
         
+            {/* ponytail: Kotak F&O segment ab active — rejected income-proof panel hata diya */}
             <div
               className="
-                bg-white rounded-xl border border-gray-300 flex-col p-4
-                text-center h-[350px] flex items-center justify-center
-                text-gray-500
+                bg-white rounded-xl border border-gray-300 flex-col p-6
+                text-center min-h-[280px] flex items-center justify-center
                 dark:bg-[var(--card-bg)]
-                dark:text-[var(--text-secondary)]
-                dark:border-[var(--border-color)] space-y-6
+                dark:border-[var(--border-color)] space-y-4
               "
             >
-              <img src={fnoExplore} alt="" />
+              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
+                F&amp;O activated
+              </p>
               <div className="space-y-1">
-                <p className="mt-5 text-lg text-gray-600 font-medium">Upload your document</p>
-                <p className="text-sm">Your income proof was rejected</p>
+                <p className="text-lg text-gray-800 font-medium dark:text-[var(--text-primary)]">
+                  Ready to trade
+                </p>
+                <p className="text-sm text-gray-500 dark:text-[var(--text-secondary)]">
+                  Contract pe click karke buy/sell lagao. Positions aur orders tabs pe live Kotak data aata hai.
+                </p>
               </div>
-              <button className="w-full cursor-pointer font-heading py-2 rounded-lg font-medium uppercase bg-emerald-600 text-white">Upload your data</button>
+              <Link
+                to="/user/future_and_options/positions"
+                className="w-full cursor-pointer font-heading py-2 rounded-lg font-medium uppercase bg-emerald-600 text-white text-center"
+              >
+                View positions
+              </Link>
             </div>
           </div>
         
