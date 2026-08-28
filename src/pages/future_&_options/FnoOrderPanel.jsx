@@ -41,6 +41,8 @@ const FnoOrderPanel = ({ instrument, onClose }) => {
         onClose?.();
       } else if (res?.needs_setup) {
         toastError(res.message || "Link Kotak MPIN + TOTP in Holdings first");
+      } else {
+        toastError(res?.message || `${side} order failed`);
       }
     } finally {
       setSubmitting(false);
