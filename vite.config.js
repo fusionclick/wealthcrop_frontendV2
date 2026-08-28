@@ -8,9 +8,11 @@ export default defineConfig({
     host: true,
     allowedHosts: true,
     proxy: {
+      // ponytail: Kotak sirf admin server IP se — local PHP WAF pe fail hota hai
       "/api/internal": {
-        target: "http://127.0.0.1:8000",
+        target: "https://admin.wealthcrop.co",
         changeOrigin: true,
+        secure: true,
       },
     },
   },
