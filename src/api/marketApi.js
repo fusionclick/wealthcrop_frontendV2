@@ -47,5 +47,8 @@ export const fetchIpos = () =>
 export const fetchIpo = (id) =>
   getApi(`${base}/content/ipos/${id}`);
 
-export const fetchFno = (type = "top-traded", category = "equity") =>
-  getApi(`${base}/market/fno?type=${encodeURIComponent(type)}&category=${encodeURIComponent(category)}`);
+export const fetchFno = (type = "top-traded", category = "equity", limit) => {
+  const params = new URLSearchParams({ type, category });
+  if (limit) params.set("limit", String(limit));
+  return getApi(`${base}/market/fno?${params}`);
+};

@@ -7,7 +7,7 @@ import { CandlestickChart, Bookmark } from "lucide-react";
 import { FaBookmark, FaRegBookmark } from "react-icons/fa";
 import axios from "axios";
 import { IoLinkSharp } from "react-icons/io5";
-import { fetchFno, fetchMarketMovers, fetchMarketProducts, fetchEtfs } from "../../api/marketApi";
+import { fetchFno, fetchMarketProducts, fetchEtfs } from "../../api/marketApi";
 import FnoOrderPanel from "./FnoOrderPanel";
 
 const changeColor = (p) => (Number(p) >= 0 ? "text-green-600" : "text-red-600");
@@ -38,15 +38,15 @@ const ExploreFO = () => {
   }, []);
 
   useEffect(() => {
-    fetchFno("top-traded", category)
+    fetchFno("top-traded", category, 12)
       .then((r) => setTopTraded(r?.data ?? []))
       .catch(() => setTopTraded([]));
   }, [category]);
 
   useEffect(() => {
     Promise.all([
-      fetchFno("commodities"),
-      fetchFno("index-futures"),
+      fetchFno("commodities", "equity", 8),
+      fetchFno("index-futures", "equity", 8),
       fetchMarketProducts(),
       fetchEtfs(),
     ])
@@ -552,7 +552,7 @@ const MarketTable = ({ activeTab }) => {
 
   useEffect(() => {
     const type = activeTab === "Losers" ? "losers" : "gainers";
-    fetchMarketMovers(type)
+    fetchFno(type)
       .then((r) => setData(r?.data ?? []))
       .catch(() => setData([]));
   }, [activeTab]);
