@@ -1,23 +1,17 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
 import { formSchema } from "../utils/FormSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toastSuccess, toastError } from "../utils/notifyCustom";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
-import { motion, AnimatePresence } from "framer-motion";
-import { postApi, postApiWithToken } from "../api/api";
-import { useDispatch } from "react-redux";
-import { login } from "../redux/authenticationSlice";
+import { motion } from "framer-motion";
+import { postApi } from "../api/api";
 
 export default function Register() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [pinOpen, setPinOpen] = useState(false);
-  const [otpSent, setOtpSent] = useState(false);
-  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
-  const [formSnapshot, setFormSnapshot] = useState(null);
-  const otpRefs = useRef([]);
+  const navigate = useNavigate();
 
   const {
     register,
@@ -32,32 +26,15 @@ export default function Register() {
     },
   });
 
-  const handleOtpChange = (value, index) => {
-    if (!/^\d?$/.test(value)) return;
-    const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
-    if (value && index < 5) otpRefs.current[index + 1]?.focus();
-  };
-
-  const handleOtpKeyDown = (e, index) => {
-    if (e.key === "Backspace" && !otp[index] && index > 0) {
-      otpRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const sendRegistrationOtp = async (formData) => {
+  // Send the OTP, then hand the form over to the dedicated /verify-otp screen.
+  const submitForm = async (formData) => {
     const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_REGISTER_SEND_OTP}`;
     setLoading(true);
     try {
       const res = await postApi(url, formData);
       if (res?.status === 200 || res?.status === true) {
-        setFormSnapshot(formData);
-        setOtpSent(true);
-        setOtp(["", "", "", "", "", ""]);
-        toastSuccess(
-          import.meta.env.DEV && res?.otp ? `OTP: ${res.otp}` : res?.message || "OTP sent"
-        );
+        toastSuccess(res?.message || "OTP sent to your email");
+        navigate("/verify-otp", { state: { form: formData } });
       }
     } catch (error) {
       toastError(error?.message || "Failed to send OTP");
@@ -66,79 +43,12 @@ export default function Register() {
     }
   };
 
-  const completeRegistration = async () => {
-    const enteredOtp = otp.join("");
-    if (enteredOtp.length !== 6) {
-      toastError("Please enter the 6-digit OTP");
-      return;
-    }
-
-    const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_USER_REGISTER}`;
-    setLoading(true);
-    try {
-      const res = await postApi(url, { ...formSnapshot, otp: enteredOtp });
-      if (res?.status === 200 || res?.status === true) {
-        const expiryTime = Date.now() + 30 * 60 * 1000;
-        localStorage.setItem("pin_expiry", expiryTime);
-        localStorage.setItem("token", res?.token);
-        localStorage.setItem("username", res?.data?.name);
-        localStorage.setItem("email", res?.data?.email);
-
-        const newAccount = {
-          userId: res?.data?.id,
-          name: res?.data?.name,
-          email: res?.data?.email,
-          token: res?.token,
-        };
-
-        let accounts = [];
-        try {
-          accounts = JSON.parse(localStorage.getItem("accounts")) || [];
-        } catch {
-          accounts = [];
-        }
-
-        const existingIndex = accounts.findIndex(
-          (acc) => acc.userId === newAccount.userId,
-        );
-
-        if (existingIndex !== -1) {
-          accounts[existingIndex] = newAccount;
-        } else {
-          accounts.push(newAccount);
-        }
-
-        localStorage.setItem("accounts", JSON.stringify(accounts));
-        localStorage.setItem("currentAccount", JSON.stringify(newAccount));
-
-        toastSuccess(res?.message);
-        setPinOpen(true);
-      }
-    } catch (error) {
-      toastError(error?.message || "Registration failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const submitForm = async (formData) => {
-    if (!otpSent) {
-      await sendRegistrationOtp(formData);
-      return;
-    }
-    await completeRegistration();
-  };
-
   return (
-   <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-[#020617]">
-  <div className="w-full max-w-md bg-white dark:bg-[#020617] rounded-2xl shadow-sm dark:shadow-none p-8 border border-gray-100 dark:border-white/10">
-    <AnimatePresence mode="wait">
-      {!pinOpen ? (
+    <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-[#020617] px-4">
+      <div className="w-full max-w-md bg-white dark:bg-[#020617] rounded-2xl shadow-sm dark:shadow-none p-8 border border-gray-100 dark:border-white/10">
         <motion.div
-          key="registerForm"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.3 }}
         >
           {/* Header */}
@@ -166,7 +76,7 @@ export default function Register() {
                 {...register("username")}
                 type="text"
                 placeholder="Enter your username"
-                className="w-full border border-gray-300 dark:border-white/10 bg-white dark:bg-white/5 rounded-lg px-4 py-2 text-sm 
+                className="w-full border border-gray-300 dark:border-white/10 bg-white dark:bg-white/5 rounded-lg px-4 py-2 text-sm
                 focus:outline-none focus:ring-1 focus:ring-blue-700 text-blue-950 dark:text-gray-100 placeholder:text-gray-400"
               />
               {errors.username && (
@@ -185,7 +95,7 @@ export default function Register() {
                 type="email"
                 {...register("email")}
                 placeholder="Enter your email"
-                className="w-full border border-gray-300 dark:border-white/10 bg-white dark:bg-white/5 rounded-lg px-4 py-2 text-sm 
+                className="w-full border border-gray-300 dark:border-white/10 bg-white dark:bg-white/5 rounded-lg px-4 py-2 text-sm
                 focus:outline-none focus:ring-1 focus:ring-blue-700 text-blue-950 dark:text-gray-100 placeholder:text-gray-400"
               />
               {errors.email && (
@@ -205,7 +115,7 @@ export default function Register() {
                   type={showPassword ? "text" : "password"}
                   {...register("password")}
                   placeholder="Create a password"
-                  className="w-full border border-gray-300 dark:border-white/10 bg-white dark:bg-white/5 rounded-lg px-4 py-2 pr-10 text-sm 
+                  className="w-full border border-gray-300 dark:border-white/10 bg-white dark:bg-white/5 rounded-lg px-4 py-2 pr-10 text-sm
                   focus:outline-none focus:ring-1 focus:ring-blue-700 text-blue-950 dark:text-gray-100 placeholder:text-gray-400"
                 />
 
@@ -224,56 +134,18 @@ export default function Register() {
               )}
             </div>
 
-            {/* Create Account Button */}
-            {otpSent && (
-              <div>
-                <label className="block text-sm font-medium text-blue-950 dark:text-gray-200 mb-2 text-center">
-                  Enter OTP sent to your email
-                </label>
-                <div className="flex justify-center gap-2 mb-2">
-                  {otp.map((digit, index) => (
-                    <input
-                      key={index}
-                      type="text"
-                      inputMode="numeric"
-                      maxLength="1"
-                      value={digit}
-                      onChange={(e) => handleOtpChange(e.target.value, index)}
-                      onKeyDown={(e) => handleOtpKeyDown(e, index)}
-                      ref={(el) => (otpRefs.current[index] = el)}
-                      className="w-10 h-10 text-center rounded-lg text-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-white/5 text-blue-950 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-700"
-                    />
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOtpSent(false);
-                    setOtp(["", "", "", "", "", ""]);
-                  }}
-                  className="text-sm text-blue-800 dark:text-blue-400 hover:underline mb-3 block mx-auto"
-                >
-                  Change details / Resend OTP
-                </button>
-              </div>
-            )}
-
             <button
               type="submit"
-              className="w-full bg-blue-950 dark:bg-blue-600 cursor-pointer text-white rounded-lg py-2 font-medium hover:bg-blue-900 dark:hover:bg-blue-500 transition"
+              className="w-full bg-blue-950 dark:bg-blue-600 cursor-pointer text-white rounded-lg py-2 font-medium hover:bg-blue-900 dark:hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed transition"
               disabled={loading}
             >
-              {loading
-                ? "Please wait..."
-                : otpSent
-                  ? "Verify OTP & Create Account"
-                  : "Send OTP"}
+              {loading ? "Please wait..." : "Continue"}
             </button>
 
             {/* Google Sign Up */}
             <button
               type="button"
-              className="w-full border border-gray-300 dark:border-white/10 text-blue-950 dark:text-gray-200 rounded-lg py-2 font-medium 
+              className="w-full border border-gray-300 dark:border-white/10 text-blue-950 dark:text-gray-200 rounded-lg py-2 font-medium
               hover:bg-gray-50 dark:hover:bg-white/10 flex items-center justify-center gap-2 transition cursor-pointer"
             >
               <img
@@ -296,177 +168,7 @@ export default function Register() {
             </Link>
           </div>
         </motion.div>
-      ) : (
-        <SetPin key="setPin" />
-      )}
-    </AnimatePresence>
-  </div>
-</div>
-
-  );
-}
-
-// -------------------------
-//  SET PIN COMPONENT (with confirm PIN)
-// -------------------------
-function SetPin() {
-  const [pin, setPin] = useState(["", "", "", ""]);
-  const [confirmPin, setConfirmPin] = useState(["", "", "", ""]);
-  const [error, setError] = useState("");
-  const pinRefs = useRef([]);
-  const confirmRefs = useRef([]);
-  const navigate = useNavigate()
-  const dispatch = useDispatch()
-
-  const handlePinChange = (value, index, type) => {
-    if (!/^\d?$/.test(value)) return;
-
-    if (type === "pin") {
-      const newPin = [...pin];
-      newPin[index] = value;
-      setPin(newPin);
-      if (value && index < 3) pinRefs.current[index + 1].focus();
-    } else {
-      const newConfirm = [...confirmPin];
-      newConfirm[index] = value;
-      setConfirmPin(newConfirm);
-      if (value && index < 3) confirmRefs.current[index + 1].focus();
-    }
-  };
-
-  const handleKeyDown = (e, index, type) => { 
-    const refArr = type === "pin" ? pin : confirmPin;
-    const focusArr = type === "pin" ? pinRefs : confirmRefs;
-    if (e.key === "Backspace" && !refArr[index] && index > 0) {
-      focusArr.current[index - 1].focus();
-
-        //! optional: clear previous value
-  // const updated = [...refArr];
-  // updated[index - 1] = "";
-  // type === "pin" ? setPin(updated) : setConfirmPin(updated);
-
-    }
-  };
-
-  const handleSavePin = async () => {
-    const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_SET_PIN}`
-    const url2 = `${import.meta.env.VITE_URL}${import.meta.env.VITE_CONFIRM_PIN}`
-    const rawPin = pin.join("")
-    try {
-      if (pin.join("") !== confirmPin.join("")) {
-        setError("Pins do not match. Please try again.");
-        return;
-      }
-      const res = await postApiWithToken(url, {pin : Number(rawPin)})
-      console.log("Pin Response", res);
-      
-      if(res?.status === 200 || res?.status){
-
-        setError("");
-        toastSuccess(res?.message);
-        navigate("/user/stocks/explore")
-        window.location.reload()
-      }
-    } catch (error) {
-      toastError(error.res?.data?.message)
-    }
-    // setError("");
-    //     toastSuccess("Pin set successfully!");
-    //     // dispatch(login("temporary-token-pin-user"))
-    //     navigate("/")
- 
-  };
-
-  return (
- <motion.div
-  initial={{ opacity: 0, y: 10 }}
-  animate={{ opacity: 1, y: 0 }}
-  exit={{ opacity: 0, y: -10 }}
-  transition={{ duration: 0.3 }}
-  className="text-center"
->
-  <h2 className="text-xl font-semibold text-blue-950 dark:text-gray-100 mb-4">
-    Set your 4-digit PIN 🔒
-  </h2>
-
-  <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">
-    You’ll use this PIN to access your account securely
-  </p>
-
-  {/* Enter PIN */}
-  <label className="text-sm font-medium text-blue-950 dark:text-gray-200 block mb-2">
-    Enter PIN
-  </label>
-
-  <div className="flex justify-center gap-3 mb-5">
-    {pin.map((digit, index) => (
-      <input
-        key={index}
-        type="password"
-        inputMode="numeric"
-        maxLength="1"
-        value={digit}
-        onChange={(e) => handlePinChange(e.target.value, index, "pin")}
-        onKeyDown={(e) => handleKeyDown(e, index, "pin")}
-        ref={(el) => (pinRefs.current[index] = el)}
-        className="
-          w-12 h-12 text-center rounded-lg text-lg
-          border border-gray-300 dark:border-white/10
-          bg-white dark:bg-white/5
-          text-blue-950 dark:text-gray-100
-          focus:outline-none focus:ring-1 focus:ring-blue-700
-        "
-      />
-    ))}
-  </div>
-
-  {/* Confirm PIN */}
-  <label className="text-sm font-medium text-blue-950 dark:text-gray-200 block mb-2">
-    Confirm PIN
-  </label>
-
-  <div className="flex justify-center gap-3 mb-4">
-    {confirmPin.map((digit, index) => (
-      <input
-        key={index}
-        type="text"
-        inputMode="numeric"
-        maxLength="1"
-        value={digit}
-        onChange={(e) =>
-          handlePinChange(e.target.value, index, "confirm")
-        }
-        onKeyDown={(e) => handleKeyDown(e, index, "confirm")}
-        ref={(el) => (confirmRefs.current[index] = el)}
-        className="
-          w-12 h-12 text-center rounded-lg text-lg
-          border border-gray-300 dark:border-white/10
-          bg-white dark:bg-white/5
-          text-blue-950 dark:text-gray-100
-          focus:outline-none focus:ring-1 focus:ring-blue-700
-        "
-      />
-    ))}
-  </div>
-
-  {error && (
-    <p className="text-red-500 text-sm mb-4">
-      {error}
-    </p>
-  )}
-
-  <button
-    className="
-      w-full bg-blue-950 dark:bg-blue-600
-      text-white rounded-lg py-2 font-medium
-      hover:bg-blue-900 dark:hover:bg-blue-500
-      transition
-    "
-    onClick={handleSavePin}
-  >
-    Save PIN
-  </button>
-</motion.div>
-
+      </div>
+    </div>
   );
 }

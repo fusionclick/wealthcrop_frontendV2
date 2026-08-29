@@ -12,9 +12,9 @@ import Portfolio from "./pages/Portfolio";
 import Profile from "./pages/Profile";
 import Login from "./auth/Login";
 import Register from "./auth/Register";
+import VerifyOtp from "./auth/VerifyOtp";
 import SipCalculator from "./pages/calculators/SipCalculator";
-import { ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { Toaster } from "react-hot-toast";
 import { lazy, Suspense, useEffect, useState } from "react";
 import Dashboard from "./components/DashBoard";
 import HoverSection from "./components/hovercomp/HoverSection";
@@ -507,6 +507,7 @@ useEffect(() => {
 
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Register />} />
+            <Route path="/verify-otp" element={<VerifyOtp />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/reset-pin" element={<ResetPin />} />
             <Route path="/nfo" element={<NFO />} />
@@ -601,15 +602,20 @@ useEffect(() => {
         </div>
       )}
 
-      <ToastContainer
+      {/* One place to tune every toast in the app. notifyCustom.js only picks the type. */}
+      <Toaster
         position="top-right"
-        autoClose={3000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        pauseOnHover
-        draggable
-        theme="colored"
+        gutter={10}
+        containerStyle={{ top: 88 }}
+        toastOptions={{
+          duration: 3000,
+          className:
+            "!bg-white dark:!bg-[#0f172a] !text-blue-950 dark:!text-gray-100 " +
+            "!border !border-gray-200 dark:!border-white/10 !rounded-xl " +
+            "!shadow-lg !shadow-black/5 !text-sm !font-medium !px-4 !py-3 !max-w-sm",
+          success: { iconTheme: { primary: "#16a34a", secondary: "#fff" } },
+          error: { duration: 4000, iconTheme: { primary: "#dc2626", secondary: "#fff" } },
+        }}
       />
     </QueryClientProvider>
   );

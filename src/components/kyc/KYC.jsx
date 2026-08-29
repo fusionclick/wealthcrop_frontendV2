@@ -20,6 +20,8 @@ import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import {banks} from "../../utils/bank"
 import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { logout } from "../../redux/authenticationSlice";
 import { nodeUrl, laravelUrl } from "../../utils/nodeApi";
 
 const steps = ["Personal", "Bank", "Docs", "Nominee", "Review"];
@@ -37,6 +39,7 @@ const [uccResponseData, setUccResponseData] = useState()
 const [customBank, setCustomBank] = useState("");
 
 const navigate = useNavigate()
+const dispatch = useDispatch()
 
 
 const current = JSON.parse(localStorage.getItem("currentAccount"))
@@ -540,8 +543,11 @@ useEffect(() => {
 
         sendUcc(clientCode, dp_id, client_id);
         mandateCreation(clientCode);
-        toastSuccess("UCC registered successfully!");
-        navigate("/");
+        toastSuccess("KYC verified. Please sign in to continue.");
+        // Signup journey ends here: sign out so the user enters through /login -> dashboard.
+        localStorage.removeItem("pin_expiry");
+        dispatch(logout());
+        navigate("/login", { replace: true });
       }
     } catch (error) {
       const bseErrors = error.response?.data?.errors;
@@ -1404,6 +1410,17 @@ function ReviewStep({isUccCreated}) {
       <p className="text-sm text-gray-500 dark:text-gray-400">
         We’ll notify you once approved.
       </p>
+      {/* Fallback: the UCC effect already redirects, but an existing UCC short-circuits it. */}
+      <button
+        onClick={() => {
+          localStorage.removeItem("pin_expiry");
+          dispatch(logout());
+          navigate("/login", { replace: true });
+        }}
+        className="mt-2 bg-blue-950 dark:bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-900 dark:hover:bg-blue-500 transition"
+      >
+        Continue to Sign in
+      </button>
     </div>
 
       )}

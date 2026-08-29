@@ -1,173 +1,23 @@
-import { toast } from "react-toastify";
-import { Bounce } from "react-toastify";
-import { FaCheckCircle, FaTimesCircle, FaInfoCircle, FaExclamationTriangle } from "react-icons/fa";
 import React from "react";
+import toast from "react-hot-toast";
+import { FiInfo, FiAlertTriangle } from "react-icons/fi";
 
-// Reusable function to create content without JSX
-const renderToastContent = (IconComponent, msg) => {
-  return React.createElement(
-    "div",
-    {
-      style: {
-        display: "flex",
-        alignItems: "center",
-        gap: "10px",
-        color: "white",
-      },
-    },
-    React.createElement(IconComponent, {
-      color: "white",
-      size: 20, // Bigger size
-      style: {
-        padding: 0,
-        margin: 0,
-        border: "none",
-      },
-    }),
-    msg
-  );
-};
+// ponytail: look/feel lives on <Toaster/> in App.jsx so there is one place to tune it.
+// This file is only the API surface the rest of the app already imports.
+const icon = (Cmp, color) => React.createElement(Cmp, { size: 18, color });
 
-export const toastSuccess = (msg) =>
-  toast(renderToastContent(FaCheckCircle, msg), {
-    position: "top-right",
-    autoClose: 3000,
-    hideProgressBar: false,
-    closeOnClick: true,
-    pauseOnHover: true,
-    draggable: true,
-    progress: undefined,
-    theme: "dark",
-    transition: Bounce,
-    icon: false,
-    className: "toast-success-custom",
-  });
+export const toastSuccess = (msg) => toast.success(msg || "Done");
 
-export const clearToasts = () => toast.dismiss();
-
-export const toastError = (msg) => {
-  toast.dismiss("app-error");
-  return toast(renderToastContent(FaTimesCircle, msg), {
-    toastId: "app-error",
-    position: "top-right",
-    autoClose: 3000,
-    hideProgressBar: false,
-    closeOnClick: true,
-    pauseOnHover: true,
-    draggable: true,
-    progress: undefined,
-    theme: "dark",
-    transition: Bounce,
-    icon: false,
-    className: "toast-error-custom",
-  });
-};
+// Single error slot: a new error replaces the old one instead of stacking.
+export const toastError = (msg) =>
+  toast.error(msg || "Something went wrong", { id: "app-error" });
 
 export const toastInfo = (msg) =>
-  toast(renderToastContent(FaInfoCircle, msg), {
-    position: "top-right",
-    autoClose: 3000,
-    hideProgressBar: false,
-    closeOnClick: true,
-    pauseOnHover: true,
-    draggable: true,
-    progress: undefined,
-    theme: "dark",
-    transition: Bounce,
-    icon: false,
-    className: "toast-info-custom",
-  });
+  toast(msg, { icon: icon(FiInfo, "#3b82f6") });
 
 export const toastWarn = (msg) =>
-  toast(renderToastContent(FaExclamationTriangle, msg), {
-    position: "top-right",
-    autoClose: 3000,
-    hideProgressBar: false,
-    closeOnClick: true,
-    pauseOnHover: true,
-    draggable: true,
-    progress: undefined,
-    theme: "dark",
-    transition: Bounce,
-    icon: false,
-    className: "toast-warn-custom",
-  });
+  toast(msg, { icon: icon(FiAlertTriangle, "#f59e0b") });
 
-
-// different 
-
-//   export const toastSuccess = (msg) =>
-//   toast.success(`✔️ ${msg}`, {
-//     position: "top-right",
-//     autoClose: 5000,
-//     hideProgressBar: false,
-//     closeOnClick: true,
-//     pauseOnHover: true,
-//     draggable: true,
-//     progress: undefined,
-//     theme: "dark",
-//     transition: Bounce,
-//     icon: false, // disable built-in icon
-//     className: "toast-success-custom",
-//   });
-
-// export const toastError = (msg) =>
-//   toast.error(`❌ ${msg}`, {
-//     position: "top-right",
-//     autoClose: 5000,
-//     hideProgressBar: false,
-//     closeOnClick: true,
-//     pauseOnHover: true,
-//     draggable: true,
-//     progress: undefined,
-//     theme: "dark",
-//     transition: Bounce,
-//     icon: false,
-//     className: "toast-error-custom",
-//   });
-
-// export const toastInfo = (msg) =>
-//   toast.info(`ℹ️ ${msg}`, {
-//     position: "top-right",
-//     autoClose: 5000,
-//     hideProgressBar: false,
-//     closeOnClick: true,
-//     pauseOnHover: true,
-//     draggable: true,
-//     progress: undefined,
-//     theme: "dark",
-//     transition: Bounce,
-//     icon: false,
-//     className: "toast-info-custom",
-//   });
-
-// export const toastWarn = (msg) =>
-//   toast.warn(`⚠️ ${msg}`, {
-//     position: "top-right",
-//     autoClose: 5000,
-//     hideProgressBar: false,
-//     closeOnClick: true,
-//     pauseOnHover: true,
-//     draggable: true,
-//     progress: undefined,
-//     theme: "dark",
-//     transition: Bounce,
-//     icon: false,
-//     className: "toast-warn-custom",
-//   });
-
-
-  // old
-
-
-    // toast.success(msg, {
-  //   position: "top-right",
-  //   autoClose: false,
-  //   hideProgressBar: false,
-  //   closeOnClick: true,
-  //   pauseOnHover: true,
-  //   draggable: true,
-  //   progress: undefined,
-  //   theme: "dark",
-  //   transition: Bounce,
-  // });
+// Route changes only need to drop the sticky error slot. Dismissing *everything* here
+// swallowed success toasts fired right before a navigate() (signup -> /verify-otp etc).
+export const clearToasts = () => toast.dismiss("app-error");
