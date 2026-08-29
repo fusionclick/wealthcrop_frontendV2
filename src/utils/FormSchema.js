@@ -2,11 +2,6 @@ import z from "zod";
 
 export const formSchema = z.object({
   username: z.string().min(1, "Name is required"),
-  mobile: z
-    .string()
-    .min(10, "Please enter a valid number")
-    .max(15, "Mobile number is too long")
-    .regex(/^\d+$/, "Only digits are allowed"),
   email: z.string().email("Invalid email address"),
   password: z
     .string()

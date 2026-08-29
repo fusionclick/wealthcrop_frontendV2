@@ -28,7 +28,6 @@ export default function Register() {
     defaultValues: {
       username: "",
       email: "",
-      mobile: "",
       password: "",
     },
   });
@@ -53,8 +52,6 @@ export default function Register() {
     try {
       const res = await postApi(url, formData);
       if (res?.status === 200 || res?.status === true) {
-        // ponytail: SMS not reachable from PK; API already returns otp — surface it for testing
-        console.log("OTP:", res?.otp);
         setFormSnapshot(formData);
         setOtpSent(true);
         setOtp(["", "", "", "", "", ""]);
@@ -80,19 +77,16 @@ export default function Register() {
     setLoading(true);
     try {
       const res = await postApi(url, { ...formSnapshot, otp: enteredOtp });
-      console.log("Response data:", res);
       if (res?.status === 200 || res?.status === true) {
         const expiryTime = Date.now() + 30 * 60 * 1000;
         localStorage.setItem("pin_expiry", expiryTime);
         localStorage.setItem("token", res?.token);
         localStorage.setItem("username", res?.data?.name);
-        localStorage.setItem("phone", res?.data?.phone);
         localStorage.setItem("email", res?.data?.email);
 
         const newAccount = {
           userId: res?.data?.id,
           name: res?.data?.name,
-          phone: res?.data?.phone,
           email: res?.data?.email,
           token: res?.token,
         };
@@ -128,7 +122,6 @@ export default function Register() {
   };
 
   const submitForm = async (formData) => {
-    console.log("Form Data:", formData);
     if (!otpSent) {
       await sendRegistrationOtp(formData);
       return;
@@ -202,25 +195,6 @@ export default function Register() {
               )}
             </div>
 
-            {/* Mobile Number */}
-            <div>
-              <label className="block text-sm font-medium text-blue-950 dark:text-gray-200 mb-1">
-                Mobile Number
-              </label>
-              <input
-                type="tel"
-                {...register("mobile")}
-                placeholder="Enter your mobile number"
-                className="w-full border border-gray-300 dark:border-white/10 bg-white dark:bg-white/5 rounded-lg px-4 py-2 text-sm 
-                focus:outline-none focus:ring-1 focus:ring-blue-700 text-blue-950 dark:text-gray-100 placeholder:text-gray-400"
-              />
-              {errors.mobile && (
-                <p className="text-red-600 text-sm mt-1">
-                  {errors.mobile.message}
-                </p>
-              )}
-            </div>
-
             {/* Password */}
             <div>
               <label className="block text-sm font-medium text-blue-950 dark:text-gray-200 mb-1">
@@ -254,7 +228,7 @@ export default function Register() {
             {otpSent && (
               <div>
                 <label className="block text-sm font-medium text-blue-950 dark:text-gray-200 mb-2 text-center">
-                  Enter OTP sent to your mobile
+                  Enter OTP sent to your email
                 </label>
                 <div className="flex justify-center gap-2 mb-2">
                   {otp.map((digit, index) => (
