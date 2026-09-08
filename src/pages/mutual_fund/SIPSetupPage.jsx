@@ -55,8 +55,7 @@ const SIPSetupPage = () => {
         freq: frequency,
         txn_date: Number(sipDay),
         email: investorData?.email || "",
-        mobnum: investorData?.phone || "",
-        holder: [{ holder_rank: "1", email: investorData?.email || "", mobnum: investorData?.phone || "" }],
+        holder: [{ holder_rank: "1", email: investorData?.email || "" }],
         depository_acct: {
           depository: "C",
           dp_id: investorData?.kyc?.dp_id || "",

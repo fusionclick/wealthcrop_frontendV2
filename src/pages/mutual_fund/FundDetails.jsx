@@ -357,7 +357,7 @@ const [activeInfo, setActiveInfo] = useState(null);
           text-white font-semibold shadow
         "
       >
-        Invest Now
+        {thisHolding ? "Invest more" : "Invest Now"}
       </button>
       <button
         onClick={openSell}
@@ -367,7 +367,7 @@ const [activeInfo, setActiveInfo] = useState(null);
           text-white font-semibold shadow
         "
       >
-        Sell
+        Redeem
       </button>
 
       <div className="text-right text-sm text-[var(--text-secondary)]">
@@ -1000,7 +1000,7 @@ pt-5 p-4
                 >
                   ×
                 </button>
-                <h2 className="text-xl font-semibold pr-8">Sell / Redeem</h2>
+                <h2 className="text-xl font-semibold pr-8">Redeem</h2>
                 <p className="text-sm text-slate-500 mt-1 mb-4">{fundsList?.name}</p>
                 {thisHolding ? (
                   <RedeemForm
@@ -1014,7 +1014,7 @@ pt-5 p-4
                   />
                 ) : (
                   <div className="text-sm text-slate-500 space-y-4">
-                    <p>You don’t hold this fund yet, so there’s nothing to sell.</p>
+                    <p>You don’t hold this fund yet, so there’s nothing to redeem.</p>
                     <button
                       type="button"
                       onClick={() => {

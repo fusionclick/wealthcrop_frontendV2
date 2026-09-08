@@ -5,6 +5,9 @@ export const MF_COLLECTIONS = [
   { name: "Small Cap", slug: "small_cap", search: "SMALL CAP" },
   { name: "High Return", slug: "high_return", search: "FLEXI CAP" },
   { name: "5 Star Funds", slug: "5_star_funds", search: "BLUECHIP" },
+  // Kotak Mahindra AMC ke apne funds. Ye BSE/AMFI catalogue mein pehle se hain —
+  // Kotak Neo ka Trade API sirf equity/F&O deta hai, mutual fund ka koi endpoint nahi.
+  { name: "Kotak Funds", slug: "kotak_funds", search: "KOTAK" },
 ];
 
 export function collectionSlug(raw = "") {

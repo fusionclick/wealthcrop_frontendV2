@@ -5,8 +5,7 @@ import { Link } from "react-router-dom";
 
 // const logoUrl = "../assets/motilal.webp";
 
-const NFO = () => {
-  const fundList = [
+export const NFO_FUNDS = [
     { name: "Groww Nifty Capital Markets ETF FOF Direct-Growth", risk: "Very High Risk", category: "Equity", launch: "14 Nov '25", close: "28 Nov '25",},
     { name: "SIF Diviniti Equity Long Short Fund - Direct Plan - Growth", risk: "High Risk", category: "Equity", launch: "10 Nov '25", close: "24 Nov '25",  },
     { name: "Franklin India Multi-Factor Fund Direct - Growth", risk: "Very High Risk", category: "Equity", launch: "10 Nov '25", close: "24 Nov '25",  },
@@ -20,7 +19,10 @@ const NFO = () => {
     { name: "SBI Small Cap Fund Direct - Growth", risk: "High Risk", category: "Equity", launch: "18 Nov '25", close: "2 Dec '25", },
     { name: "SBI Small Cap Fund Direct - Growth", risk: "High Risk", category: "Equity", launch: "18 Nov '25", close: "2 Dec '25", },
     { name: "SBI Small Cap Fund Direct - Growth", risk: "High Risk", category: "Equity", launch: "18 Nov '25", close: "2 Dec '25", },
-  ];
+];
+
+const NFO = () => {
+  const fundList = NFO_FUNDS;
 
   const [showOpenOnly, setShowOpenOnly] = useState(true);
 

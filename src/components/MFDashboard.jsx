@@ -91,7 +91,7 @@ const MFDashboard = () => {
   return (
   <>
     {/* DESKTOP VIEW */}
-     <div className="min-h-screen bg-white dark:bg-[var(--app-bg)] dark:text-[var(--text-primary)] hidden lg:block pb-2">
+     <div className="bg-white dark:bg-[var(--app-bg)] dark:text-[var(--text-primary)] hidden lg:block pb-2">
 
       {/* ================= STICKY HEADER ================= */}
       <div
@@ -161,10 +161,7 @@ const MFDashboard = () => {
         </div>
       </div>
 
-      {/* ================= OUTLET ================= */}
-      <div className={`${isSticky ? "pt-[92px]" : "mt-2"} px-10`}>
-        <Outlet />
-      </div>
+      <div className={`${isSticky ? "pt-[92px]" : "mt-2"}`} />
     </div>
 
 
@@ -216,7 +213,15 @@ const MFDashboard = () => {
 </div>
  </div>
 
-      {/* MOBILE OUTLET → REQUIRED */}
+    </div>
+
+    {/* ================= OUTLET =================
+        Ek hi Outlet. Pehle do the — ek desktop wrapper (hidden lg:block) mein, ek
+        mobile wrapper (lg:hidden) mein. `hidden` sirf nazar se hatata hai, React
+        dono ko mount karta hai: har MF child route do dafa chalta tha, do dafa
+        query bhejta tha, aur DOM bhi do dafa banta tha. Wrapper responsive rahenge,
+        content ek hi baar. */}
+    <div className="lg:px-10">
       <Outlet />
     </div>
   </>

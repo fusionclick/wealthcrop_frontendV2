@@ -8,9 +8,10 @@ export default defineConfig({
     host: true,
     allowedHosts: true,
     proxy: {
-      // ponytail: Kotak sirf admin server IP se — local PHP WAF pe fail hota hai
+      // ponytail: default prod — Kotak sirf admin server IP se chalta hai. Local
+      // Laravel ke liye: VITE_API_TARGET=http://127.0.0.1:8000 npm run dev
       "/api/internal": {
-        target: "https://admin.wealthcrop.co",
+        target: process.env.VITE_API_TARGET || "https://admin.wealthcrop.co",
         changeOrigin: true,
         secure: true,
       },

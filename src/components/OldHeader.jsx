@@ -163,14 +163,13 @@ const visibleAcounts = showAll ? accounts : accounts.slice(0,2)
 const current = JSON.parse(localStorage.getItem("currentAccount"))
 const userName = current?.name
 const email = current?.email
-const phone = current?.phone
 
   return (
     <>
      <nav
   className={`w-full bg-white dark:bg-[var(--app-bg)] shadow-sm
   border-b border-gray-100 dark:border-[var(--border-color)]
-  fixed top-0 left-0 z-50 transition-all duration-300
+  fixed top-0 left-0 z-[55] transition-all duration-300
   ${isScroll ? "-translate-y-full opacity-0" : "translate-y-0 opacity-100"}`}
 >
   {/* ⭐ Always on top of everything */}

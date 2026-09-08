@@ -7,6 +7,7 @@ import { useNavMap, liveNav } from "../../utils/navSocket";
 import { ensureExternalNav } from "../../utils/externalNav";
 import Combo from "../../components/ui/Combo";
 import FundDashboardSkeleton from "../../components/ui/skeleton/main/FundDashboardSkeleton";
+import HoldingSheet from "../../components/mutual_fund/HoldingSheet";
 
 const EXTERNAL_URL = () => laravelUrl(import.meta.env.VITE_EXTERNAL_MF || "/portfolio/mf/external");
 const money = (n) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
@@ -23,6 +24,7 @@ const ExternalMF = () => {
   const [schemeText, setSchemeText] = useState("");
   const [schemeQuery, setSchemeQuery] = useState("");
   const [error, setError] = useState("");
+  const [openHolding, setOpenHolding] = useState(null);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["externalMf"],
@@ -296,7 +298,14 @@ const ExternalMF = () => {
             return (
               <div
                 key={row.id}
-                className="p-4 rounded-lg border bg-white dark:bg-[var(--white-10)] dark:border-[var(--border-color)] flex justify-between gap-3"
+                role="button"
+                tabIndex={0}
+                onClick={() => setOpenHolding({ ...row, name: row.scheme_name, nav, current: value ?? inv })}
+                onKeyDown={(e) =>
+                  (e.key === "Enter" || e.key === " ") &&
+                  setOpenHolding({ ...row, name: row.scheme_name, nav, current: value ?? inv })
+                }
+                className="p-4 rounded-lg border bg-white dark:bg-[var(--white-10)] dark:border-[var(--border-color)] flex justify-between gap-3 cursor-pointer hover:border-slate-300 hover:shadow-sm transition"
               >
                 <div className="min-w-0">
                   <p className="font-medium text-sm truncate">{row.scheme_name}</p>
@@ -331,7 +340,10 @@ const ExternalMF = () => {
                     <p className="text-[11px] text-amber-600">P&amp;L after units fix</p>
                   )}
                   <button
-                    onClick={() => removeMutation.mutate(row.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeMutation.mutate(row.id);
+                    }}
                     className="mt-2 text-xs px-3 py-1 rounded-md bg-red-600 text-white inline-flex items-center gap-1"
                   >
                     <Trash2 size={12} /> Remove
@@ -342,6 +354,16 @@ const ExternalMF = () => {
           })}
         </div>
       )}
+
+      <HoldingSheet
+        holding={openHolding}
+        source="external"
+        onClose={() => setOpenHolding(null)}
+        onRemove={(h) => {
+          removeMutation.mutate(h.id);
+          setOpenHolding(null);
+        }}
+      />
     </div>
   );
 };

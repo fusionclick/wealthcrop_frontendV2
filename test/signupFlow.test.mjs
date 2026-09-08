@@ -6,7 +6,9 @@ const read = (p) => readFileSync(p, "utf8");
 
 test("signup card only collects details and hands off to /verify-otp", () => {
   const register = read("src/auth/Register.jsx");
-  assert.match(register, /navigate\("\/verify-otp", \{ state: \{ form: formData \} \}\)/);
+  // The dev-only OTP passthrough rides along in navigate state; local mail gets dropped
+  // by temp-mail domains, so the verify screen shows the code in dev builds.
+  assert.match(register, /navigate\("\/verify-otp", \{ state: \{ form: formData, otp: res\?\.otp \} \}\)/);
   // OTP boxes must not creep back into the signup card.
   assert.doesNotMatch(register, /otpRefs|setOtpSent|Verify OTP/);
 });

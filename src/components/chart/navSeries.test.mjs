@@ -27,3 +27,26 @@ assert.equal(bucketSeries([{ nav: 5 }, { timestamp: now, nav: 0 }, ...series.sli
 assert.equal(bucketSeries(series.slice(-2), "1W", "D").length, 2);
 
 console.log("navSeries bucketSeries: all assertions passed");
+
+// --- explicit date filter -------------------------------------------------
+const iso = (ts) => new Date(ts * 1000).toISOString().slice(0, 10);
+const from = iso(series[700].timestamp);
+const to = iso(series[750].timestamp);
+
+const window = bucketSeries(series, "ALL", "D", { from, to });
+assert.equal(window[0].timestamp, series[700].timestamp, "custom range starts on `from`");
+assert.equal(window[window.length - 1].timestamp, series[750].timestamp, "custom range ends on `to`");
+assert.equal(window.length, 51, "custom range is inclusive on both ends");
+
+// one-sided windows
+assert.equal(bucketSeries(series, "1W", "D", { from }).length, 100, "`from` only runs to the end");
+assert.equal(bucketSeries(series, "1W", "D", { to }).length, 751, "`to` only runs from the start");
+
+// A window with no NAV in it stays empty — no silent fallback to recent data.
+assert.deepEqual(bucketSeries(series, "1Y", "D", { from: "1999-01-01", to: "1999-02-01" }), []);
+
+// range still wins when no dates are picked
+assert.equal(bucketSeries(series, "1M", "D", {}).length, 31, "empty span falls back to range");
+assert.equal(bucketSeries(series, "1M", "D", null).length, 31, "null span falls back to range");
+
+console.log("navSeries date filter: all assertions passed");

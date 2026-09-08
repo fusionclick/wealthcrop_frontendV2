@@ -65,15 +65,16 @@ function ForgotPassword() {
 
     {/* Form */}
     <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
-      {/* Mobile */}
+      {/* Email */}
       <div>
         <label className="block text-sm font-medium text-blue-950 dark:text-gray-200 mb-1">
          Enter Your Email
         </label>
         <input
           {...register("email")}
-          type="tel"
-          placeholder="Enter your mobile number"
+          type="email"
+          autoComplete="email"
+          placeholder="Enter your email"
           className="w-full border border-gray-300 dark:border-white/10 bg-white dark:bg-white/5 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-700 text-blue-950 dark:text-gray-100 placeholder:text-gray-400"
           required
         />

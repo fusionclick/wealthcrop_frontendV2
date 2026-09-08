@@ -18,7 +18,6 @@ import {
   KeyRound,
   Activity,
   Users,
-  Phone,
 } from "lucide-react";  
 import { getApiWithToken, postApiWithToken } from "../../api/api";
 import { toastError, toastSuccess, toastWarn } from "../../utils/notifyCustom";
@@ -31,7 +30,6 @@ const BasicDetails = () => {
 
     const [openModal, setOpenModal] = useState(false);
     const [editType, setEditType] = useState(null);
-      const [mobileVerify, setMobileVerify] = useState(false)
       const [emailVerify, setEmailVerify] = useState(false)
       // const [userData, setUserData] = useState(null)
 
@@ -76,7 +74,6 @@ const { data: userData, isLoading, error, refetch } = useQuery({
 const current = JSON.parse(localStorage.getItem("currentAccount"))
 const userName = current?.name
 const email = current?.email
-const phone = current?.phone
 
 const isKycDone = userData?.kyc_status === "true"
 // const isKycDone = true
@@ -90,7 +87,7 @@ const isKycDone = userData?.kyc_status === "true"
       console.log("Verify", response);
       
       if(response?.status === 200 || response?.status){
-        setEditType(type === "email" ? "emailVerify" : "phoneVerify");
+        setEditType("emailVerify");
         setOpenModal(true);
         toastSuccess(response?.message);
       }else{
@@ -104,13 +101,12 @@ const isKycDone = userData?.kyc_status === "true"
   const handleVerifyOTP = async (type, value) => {
 
     const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_VERIFY_SEND_OTP}`
-    const id = type === "phoneVerify" ? "phone" : "email"
     try {
-      const response = await postApiWithToken(url, {type: id, otp: value} )
+      const response = await postApiWithToken(url, {type: "email", otp: value} )
       console.log("Verify otp", response);
       
         if(response?.status === 200 || response?.status){
-          id === "email" ? setEmailVerify(true) : setMobileVerify(true)
+          setEmailVerify(true)
           refetch()
           setOpenModal(false);
           toastSuccess(response?.message);
@@ -126,18 +122,14 @@ const isKycDone = userData?.kyc_status === "true"
   const handleChangeDetails = async (type, value) => {
 
     const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_UPDATE_MOB_EMAIL}`
-    const id = type === "mobile" ? "phone" : type
     try {
-      const response = await postApiWithToken(url, {[id]: value} )
+      const response = await postApiWithToken(url, {[type]: value} )
       console.log("Verify otp", response);
       
       if(response?.status === 200 || response?.status){
-        // id === "email" ? setEmailVerify(true) : setMobileVerify(true)
         refetch()
-        if(id === "email"){
+        if(type === "email"){
           current.email = value
-        }else if(id === "phone"){
-          current.phone = value
         }
 
         const updatedAccounts = accounts.map( acc => acc.userId === current.userId ? current : acc)
@@ -215,37 +207,6 @@ const isKycDone = userData?.kyc_status === "true"
                     <div>
                       <p className="text-gray-500 text-sm dark:text-[var(--text-primary)]">Date of Birth</p>
                       <p className="text-blue-950 font-semibold dark:text-[var(--text-secondary)]">{userData?.dob ?? "--"}</p>
-                    </div>
-    
-                    {/* Mobile Number */}
-                    <div className="flex justify-between items-center">
-                     
-                        <div>
-                          <p className="text-gray-500 text-sm dark:text-[var(--text-primary)]">Mobile Number</p>
-                           <div className="flex gap-2 items-center">
-                        <p className="text-blue-950 font-semibold dark:text-[var(--text-secondary)]">{userData?.phone ?? "--"}</p>
-                        <button  
-                        onClick={() => {
-         handleVerify("phone")
-        }} 
-        className={userData?.is_phone_verified
- ? "text-xs font-semibold text-white rounded-md" : "text-xs flex  font-semibold bg-yellow-500 hover:bg-yellow-600 text-white px-2 rounded-md h-4.5"}> { userData?.is_phone_verified ? (
-<ShieldCheck className="fill-green-600" size={20} /> ) :
-"Verify"
-        } </button>
-                        </div>
-                        
-                        
-                      </div>
-
-                      <button 
-                        onClick={() => {
-                           setEditType("mobile");
-          setOpenModal(true);
-                        }}
-                      className="text-emerald-600 hover:text-emerald-800">
-                        <FiEdit2 />
-                      </button>
                     </div>
     
                     {/* Email Address */}
@@ -495,37 +456,6 @@ const isKycDone = userData?.kyc_status === "true"
         </p>
       </div>
 
-      {/* Mobile Number */}
-      {/* <div
-        className="
-          flex justify-between items-center
-          border-b border-gray-300
-          dark:border-[var(--border-color)]
-        "
-      >
-        <div>
-          <p className="text-gray-500 text-sm dark:text-[var(--text-secondary)]">
-            Mobile Number
-          </p>
-          <p className="text-blue-950 font-semibold dark:text-[var(--text-primary)]">
-            {userData?.phone ?? "--"}
-          </p>
-        </div>
-
-        <button 
-        onClick={() => {
-          setEditType("mobile");
-          setOpenModal(true);
-        }}
-          className="
-            text-emerald-600 hover:text-emerald-800
-            dark:text-emerald-400 dark:hover:text-emerald-300
-          "
-        >
-          <FiEdit2 />
-        </button>
-      </div> */}
-
       {/* Email Address */}
       {/* <div
         className="
@@ -553,39 +483,7 @@ const isKycDone = userData?.kyc_status === "true"
         </button>
       </div> */}
 
-        {/* Mobile Number */}
-                    <div className="flex justify-between items-center  border-b border-gray-300
-          dark:border-[var(--border-color)]">
-                     
-                        <div>
-                          <p className="text-gray-500 text-sm dark:text-[var(--text-primary)]">Mobile Number</p>
-                           <div className="flex gap-2 items-center">
-                        <p className="text-blue-950 font-semibold dark:text-[var(--text-secondary)]">{userData?.phone ?? "--"}</p>
-                        <button  
-                        onClick={() => {
-         handleVerify("phone")
-        }} 
-        className={userData?.is_phone_verified
- ? "text-xs font-semibold text-white rounded-md" : "text-xs flex  font-semibold bg-yellow-500 hover:bg-yellow-600 text-white px-2 rounded-md h-4.5"}> { userData?.is_phone_verified ? (
-<ShieldCheck className="fill-green-600" size={20} /> ) :
-"Verify"
-        } </button>
-                        </div>
-                        
-                        
-                      </div>
-
-                      <button 
-                        onClick={() => {
-                           setEditType("mobile");
-          setOpenModal(true);
-                        }}
-                      className="text-emerald-600 hover:text-emerald-800">
-                        <FiEdit2 />
-                      </button>
-                    </div>
-    
-                    {/* Email Address */}
+        {/* Email Address */}
                     <div className="flex justify-between items-center  border-b border-gray-300
           dark:border-[var(--border-color)]">                      
                         <div>
@@ -838,7 +736,7 @@ const EditModal = ({type, onClose, handleVerifyOTP, handleChangeDetails}) => {
 
         {/* body */}
         {
-  (type === "emailVerify" || type === "phoneVerify") ? 
+  type === "emailVerify" ? 
     <EditFormForVerify 
       type={type} 
       handleVerifyOTP={handleVerifyOTP} 
@@ -860,12 +758,10 @@ const EditModal = ({type, onClose, handleVerifyOTP, handleChangeDetails}) => {
 
 const getTitle = (type) => {
   switch(type) {
-    case "mobile" : return "Update mobile number"
     case "email" : return "Update email address"
     case "maritalStatus" : return "Update marital status"
     case "father'sName" : return "Update your data"
     case "income" : return "Update your data"
-    case "phoneVerify" : return "Verify your phone number"
     case "emailVerify" : return "Verify your email"
   }
 }
@@ -935,14 +831,6 @@ const EditForm = ({ type, handleVerifyOTP, handleChangeDetails }) => {
 
 const getFieldConfig = (type) => {
   switch(type){
-    case "mobile" :
-      return {
-        label: "Mobile Number",
-        inputType: "tel",
-        placeholder: "Enter new mobile number",
-        button: "Update mobile"
-      };
-
      case "email" :
       return {
         label: "Email Address",
@@ -974,14 +862,6 @@ const getFieldConfig = (type) => {
         placeholder: "Enter your income",
         button: "Update income",
       } 
-
-      case "phoneVerify" :
-        return {
-          label: "Enter OTP",
-          inputType: "text",
-          placeholder: "Enter OTP sent to your phone number",
-          button: "Verify"
-        }
 
       case "emailVerify" :
         return {

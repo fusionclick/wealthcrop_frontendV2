@@ -2,14 +2,11 @@ import { useState } from "react";
 import { toastSuccess, toastError } from "../utils/notifyCustom";
 import { postApi } from "../api/api";
 
-function ResetPin({ onBack }) {
+function ResetPin({ email, onBack }) {
   const [otp, setOTP] = useState("");
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
   const [error, setError] = useState("");
-
-  const current = JSON.parse(localStorage.getItem("currentAccount"));
-  const phone = current?.phone;
 
   const handleResetPin = async () => {
     const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_RESET_PIN}`;
@@ -24,7 +21,7 @@ function ResetPin({ onBack }) {
       }
 
       const res = await postApi(url, {
-        phone,
+        email,
         otp,
         pin: newPin,
       });

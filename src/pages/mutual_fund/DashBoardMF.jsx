@@ -6,13 +6,15 @@ import { useQuery } from "@tanstack/react-query";
 import { getApiWithToken, postApiWithToken } from "../../api/api";
 import FundDashboardSkeleton from "../../components/ui/skeleton/main/FundDashboardSkeleton";
 import { useSelector } from "react-redux";
-import { laravelUrl, nodeUrl, mergePortfolio, calcXirr } from "../../utils/nodeApi";
+import { laravelUrl, nodeUrl, mergePortfolio, calcXirr, fundBuyPath } from "../../utils/nodeApi";
+import HoldingSheet from "../../components/mutual_fund/HoldingSheet";
 
 const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#6366f1"];
 const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 
 const DashBoardMF = () => {
   const [sortBy, setSortBy] = useState("name");
+  const [openHolding, setOpenHolding] = useState(null);
   const navigate = useNavigate();
   const { data: investorData } = useSelector((state) => state.investorData);
   const ucc = investorData?.kyc?.ucc_code;
@@ -154,31 +156,59 @@ const DashBoardMF = () => {
 
           <div className="space-y-3">
             {sortedFunds.map((fund, idx) => (
-              <div key={idx} className="p-4 rounded-lg border bg-white dark:bg-[var(--white-10)] dark:border-[var(--border-color)] flex justify-between gap-3">
+              <div
+                key={idx}
+                role="button"
+                tabIndex={0}
+                onClick={() => setOpenHolding(fund)}
+                onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setOpenHolding(fund)}
+                className="p-4 rounded-lg border bg-white dark:bg-[var(--white-10)] dark:border-[var(--border-color)] flex justify-between gap-3 cursor-pointer hover:border-slate-300 hover:shadow-sm transition"
+              >
                 <div>
                   <p className="font-medium text-sm">{fund.scheme_name}</p>
                   <p className="text-xs text-gray-500">{fund.scheme_category || "—"}</p>
+                  <p className="text-[11px] text-blue-600 mt-1">Tap for details</p>
                 </div>
                 <div className="text-right">
                   <p className="font-semibold text-sm">₹{Number(fund.inv_amo || 0).toLocaleString()}</p>
                   <p className={`text-xs ${Number(fund.ret_percentage) >= 0 ? "text-emerald-600" : "text-red-500"}`}>
                     {fund.ret_percentage != null ? `${fund.ret_percentage}%` : "—"}
                   </p>
-                  <button
-                    type="button"
-                    className="mt-2 text-xs px-3 py-1 rounded-md bg-red-600 text-white"
-                    onClick={() =>
-                      navigate("/mutual_fund/redeem", {
-                        state: { scheme_bse_code: fund.scheme_bse_code, code: fund.scheme_bse_code },
-                      })
-                    }
-                  >
-                    Sell
-                  </button>
+                  {/* Mutual fund par sirf do actions hote hain — Invest more aur Redeem. */}
+                  <div className="mt-2 flex justify-end gap-2">
+                    <button
+                      type="button"
+                      className="text-xs px-3 py-1 rounded-md bg-emerald-600 text-white"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(fundBuyPath(fund.scheme_isin, fund.scheme_bse_code));
+                      }}
+                    >
+                      Invest more
+                    </button>
+                    <button
+                      type="button"
+                      className="text-xs px-3 py-1 rounded-md bg-red-600 text-white"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate("/mutual_fund/redeem", {
+                          state: { scheme_bse_code: fund.scheme_bse_code, code: fund.scheme_bse_code },
+                        });
+                      }}
+                    >
+                      Redeem
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
+
+          <HoldingSheet
+            holding={openHolding}
+            source="internal"
+            onClose={() => setOpenHolding(null)}
+          />
         </>
       )}
     </div>

@@ -4,7 +4,7 @@ import { postApiWithToken } from "../../api/api";
 import { toastError, toastSuccess } from "../../utils/notifyCustom";
 import { useSelector } from "react-redux";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { nodeUrl, validateInvestorReady, laravelUrl, holdingMatchesScheme } from "../../utils/nodeApi";
+import { nodeUrl, validateInvestorReady, laravelUrl, holdingMatchesScheme, fundBuyPath } from "../../utils/nodeApi";
 
 export async function submitRedeemOrder({ investorData, holding, redeemAll, redeemAmount, queryClient }) {
   const err = validateInvestorReady(investorData);
@@ -38,11 +38,10 @@ export async function submitRedeemOrder({ investorData, holding, redeemAll, rede
           folio: holding.folio,
           is_fresh: false,
           phys_or_demat: "d",
-          holder: [{ holder_rank: "1", email: investorData?.email || "", mobnum: investorData?.phone || "" }],
+          holder: [{ holder_rank: "1", email: investorData?.email || "" }],
           kyc_passed: true,
           dpc: true,
           email: investorData?.email || "",
-          mobnum: investorData?.phone || "",
         },
       ],
     },
@@ -78,6 +77,7 @@ export async function submitRedeemOrder({ investorData, holding, redeemAll, rede
 
 export function RedeemForm({ holding, locked, onCancel, onSuccess }) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { data: investorData } = useSelector((state) => state.investorData);
   const [redeemAmount, setRedeemAmount] = useState("");
   const [redeemAll, setRedeemAll] = useState(false);
@@ -97,7 +97,7 @@ export function RedeemForm({ holding, locked, onCancel, onSuccess }) {
       toastError(result.message);
       return;
     }
-    toastSuccess("Redemption order placed successfully!");
+    toastSuccess("Redemption placed. You can invest more in this fund any time.");
     onSuccess?.();
   };
 
@@ -158,6 +158,17 @@ export function RedeemForm({ holding, locked, onCancel, onSuccess }) {
           {submitting ? "Processing…" : "Redeem"}
         </button>
       </div>
+
+      {/* Ek mutual fund holding par sirf do raste hain — aur nikal lo, ya aur daal do. */}
+      <button
+        type="button"
+        onClick={() =>
+          navigate(fundBuyPath(holding.scheme_isin, holding.scheme_bse_code || holding.scheme_code))
+        }
+        className="w-full py-3 rounded-lg border border-emerald-600 text-emerald-700 font-medium dark:text-emerald-400"
+      >
+        Invest more in this fund
+      </button>
     </div>
   );
 }

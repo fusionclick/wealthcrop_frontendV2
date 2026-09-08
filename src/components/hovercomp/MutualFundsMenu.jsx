@@ -5,6 +5,7 @@ import {
   BarChart2,
   Shield,
   Layers,
+  PieChart,
   Calculator,
   ArrowRight,
 } from "lucide-react";
@@ -70,6 +71,12 @@ const isStocksActive = location.pathname.startsWith("/user/mutual_fund");
             title="External Portfolio"
             desc="Doosri jagah se liye funds — sirf tracking."
             onClick={() => navigate("/user/mutual_fund/external")}
+          />
+          <MenuItem
+            icon={PieChart}
+            title="Combined Portfolio"
+            desc="Internal aur external, dono ek jagah."
+            onClick={() => navigate("/user/mutual_fund/combined")}
           />
         </div>
       )}
@@ -164,6 +171,12 @@ const isStocksActive = location.pathname.startsWith("/user/mutual_fund");
                     title="External Portfolio"
                     desc="Doosri jagah se liye funds — sirf tracking."
                     onClick={() => navigate("/user/mutual_fund/external")}
+                  />
+                  <MenuItem
+                    icon={PieChart}
+                    title="Combined Portfolio"
+                    desc="Internal aur external, dono ek jagah."
+                    onClick={() => navigate("/user/mutual_fund/combined")}
                   />
                 </div>
 

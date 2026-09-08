@@ -82,6 +82,8 @@ const MutualFundInvestPage = ({ fundsList: fundsProp, setBuyModal }) => {
     } catch { /* persistence is best-effort */ }
   };
 
+  // Returns the BSE exchange payment link so the caller can send the browser straight
+  // there. Order + payment are one step for the investor: an unpaid order allots nothing.
   const startPayment = async (orderId) => {
     setLinkLoading(true);
     const url = nodeUrl(import.meta.env.VITE_GET_PAYMENT_LINK || "/get-payment-link");
@@ -99,8 +101,10 @@ const MutualFundInvestPage = ({ fundsList: fundsProp, setBuyModal }) => {
       });
       const link = res?.response?.data?.exch_pg_page_link || res?.data?.exch_pg_page_link;
       if (link) setPaymentLink(link);
+      return link || "";
     } catch (error) {
       toastError(error?.message || "Could not create payment link");
+      return "";
     } finally {
       setLinkLoading(false);
     }
@@ -141,11 +145,10 @@ const MutualFundInvestPage = ({ fundsList: fundsProp, setBuyModal }) => {
             folio: "",
             is_fresh: true,
             phys_or_demat: "d",
-            holder: [{ holder_rank: "1", email: investor?.email || "", mobnum: investor?.phone || "" }],
+            holder: [{ holder_rank: "1", email: investor?.email || "" }],
             kyc_passed: true,
             dpc: true,
             email: investor?.email || "",
-            mobnum: investor?.phone || "",
           },
         ],
       },
@@ -158,12 +161,18 @@ const MutualFundInvestPage = ({ fundsList: fundsProp, setBuyModal }) => {
         { silent: true, throwOnError: true }
       );
       if (res?.status === 200 || res?.status === true || res?.status === "success") {
-        toastSuccess("Order placed successfully");
         const orderId = res.data?.items?.[0]?.id;
         const memberRefId = res.data?.items?.[0]?.mem_ord_ref_id || memRef;
         if (orderId) {
           sendOrderDetails(orderId, memberRefId, "purchase");
-          startPayment(orderId);
+          // Seedha payment par — koi "order placed" screen nahi. Link na bane to hi
+          // fallback modal, warna investor ek bina paise wale order par phansa reh jata hai.
+          const link = await startPayment(orderId);
+          if (link) {
+            toastSuccess("Taking you to payment…");
+            window.location.assign(link);
+            return;
+          }
           pollOrderStatus(orderId);
         }
         setShowPaymentPopup(true);

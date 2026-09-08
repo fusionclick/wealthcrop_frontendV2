@@ -5,7 +5,7 @@ const faqs = [
   {
     question: "How do I reset my password?",
     answer:
-      "You can reset your password by going to the login page and clicking on ‘Forgot Password’. Follow the instructions sent to your registered email or mobile number.",
+      "You can reset your password by going to the login page and clicking on ‘Forgot Password’. Follow the instructions sent to your registered email.",
   },
   {
     question: "How can I update my KYC details?",

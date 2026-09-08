@@ -34,6 +34,8 @@ const authSlice = createSlice({
             state.token = null;
             localStorage.removeItem("token")
             localStorage.removeItem("token_expiry")
+            localStorage.removeItem("pin_set")
+            localStorage.removeItem("pin_expiry")
 
         }
     }

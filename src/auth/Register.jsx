@@ -7,11 +7,15 @@ import { toastSuccess, toastError } from "../utils/notifyCustom";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { motion } from "framer-motion";
 import { postApi } from "../api/api";
+import { useDispatch } from "react-redux";
+import { saveSession } from "../utils/session";
+import GoogleSignInButton from "../components/GoogleSignInButton";
 
 export default function Register() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const {
     register,
@@ -34,12 +38,23 @@ export default function Register() {
       const res = await postApi(url, formData);
       if (res?.status === 200 || res?.status === true) {
         toastSuccess(res?.message || "OTP sent to your email");
-        navigate("/verify-otp", { state: { form: formData } });
+        navigate("/verify-otp", { state: { form: formData, otp: res?.otp } });
       }
     } catch (error) {
       toastError(error?.message || "Failed to send OTP");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Google hands us an ID token; the backend verifies it and logs the investor in or creates one.
+  const handleGoogle = async (credential) => {
+    if (!credential) return;
+    const res = await postApi(`${import.meta.env.VITE_URL}/auth/google`, { credential });
+    if (res?.status === true) {
+      saveSession(res, dispatch);
+      toastSuccess(res?.message || "Signed in with Google");
+      navigate("/");
     }
   };
 
@@ -143,18 +158,7 @@ export default function Register() {
             </button>
 
             {/* Google Sign Up */}
-            <button
-              type="button"
-              className="w-full border border-gray-300 dark:border-white/10 text-blue-950 dark:text-gray-200 rounded-lg py-2 font-medium
-              hover:bg-gray-50 dark:hover:bg-white/10 flex items-center justify-center gap-2 transition cursor-pointer"
-            >
-              <img
-                src="https://www.svgrepo.com/show/475656/google-color.svg"
-                alt="Google"
-                className="w-5 h-5"
-              />
-              Sign up with Google
-            </button>
+            <GoogleSignInButton onCredential={handleGoogle} />
           </form>
 
           {/* Footer */}

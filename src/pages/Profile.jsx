@@ -106,7 +106,6 @@ const visibleAcounts = showAll ? accounts : accounts.slice(0,2)
 const current = JSON.parse(localStorage.getItem("currentAccount"))
 const userName = current?.name
 const email = current?.email
-const phone = current?.phone
 
   //! For switch account
     const handleSwitch = (acc) => {

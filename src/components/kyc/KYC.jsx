@@ -16,13 +16,15 @@ import {
 import { BarChart3, Loader2 } from "lucide-react";
 import { getApiWithToken, postApiWithToken } from "../../api/api";
 import { toastError, toastSuccess } from "../../utils/notifyCustom";
-import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import {banks} from "../../utils/bank"
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { logout } from "../../redux/authenticationSlice";
 import { nodeUrl, laravelUrl } from "../../utils/nodeApi";
+import { validateKycStep } from "../../utils/FormSchema";
+import { KYC_DEMO } from "../../utils/kycDemoData";
+import { verdictFrom, verdictFromUccStatus, isKycVerified, reviewCopy, BSE_UNREACHABLE, VERIFIED_VERDICT } from "../../utils/kycVerdict";
 
 const steps = ["Personal", "Bank", "Docs", "Nominee", "Review"];
 
@@ -30,6 +32,8 @@ export default function KYCFlow() {
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [stepError, setStepError] = useState("");
+  // field -> message; ek saath saari galtiyan dikhti hain, ek-ek karke nahi
+  const [fieldErrors, setFieldErrors] = useState({});
   const [completedSteps, setCompletedSteps] = useState({});
   const [userStep, setUserStep] = useState()
 const [loadingStep, setLoadingStep] = useState(false);
@@ -37,6 +41,16 @@ const [isUccCreated, setIsUccCreated] = useState(false)
 const uccRequested = useRef(false)
 const [uccResponseData, setUccResponseData] = useState()
 const [customBank, setCustomBank] = useState("");
+// BSE's verdict on the UCC, as relayed by Laravel (kyc/ucc_add or kyc/bse-status)
+const [bseVerdict, setBseVerdict] = useState(null);
+const [checkingBse, setCheckingBse] = useState(false);
+const bseChecked = useRef(false);
+// add_ucc ho gaya par Laravel ka ucc_add fail — UCC kahin store nahi hui. Ise yaad
+// rakho, warna reload par wahi PAN par doosri UCC ban jati hai (USRWC003/004/005 wala bug).
+const pendingUcc = useRef(null);
+// add_ucc fail ho jaye to page ko hamesha ke liye spinner par mat chhodo
+const [uccError, setUccError] = useState("");
+const [retryTick, setRetryTick] = useState(0);
 
 const navigate = useNavigate()
 const dispatch = useDispatch()
@@ -45,7 +59,6 @@ const dispatch = useDispatch()
 const current = JSON.parse(localStorage.getItem("currentAccount"))
 const userName = current?.name
 const email = current?.email
-const phone = current?.phone
 
 const [docUploaded, setDocUploaded] = useState({
   pan: false,
@@ -103,6 +116,9 @@ const [docUploaded, setDocUploaded] = useState({
   //  CENTRAL KYC STATE
   const [kycData, setKycData] = useState({
     pan: "",
+    // aadhar aur fName yahan the hi nahi — dono inputs uncontrolled chal rahe the
+    aadhar: "",
+    fName: "",
     dob: "",
     name: "",
     gender: "",
@@ -152,12 +168,14 @@ const [docUploaded, setDocUploaded] = useState({
 // };
 
 const handlePrimaryAction = async () => {
-  const error = validateStep(step, kycData);
-  if (error) {
-    setStepError(error);
+  const errors = validateKycStep(step, kycData);
+  if (Object.keys(errors).length) {
+    setFieldErrors(errors);
+    setStepError("Please fix the highlighted fields.");
     return;
   }
 
+  setFieldErrors({});
   setStepError("");
 
   try {
@@ -195,64 +213,6 @@ const handlePrimaryAction = async () => {
 };
 
 
-  const validateStep = (step, data) => {
-  switch (step) {
-    // case 0: // PAN
-    //   if (!data.pan) return "PAN is required";
-    //   if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(data.pan))
-    //     return "Invalid PAN format";
-    //   if (!data.dob) return "Date of birth is required";
-    //   return null;
-
-    case 0: // Personal
-      if (!data.name.trim()) return "Name is required";
-      if (!data.pan) return "PAN is required";
-      if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(data.pan))
-        return "Invalid PAN format";
-     if (!data.dob) return "Date of birth is required";
-if (!/^\d{4}-\d{2}-\d{2}$/.test(data.dob)) {
-  return "Date must be in YYYY-MM-DD format (e.g. 2020-10-02)";
-}
-      if (!data.occupation) return "Occupation is required";
-      if (!data.income) return "Income is required";
-      if (!data.gender) return "Gender is required";
-      if (!data.addrss1) return "Address 1 is required";
-      if (data.addrss1.trim().length < 8) return "Address line 1 must be at least 8 characters";
-      if (!data.addrss2) return "Address 2 is required";
-      if (!data.pin) return "Pin is required";
-      if (!/^[1-9][0-9]{5}$/.test(String(data.pin))) return "Enter a valid 6-digit India pincode";
-      if (!data.aadhar) return "Income is required";
-      if (!data.city) return "City is required";
-      return null;
-
-    case 1: // Bank
-      if (!data.accountNo) return "Account number is required";
-      if (!/^\d{9,18}$/.test(data.accountNo))
-        return "Invalid account number";
-      if (!data.ifsc) return "IFSC is required";
-      if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(data.ifsc))
-        return "Invalid IFSC code";
-      return null;
-
- case 2: // Docs
-  if (!data.documentP || !data.documentA) {
-    return "Upload both PAN and Aadhaar";
-  }
-  return null;
-
-    case 3: // Nominee
-      if (!data.nomineeName) return "Please enter nominee name";
-      if (!data.nomineeRelation) return "Please enter relation with nominee";
-      if (!data.nomineePercentage) return "Please enter percentage";
-      return null;
-
-   case 4:
-    if(!data.video) return "Please upload your selfie video"   
-
-    default:
-      return null;
-  }
-};
 
 
 //! api url
@@ -494,7 +454,6 @@ useEffect(() => {
         middle_name: "",
         last_name: "",
         dob: userData?.profile?.dob,
-        mobile: phone,
         email: email,
         pan: userData?.profile?.pan_number,
         dp_id: String(dp_id),
@@ -517,37 +476,31 @@ useEffect(() => {
       console.log("UCC Payload", payload);
 
       const uccUrl = nodeUrl(import.meta.env.VITE_ADD_UCC || "/v2/add_ucc");
-      const res = await axios.post(uccUrl, payload, {
-        headers: { "Content-Type": "application/json" },
-      });
+      // ponytail: bearer lazmi hai — Node ka requireInvestor bina token 401 deta hai. Pehle
+      // yahan bare axios tha, is liye BSE step UI se kabhi chala hi nahi. silent: neeche ka
+      // catch khud BSE ki field-wise galtiyan toast karta hai.
+      const res = await postApiWithToken(uccUrl, payload, { silent: true, throwOnError: true });
 
       console.log("UCC response", res);
-      if (res?.data?.data?.client_code || res?.data?.status === "success") {
+      if (res?.data?.client_code || res?.status === "success") {
         setIsUccCreated(true);
-        const clientCode = res?.data?.data?.client_code || payload.client_code;
-        const uccStatus = res?.data?.data?.status || "APPROVED";
-        console.log("Client code after ucc add", clientCode, uccStatus);
-
-        // Poll UCC status until APPROVED (max 2 min)
-        if (uccStatus !== "APPROVED") {
-          const pollUrl = nodeUrl("/getparticularucc");
-          for (let i = 0; i < 12; i++) {
-            await new Promise((r) => setTimeout(r, 10000));
-            try {
-              const poll = await axios.post(pollUrl, { data: { client_code: clientCode } });
-              const st = poll?.data?.response?.data?.status || poll?.data?.data?.status;
-              if (st === "APPROVED") break;
-            } catch (_) { /* continue polling */ }
-          }
+        setUccError("");
+        const clientCode = res?.data?.client_code || payload.client_code;
+        // BSE ka faisla isi jawab mein hai (demo par APPROVED), to foran dikhao — Laravel ka
+        // sync peechhe chalta rahega aur authoritative status DB mein likhega.
+        const immediate = verdictFromUccStatus(res?.data?.status);
+        if (immediate) setBseVerdict(immediate);
+        // ponytail: 2-minute UCC status poll hata diya — verdict Laravel ke bse-status sync se
+        // aata hai, aur pending par "Check again" hai. Poll sirf pending path ko 2 minute rokta tha.
+        // Laravel asks BSE (via Node) and writes kyc_status itself — the browser never decides.
+        pendingUcc.current = { ucc: clientCode, dp_id, client_id };
+        const synced = await sendUcc(clientCode, dp_id, client_id);
+        if (isKycVerified(synced?.kyc_status)) {
+          // mandate sirf verified UCC par — PENDING_VERIFICATION par BSE ise reject karta hai
+          mandateCreation(clientCode);
+          toastSuccess("KYC verified by BSE. Please sign in to continue.");
+          finishKyc();
         }
-
-        sendUcc(clientCode, dp_id, client_id);
-        mandateCreation(clientCode);
-        toastSuccess("KYC verified. Please sign in to continue.");
-        // Signup journey ends here: sign out so the user enters through /login -> dashboard.
-        localStorage.removeItem("pin_expiry");
-        dispatch(logout());
-        navigate("/login", { replace: true });
       }
     } catch (error) {
       const bseErrors = error.response?.data?.errors;
@@ -557,11 +510,28 @@ useEffect(() => {
         toastError(error.response?.data?.error || error.message || "UCC registration failed");
       }
       console.error("UCC Error:", error.response?.data || error.message);
+      // Spinner sirf tab tak jab tak request chal rahi hai. Fail par error + retry.
+      setUccError(
+        bseErrors?.map((e) => e.message).join("; ") ||
+          error.response?.data?.error ||
+          error.message ||
+          "Could not register your UCC with BSE."
+      );
+      setIsUccCreated(true);
     }
   };
 
   createUCC();
-}, [step, userData]);
+}, [step, userData, retryTick]);
+
+// "Try again" — UCC banane ki koshish dobara. Ref reset kiye bina effect skip kar deta hai.
+const retryUcc = () => {
+  uccRequested.current = false;
+  setUccError("");
+  setIsUccCreated(false);
+  setBseVerdict(null);
+  setRetryTick((n) => n + 1);
+};
 
 
             const mandateCreation = async (ucc) => {
@@ -628,8 +598,10 @@ useEffect(() => {
             }
           }
 
+  // Laravel stores the UCC, asks BSE for the verdict and answers { kyc_status, bse }.
   const sendUcc = async (ucc, dp_id, client_id) => {
   const url= `${import.meta.env.VITE_URL}/kyc/ucc_add`
+  setCheckingBse(true);
   try {
 
     const res = await postApiWithToken(url,  {
@@ -639,15 +611,23 @@ useEffect(() => {
     },)
 
     console.log("Ucc send response", res);
-    
+
 
     if(res?.status === 200 || res?.status === true){
+      pendingUcc.current = null; // Laravel ke paas UCC hai — ab bse-status kaafi hai
       toastSuccess(res?.message)
+      setBseVerdict(verdictFrom(res));
+    } else {
+      setBseVerdict(BSE_UNREACHABLE);
     }
-    
+    return res;
+
   } catch (error) {
     console.log(error?.message);
-    
+    setBseVerdict(BSE_UNREACHABLE);
+
+  } finally {
+    setCheckingBse(false);
   }
 }
 
@@ -655,10 +635,61 @@ useEffect(() => {
 // sendUcc()
 },[])
 
+// Signup journey ends here. The flow is signup -> otp -> kyc -> login -> dashboard, so
+// hand over to /login instead of dropping the user straight on the dashboard.
+const finishKyc = () => {
+  localStorage.removeItem("pin_expiry");
+  dispatch(logout());
+  navigate("/login", { replace: true });
+};
+
+// "Check again": Laravel re-asks BSE (via Node) and rewrites kyc_status itself.
+const checkBseStatus = async () => {
+  // UCC ban chuki hai par Laravel tak nahi pahunchi: bse-status 422 dega, is liye
+  // pehle ucc_add dobara — warna UCC orphan reh jati hai aur reload duplicate banata hai.
+  if (pendingUcc.current) {
+    const { ucc, dp_id, client_id } = pendingUcc.current;
+    const retried = await sendUcc(ucc, dp_id, client_id);
+    if (isKycVerified(retried?.kyc_status)) {
+      mandateCreation(ucc);
+      toastSuccess("KYC verified by BSE. Please sign in to continue.");
+      finishKyc();
+    }
+    return;
+  }
+  setCheckingBse(true);
+  try {
+    const res = await getApiWithToken(`${import.meta.env.VITE_URL}/kyc/bse-status`);
+    const body = res?.data;
+    if (!(body?.status === 200 || body?.status === true)) {
+      setBseVerdict(BSE_UNREACHABLE);
+      return;
+    }
+    setBseVerdict(verdictFrom(body));
+    if (isKycVerified(body.kyc_status)) {
+      toastSuccess("KYC verified by BSE. Please sign in to continue.");
+      finishKyc();
+    }
+  } finally {
+    setCheckingBse(false);
+  }
+};
+
+// Existing UCC on the Review step: ask BSE once on load; the button repeats it.
+useEffect(() => {
+  if (step !== 4 || !userData?.kyc?.ucc_code || bseChecked.current) return;
+  bseChecked.current = true;
+  if (isKycVerified(userData.kyc.kyc_status)) {
+    setBseVerdict(VERIFIED_VERDICT);
+    return;
+  }
+  checkBseStatus();
+}, [step, userData]);
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#020617] flex flex-col items-center px-4 py-10">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#020617] flex flex-col items-center px-4 py-4">
       {/* TOP INFO */}
-      <div className="max-w-5xl w-full mb-8 text-center">
+      <div className="max-w-5xl w-full mb-5 text-center">
         <h1 className="text-2xl md:text-3xl font-semibold text-blue-950 dark:text-white">
           Complete your KYC
         </h1>
@@ -668,9 +699,9 @@ useEffect(() => {
       </div>
 
       {/* MAIN CARD */}
-      <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-3 bg-white dark:bg-[#0f172a] rounded-2xl shadow-xl overflow-hidden">
+      <div className="w-full max-w-5xl flex-1 grid grid-cols-1 md:grid-cols-3 bg-white dark:bg-[#0f172a] rounded-2xl shadow-xl overflow-hidden">
         {/* LEFT PANEL */}
-        <div className="hidden md:flex flex-col col-span-1 justify-between p-8 bg-gradient-to-br from-blue-950 to-indigo-900 text-white">
+        <div className="hidden md:flex flex-col col-span-1 justify-between p-6 bg-gradient-to-br from-blue-950 to-indigo-900 text-white no-glass">
           <div>
             <h2 className="text-xl font-semibold mb-2">Why KYC?</h2>
             <p className="text-sm text-blue-100">
@@ -718,7 +749,7 @@ useEffect(() => {
         </div>
 
         {/* RIGHT PANEL */}
-        <div className="p-6 md:p-8 col-span-2">
+        <div className="p-5 md:p-6 col-span-2">
           {/* Mobile step bar */}
           <div className="flex md:hidden mb-4">
             {steps.map((_, i) => (
@@ -731,6 +762,13 @@ useEffect(() => {
             ))}
           </div>
 
+          {/* ponytail: Review AnimatePresence ke bahar hai. `mode="wait"` naya step tab tak
+              mount nahi karta jab tak purane ka exit poora na ho, aur is screen par UCC ka
+              jawab usi waqt state badalta hai — exit beech mein ruk jata tha aur panel
+              khali reh jata tha. Ye aakhri screen hai, isay animation par depend nahi karna. */}
+          {step === 4 ? (
+            <ReviewStep isUccCreated={isUccCreated} verdict={bseVerdict} checking={checkingBse} onCheck={checkBseStatus} onFinish={finishKyc} error={uccError} onRetry={retryUcc} />
+          ) : (
           <AnimatePresence mode="wait">
             <motion.div
               key={step}
@@ -740,14 +778,13 @@ useEffect(() => {
               transition={{ duration: 0.2 }}
             >
               {/* {step === 0 && <PANStep data={kycData} onChange={update} />} */}
-              {step === 0 && <PersonalStep data={kycData} onChange={update} />}
-              {step === 1 && <BankStep data={kycData} onChange={update} customBank={customBank} setCustomBank={setCustomBank} setKycData={setKycData} />}
-              {step === 2 && <DocsStep data={kycData} onChange={update} uploadDocument={uploadDocument} />}
-              {step === 3 && <NomineeStep data={kycData} onChange={update} />}
-              {/* {step === 4 && <VideoKYCStep data={kycData} onChange={update} uploadDocument={uploadDocument} />} */}
-              {step === 4 && <ReviewStep isUccCreated={isUccCreated} />}
+              {step === 0 && <PersonalStep data={kycData} onChange={update} errors={fieldErrors} />}
+              {step === 1 && <BankStep data={kycData} onChange={update} errors={fieldErrors} customBank={customBank} setCustomBank={setCustomBank} setKycData={setKycData} />}
+              {step === 2 && <DocsStep data={kycData} onChange={update} errors={fieldErrors} uploadDocument={uploadDocument} />}
+              {step === 3 && <NomineeStep data={kycData} onChange={update} errors={fieldErrors} />}
             </motion.div>
           </AnimatePresence>
+          )}
 
        {/* FOOTER */}
 {step < 4 && (
@@ -759,6 +796,7 @@ useEffect(() => {
     )}
 
     <div className="flex justify-between">
+      <div className="flex gap-2">
       <button
         disabled={step === 0 || step <= userStep}
         onClick={() => {
@@ -777,6 +815,22 @@ useEffect(() => {
       >
         Back
       </button>
+      {/* ponytail: tester shortcut — literal import.meta.env.DEV so Vite folds it to false in
+          production; VITE_KYC_DEMO_FILL=1 switches it on for a staging build. Current step only. */}
+      {(import.meta.env.DEV || import.meta.env.VITE_KYC_DEMO_FILL === "1") && KYC_DEMO[step] && (
+        <button
+          type="button"
+          onClick={() => {
+            setKycData((prev) => ({ ...prev, ...KYC_DEMO[step] }));
+            setFieldErrors({});
+            setStepError("");
+          }}
+          className="text-sm px-4 py-2 rounded-lg border border-dashed border-amber-400 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition"
+        >
+          Fill BSE demo data
+        </button>
+      )}
+      </div>
 
       {step < 4 ? (
         // <button
@@ -813,63 +867,108 @@ useEffect(() => {
 
         </div>
       </div>
-
-      {/* BOTTOM TRUST SECTION */}
-      <div className="max-w-5xl w-full mt-10 grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
-        <TrustCard title="Secure" desc="256-bit encrypted data" />
-        <TrustCard title="Fast" desc="KYC in under 5 minutes" />
-        <TrustCard title="Trusted" desc="Used by 1M+ investors" />
-      </div>
     </div>
   );
 }
 
 /* ---------------- COMPONENTS ---------------- */
-function Field({ label, value, onChange, placeholder }) {
+// ponytail: "required" wahi hai jo kycStepSchemas sach me rokta hai — label aur
+// validation ek hi list se chalein, warna dono alag-alag jhoot bolne lagte hain.
+function FieldLabel({ label, required, htmlFor }) {
+  return (
+    <label htmlFor={htmlFor} className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
+      {label}{" "}
+      {required ? (
+        <span className="text-red-500" aria-hidden="true">*</span>
+      ) : (
+        <span className="font-normal text-gray-400 dark:text-gray-500">(optional)</span>
+      )}
+    </label>
+  );
+}
+
+// ponytail: format browser ko sambhalne do — type="date" picker deta hai aur
+// "202222222" jaisa kachra type hi nahi hone deta. digitsOnly/upper sirf wahan
+// jahan native type kaafi nahi (PAN, IFSC, Aadhaar).
+function Field({
+  label, value, onChange, placeholder, required, error,
+  type = "text", maxLength, inputMode, digitsOnly, upper, ...rest
+}) {
+  const id = `kyc-${label.replace(/\W+/g, "-").toLowerCase()}`;
+  const handle = (raw) => {
+    let v = raw;
+    if (digitsOnly) v = v.replace(/\D/g, "");
+    if (upper) v = v.toUpperCase();
+    if (maxLength) v = v.slice(0, maxLength);
+    onChange(v);
+  };
   return (
     <div>
-      <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
-        {label}
-      </label>
+      <FieldLabel label={label} required={required} htmlFor={id} />
       <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        id={id}
+        type={type}
+        value={value ?? ""}
+        onChange={(e) => handle(e.target.value)}
         placeholder={placeholder}
-        className="
+        maxLength={maxLength}
+        inputMode={inputMode}
+        aria-required={Boolean(required)}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? `${id}-err` : undefined}
+        {...rest}
+        className={`
     w-full px-3 py-2 rounded-lg border
-    border-gray-300 dark:border-white/10
     bg-white dark:bg-[#0b1220]
     text-sm text-gray-900 dark:text-white
     placeholder-gray-400 dark:placeholder-gray-500
-    focus:ring-1 focus:ring-blue-800 outline-none
-  "
+    outline-none focus:ring-1
+    ${error
+      ? "border-red-500 focus:ring-red-500"
+      : "border-gray-300 dark:border-white/10 focus:ring-blue-800"}
+  `}
       />
+      <FieldError id={`${id}-err`} message={error} />
     </div>
   );
 }
 
-function FieldSelect({label, value, onChange, options}) {
+function FieldError({ id, message }) {
+  if (!message) return null;
+  return (
+    <p id={id} role="alert" className="mt-1 text-xs text-red-600 dark:text-red-400">
+      {message}
+    </p>
+  );
+}
+
+function FieldSelect({label, value, onChange, options, required, error}) {
+  const id = `kyc-${label.replace(/\W+/g, "-").toLowerCase()}`;
   return (
     <div>
-      <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1" >
-        {label}
-      </label>
+      <FieldLabel label={label} required={required} htmlFor={id} />
 
       <select 
-      value={value}
+      id={id}
+      value={value ?? ""}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0b1220]
-      text-sm text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-800 outline-none"
+      aria-required={Boolean(required)}
+      aria-invalid={Boolean(error)}
+      aria-describedby={error ? `${id}-err` : undefined}
+      className={`w-full px-3 py-2 rounded-lg border bg-white dark:bg-[#0b1220]
+      text-sm text-gray-900 dark:text-white outline-none focus:ring-1
+      ${error ? "border-red-500 focus:ring-red-500" : "border-gray-300 dark:border-white/10 focus:ring-blue-800"}`}
       >
         <option value="" disabled>Select {label}</option>
         {
-          options.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt.toUpperCase()}
-            </option>
-          ))
+          options.map((opt) => {
+            const { value: v, label: l } =
+              typeof opt === "string" ? { value: opt, label: opt.toUpperCase() } : opt;
+            return <option key={v} value={v}>{l}</option>;
+          })
         }
       </select>
+      <FieldError id={`${id}-err`} message={error} />
     </div>
   )
 }
@@ -880,6 +979,7 @@ export const BankSelect = ({
   options = [],
   value,
   onChange,
+  required,
 }) => {
   const customStyles = {
     control: (provided, state) => ({
@@ -965,9 +1065,7 @@ export const BankSelect = ({
 
   return (
     <div>
-      <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
-        {label}
-      </label>
+      <FieldLabel label={label} required={required} />
 
       <Select
         options={options.map((bank) => ({
@@ -999,12 +1097,14 @@ function PANStep({ data, onChange }) {
       </h2>
       <Field
         label="PAN Number"
+        required
         value={data.pan}
         onChange={(v) => onChange("pan", v.toUpperCase())}
         placeholder="ABCDE1234F"
       />
       <Field
         label="Date of Birth"
+        required
         value={data.dob}
         onChange={(v) => onChange("dob", v)}
         placeholder="DD/MM/YYYY"
@@ -1013,7 +1113,7 @@ function PANStep({ data, onChange }) {
   );
 }
 
-function NomineeStep({ data, onChange }) {
+function NomineeStep({ data, onChange, errors = {} }) {
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold dark:text-white">
@@ -1021,19 +1121,28 @@ function NomineeStep({ data, onChange }) {
       </h2>
       <Field
         label="Nominee Name"
+          required
         value={data.nomineeName}
+          error={errors.nomineeName}
         onChange={(v) => onChange("nomineeName", v.toUpperCase())}
         placeholder="Nominee Name"
       />
       <Field
         label="Relation with Nominee"
+          required
         value={data.nomineeRelation}
+          error={errors.nomineeRelation}
         onChange={(v) => onChange("nomineeRelation", v)}
         placeholder="Relation with nominee"
       />
       <Field
         label="Percentage you want to give"
+          required
         value={data.nomineePercentage}
+          error={errors.nomineePercentage}
+          digitsOnly
+          maxLength={3}
+          inputMode="numeric"
         onChange={(v) => onChange("nomineePercentage", v)}
         placeholder="50%"
       />
@@ -1041,46 +1150,65 @@ function NomineeStep({ data, onChange }) {
   );
 }
 
-function PersonalStep({ data, onChange }) {
+function PersonalStep({ data, onChange, errors = {} }) {
   return (
-    <div className="space-y-4 h-[400px] overflow-y-auto p-2">
+    <div className="space-y-3 p-1">
       <h2 className="text-lg font-semibold dark:text-white">
         Personal Details
       </h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3">
         <Field
           label="Full Name"
+          required
           value={data.name}
+          error={errors.name}
           onChange={(v) => onChange("name", v)}
           placeholder="As per PAN"
         />
          <Field
         label="PAN Number"
+        required
         value={data.pan}
+        error={errors.pan}
+        upper
+        maxLength={10}
         onChange={(v) => onChange("pan", v.toUpperCase())}
         placeholder="ABCDE1234F"
       />
          <Field
         label="Aadhar Number"
+          required
         value={data.aadhar}
+          error={errors.aadhar}
+          digitsOnly
+          maxLength={12}
+          inputMode="numeric"
         onChange={(v) => onChange("aadhar", v.toUpperCase())}
         placeholder="9722 0589 0456"
       />
       <Field
         label="Date of Birth"
+        required
         value={data.dob}
+        error={errors.dob}
+        type="date"
+        max={new Date().toISOString().slice(0, 10)}
         onChange={(v) => onChange("dob", v)}
         placeholder="YYYY/MM/DD"
       />
         <FieldSelect
           label="Gender"
+          required
           value={data.gender}
+          error={errors.gender}
           onChange={(v) => onChange("gender", v)}
           options={["male", "female", "other"]}
         />
         <FieldSelect
           label="Occupation"
+          required
           value={data.occupation}
+          error={errors.occupation}
           onChange={(v) => onChange("occupation", v)}
           placeholder="Salaried"
           options={[  "student",
@@ -1099,6 +1227,7 @@ function PersonalStep({ data, onChange }) {
         <FieldSelect
           label="Marital Status"
           value={data.mStatus}
+          error={errors.mStatus}
           onChange={(v) => onChange("mStatus", v)}
           placeholder="Married"
           options={["Married", "Single"]}
@@ -1106,18 +1235,22 @@ function PersonalStep({ data, onChange }) {
         <Field
           label="Father's Name"
           value={data.fName}
+          error={errors.fName}
           onChange={(v) => onChange("fName", v)}
           placeholder="As per documents"
         />
         <Field
           label="Address Line 1"
+          required
           value={data.addrss1}
+          error={errors.addrss1}
           onChange={(v) => onChange("addrss1", v)}
           placeholder="Address Line 1"
         />
         <Field
           label="Address Line 2"
           value={data.addrss2}
+          error={errors.addrss2}
           onChange={(v) => onChange("addrss2", v)}
           placeholder="Address Line 2"
         />
@@ -1129,32 +1262,44 @@ function PersonalStep({ data, onChange }) {
         /> */}
         <FieldSelect
           label="Income"
+          required
           value={data.income}
+          error={errors.income}
           onChange={(v) => onChange("income", v)}
           placeholder="₹5–10 L"
-          options={["below 10,000",
-  "10,000 - 25,000",
-  "25,000 - 50,000",
-  "50,000 - 1,00,000",
-  "1,00,000 - 2,00,000",
-  "2,00,000 - 5,00,000",
-  "above 5,00,000"]}
+          options={[
+            { value: "10000", label: "Below ₹10,000" },
+            { value: "25000", label: "₹10,000 – ₹25,000" },
+            { value: "50000", label: "₹25,000 – ₹50,000" },
+            { value: "100000", label: "₹50,000 – ₹1,00,000" },
+            { value: "200000", label: "₹1,00,000 – ₹2,00,000" },
+            { value: "500000", label: "₹2,00,000 – ₹5,00,000" },
+            { value: "1000000", label: "Above ₹5,00,000" },
+          ]}
         />
         <Field
           label="City"
+          required
           value={data.city}
+          error={errors.city}
           onChange={(v) => onChange("city", v)}
           placeholder="Mumbai"
         />
         <Field
           label="State"
           value={data.state}
+          error={errors.state}
           onChange={(v) => onChange("state", v)}
           placeholder="West Bengal"
         />
         <Field
           label="Pin"
+          required
           value={data.pin}
+          error={errors.pin}
+            digitsOnly
+            maxLength={6}
+            inputMode="numeric"
           onChange={(v) => onChange("pin", v)}
           placeholder="123654"
         />
@@ -1163,11 +1308,11 @@ function PersonalStep({ data, onChange }) {
   );
 }
 
-function BankStep({ data, onChange, customBank, setCustomBank, setKycData }) {
+function BankStep({ data, onChange, errors = {}, customBank, setCustomBank, setKycData }) {
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold dark:text-white">Bank Details</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3">
         <BankSelect
           label="Bank name"
           value={data.bankName}
@@ -1212,13 +1357,22 @@ function BankStep({ data, onChange, customBank, setCustomBank, setKycData }) {
 
         <Field
           label="Account No"
+          required
           value={data.accountNo}
+          error={errors.accountNo}
+            digitsOnly
+            maxLength={18}
+            inputMode="numeric"
           onChange={(v) => onChange("accountNo", v)}
           placeholder="XXXXXXXX"
         />
         <Field
           label="IFSC"
+          required
           value={data.ifsc}
+          error={errors.ifsc}
+            upper
+            maxLength={11}
           onChange={(v) => onChange("ifsc", v)}
           placeholder="SBIN0000"
         />
@@ -1227,7 +1381,7 @@ function BankStep({ data, onChange, customBank, setCustomBank, setKycData }) {
   );
 }
 
-function DocsStep({ data, onChange, uploadDocument }) {
+function DocsStep({ data, onChange, errors = {}, uploadDocument }) {
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold dark:text-white">Documents</h2>
@@ -1240,9 +1394,12 @@ function DocsStep({ data, onChange, uploadDocument }) {
         <div className="flex items-center gap-3 dark:text-white">
           <FileText size={20} />
           <div>
-            <p className="text-sm font-medium ">Upload PAN</p>
+            <p className="text-sm font-medium ">Upload PAN <span className="text-red-500" aria-hidden="true">*</span></p>
             {data.documentP && (
               <p className="text-xs text-green-600">{data.documentP.name}</p>
+            )}
+            {errors.documentP && (
+              <p role="alert" className="text-xs text-red-600">{errors.documentP}</p>
             )}
           </div>
         </div>
@@ -1269,9 +1426,12 @@ function DocsStep({ data, onChange, uploadDocument }) {
         <div className="flex items-center gap-3 dark:text-white">
           <FileText size={20} />
           <div>
-            <p className="text-sm font-medium ">Upload Aadhaar</p>
+            <p className="text-sm font-medium ">Upload Aadhaar <span className="text-red-500" aria-hidden="true">*</span></p>
             {data.documentA && (
               <p className="text-xs text-green-600">{data.documentA.name}</p>
+            )}
+            {errors.documentA && (
+              <p role="alert" className="text-xs text-red-600">{errors.documentA}</p>
             )}
           </div>
         </div>
@@ -1340,11 +1500,36 @@ function VideoKYCStep({ data, onChange, uploadDocument }) {
   );
 }
 
-function ReviewStep({isUccCreated}) {
+function ReviewStep({ isUccCreated, verdict, checking, onCheck, onFinish, error, onRetry }) {
+  const { heading, detail, verified, canRecheck } = reviewCopy(verdict, checking);
   return (
     <>
 
-          {!isUccCreated ? (
+          {error ? (
+     <div className="text-center space-y-3 flex items-center flex-col justify-center h-80">
+      <div className="bg-red-100 text-red-600 p-4 rounded-full dark:bg-red-500/15 dark:text-red-400">
+        <FileText size={28} />
+      </div>
+      <h2 className="text-lg font-semibold dark:text-white">We could not submit your KYC</h2>
+      <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md" role="alert">{error}</p>
+      <div className="flex gap-2 mt-2">
+        <button
+          type="button"
+          onClick={onRetry}
+          className="bg-blue-950 dark:bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-900 dark:hover:bg-blue-500 transition"
+        >
+          Try again
+        </button>
+        <button
+          type="button"
+          onClick={onFinish}
+          className="px-5 py-2 rounded-lg text-sm font-medium border border-gray-300 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 transition"
+        >
+          Continue to sign in
+        </button>
+      </div>
+    </div>
+          ) : !isUccCreated ? (
        <div className="flex flex-col items-center justify-center animate-pulse h-80">
   <div
     className="
@@ -1405,22 +1590,33 @@ function ReviewStep({isUccCreated}) {
 
       ) : (
      <div className="text-center space-y-3 flex items-center flex-col justify-center h-80">
-      <CheckCircle size={36} className="mx-auto text-green-600" />
-      <h2 className="text-lg font-semibold dark:text-white">KYC Submitted</h2>
-      <p className="text-sm text-gray-500 dark:text-gray-400">
-        We’ll notify you once approved.
+      <CheckCircle size={36} className={`mx-auto ${verified ? "text-green-600" : "text-amber-500"}`} />
+      <h2 className="text-lg font-semibold dark:text-white">{heading}</h2>
+      <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md" role="status">
+        {detail}
       </p>
-      {/* Fallback: the UCC effect already redirects, but an existing UCC short-circuits it. */}
-      <button
-        onClick={() => {
-          localStorage.removeItem("pin_expiry");
-          dispatch(logout());
-          navigate("/login", { replace: true });
-        }}
-        className="mt-2 bg-blue-950 dark:bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-900 dark:hover:bg-blue-500 transition"
-      >
-        Continue to Sign in
-      </button>
+      {verdict?.ucc_status && (
+        <p className="text-xs text-gray-400 dark:text-gray-500">BSE UCC status: {verdict.ucc_status}</p>
+      )}
+      <div className="flex gap-2 mt-2">
+        {canRecheck && (
+          <button
+            type="button"
+            onClick={onCheck}
+            disabled={checking}
+            className="px-5 py-2 rounded-lg text-sm font-medium border border-gray-300 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition"
+          >
+            {checking ? "Checking…" : "Check again"}
+          </button>
+        )}
+        {/* Fallback: the verified path already hands over, but an existing UCC short-circuits it. */}
+        <button
+          onClick={onFinish}
+          className="bg-blue-950 dark:bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-900 dark:hover:bg-blue-500 transition"
+        >
+          Continue to sign in
+        </button>
+      </div>
     </div>
 
       )}
@@ -1430,14 +1626,6 @@ function ReviewStep({isUccCreated}) {
   );
 }
 
-function TrustCard({ title, desc }) {
-  return (
-    <div className="bg-white dark:bg-[#0f172a] border border-gray-200 dark:border-white/10 rounded-xl p-4">
-      <h4 className="font-medium text-blue-950 dark:text-white">{title}</h4>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{desc}</p>
-    </div>
-  );
-}
 
 function KYCVerificationLoder() {
   return (

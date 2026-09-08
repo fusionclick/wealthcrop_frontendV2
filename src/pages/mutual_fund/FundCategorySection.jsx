@@ -16,6 +16,7 @@ const ICONS = {
   small_cap: <FaChartPie size={28} className="text-pink-500" />,
   high_return: <FaChartLine size={28} className="text-emerald-500" />,
   "5_star_funds": <FaLandmark size={28} className="text-sky-500" />,
+  kotak_funds: <FaLandmark size={28} className="text-red-500" />,
 };
 
 const FundCategorySection = () => {

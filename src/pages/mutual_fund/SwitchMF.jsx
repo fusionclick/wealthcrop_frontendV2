@@ -89,7 +89,7 @@ const SwitchMF = () => {
             dest_folio: "",
             is_fresh: false,
             phys_or_demat: "d",
-            holder: [{ holder_rank: "1", email: investorData?.email || "", mobnum: investorData?.phone || "" }],
+            holder: [{ holder_rank: "1", email: investorData?.email || "" }],
             kyc_passed: true,
             depository_acct: {
               depository: "C",
@@ -98,7 +98,6 @@ const SwitchMF = () => {
             },
             dpc: true,
             email: investorData?.email || "",
-            mobnum: investorData?.phone || "",
           },
         ],
       },

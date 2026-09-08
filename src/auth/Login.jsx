@@ -30,7 +30,7 @@ function LoginPage() {
     resolver: loginMode === "password"
       ? zodResolver(passwordLoginSchema)
       : zodResolver(otpLoginSchema),
-    defaultValues: { email_or_mobile: "", password: "", otp: "" },
+    defaultValues: { email: "", password: "", otp: "" },
   });
 
   // Handle OTP input changes
@@ -59,10 +59,9 @@ function LoginPage() {
     
     if(res?.status === 200 || res?.status === true){
           // localStorage.setItem("token", res?.token)
-          const expiryTime = Date.now() +  5000 //30 mint
-          localStorage.setItem("pin_expiry", expiryTime) 
+          localStorage.setItem("pin_set", res?.pin_set ? "true" : "false")
+          localStorage.setItem("pin_expiry", Date.now() + 30 * 60 * 1000)
           // localStorage.setItem("username", res?.data?.name)
-          // localStorage.setItem("phone", res?.data?.phone)
           // localStorage.setItem("email", res?.data?.email)
           // toastSuccess("Logged in successfully!");
           // dispatch(login(res?.token))
@@ -71,7 +70,6 @@ function LoginPage() {
 const newAccount = {
   userId: res?.data?.id,
   name: res?.data?.name,
-  phone: res?.data?.phone,
   email: res?.data?.email,
   token: res?.token,
 };
@@ -127,7 +125,7 @@ if (!otpSent) {
   const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_SEND_OTP}`;
   try {
     // 📨 Step 1: Send OTP API call
-    const res = await postApi(url, { phone: data.email_or_mobile }); // change payload key if API expects something else
+    const res = await postApi(url, { email: data.email }); // change payload key if API expects something else
 console.log("Otp response", res);
 
     if (res.status === 200 || res.status === true) {
@@ -162,15 +160,16 @@ console.log("Otp response", res);
 
       try {
         const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_VERIFY_OTP}`
-        const res = await postApi(url, {phone: data.email_or_mobile, otp: enteredOtp })
+        const res = await postApi(url, { email: data.email, otp: enteredOtp })
         if(res?.status === 200 || res?.status === true){
         console.log("OTP entered:", enteredOtp);
         console.log("Verify otp response", res);
 
           // localStorage.setItem("token", res?.token)
           localStorage.setItem("username", res?.data?.name)
+          localStorage.setItem("pin_set", res?.pin_set ? "true" : "false")
+          localStorage.setItem("pin_expiry", Date.now() + 30 * 60 * 1000)
           localStorage.setItem("Kstatus", res?.data?.kyc_status)
-          localStorage.setItem("phone", res?.data?.phone)
           localStorage.setItem("email", res?.data?.email)
           
       toastSuccess(res?.message);
@@ -239,21 +238,22 @@ console.log("Otp response", res);
 
     {/* Form */}
     <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
-      {/* Mobile */}
+      {/* Email */}
       <div>
         <label className="block text-sm font-medium text-blue-950 dark:text-gray-200 mb-1">
-          Mobile or Email
+          Email
         </label>
         <input
-          {...register("email_or_mobile")}
-          type="tel"
-          placeholder="Enter your mobile number"
+          {...register("email")}
+          type="email"
+          autoComplete="email"
+          placeholder="Enter your email"
           className="w-full border border-gray-300 dark:border-white/10 bg-white dark:bg-white/5 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-700 text-blue-950 dark:text-gray-100 placeholder:text-gray-400"
           required
         />
-        {errors.email_or_mobile && (
+        {errors.email && (
           <p className="text-red-600 text-sm mt-1">
-            {errors.email_or_mobile.message}
+            {errors.email.message}
           </p>
         )}
       </div>
@@ -373,153 +373,3 @@ console.log("Otp response", res);
 }
 
 export default LoginPage;
-
-
-function LoginPin({setPinOpen}) {
-  const [pin, setPin] = useState(["", "", "", ""]);
-  const [error, setError] = useState("");
-  const pinRefs = useRef([]);
-  const navigate = useNavigate()
-  const dispatch = useDispatch()
-
-  const handlePinChange = (value, index, type) => {
-    if (!/^\d?$/.test(value)) return;
-
-    if (type === "pin") {
-      const newPin = [...pin];
-      newPin[index] = value;
-      setPin(newPin);
-      if (value && index < 3) pinRefs.current[index + 1].focus();
-    }
-  };
-
-  const handleKeyDown = (e, index, type) => { 
-    const refArr = type === "pin" ? pin : "";
-    const focusArr = type === "pin" ? pinRefs : "";
-    if (e.key === "Backspace" && !refArr[index] && index > 0) {
-      focusArr.current[index - 1].focus();
-
-        //! optional: clear previous value
-  // const updated = [...refArr];
-  // updated[index - 1] = "";
-  // type === "pin" ? setPin(updated) : "";
-
-    }
-  };
-
-  const handleSavePin = async () => {
-    const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_SET_PIN}`
-    const url2 = `${import.meta.env.VITE_URL}${import.meta.env.VITE_CONFIRM_PIN}`
-    const rawPin = pin.join("")
-    try {
-      if (pin.join("") !== confirmPin.join("")) {
-        setError("Pins do not match. Please try again.");
-        return;
-      }
-      const res = postApiWithToken(url, {pin : Number(rawPin)})
-      console.log("Pin Response", res);
-      
-      if(res?.status === 200 || res?.status){
-
-        setError("");
-        toastSuccess(res?.message);
-        navigate("/")
-      }
-    } catch (error) {
-      toastError(error.res?.data?.message)
-    }
-    // setError("");
-    //     toastSuccess("Pin set successfully!");
-    //     // dispatch(login("temporary-token-pin-user"))
-    //     navigate("/")
- 
-  };
-
-  return (
- <motion.div
-  initial={{ opacity: 0, y: 10 }}
-  animate={{ opacity: 1, y: 0 }}
-  exit={{ opacity: 0, y: -10 }}
-  transition={{ duration: 0.3 }}
-  className="text-center"
->
-<div className="flex flex-col ">
-    <span className="text-xl font-semibold text-blue-950 dark:text-gray-100 mb-1">
-    Hi, Fusion TechLab
-  </span>
-  <span className="text-sm font-semibold text-blue-600 dark:text-gray-100 mb-4">
-    Enter your 4-digit PIN 🔒
-  </span>
-  <div className="space-x-5 mb-8">
-    <span className="text-md text-blue-900 font-semibold dark:text-gray-100">fusion@gmail.com</span> <button className="text-sm font-semibold text-blue-600 underline cursor-pointer hover:text-blue-950 dark:hover:text-blue-300">Logout</button>
-  </div>
-</div>
-
-  <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">
-     Use this PIN to access your account securely
-  </p>
-
-  {/* Enter PIN */}
-  <label className="text-sm font-medium text-blue-950 dark:text-gray-200 block mb-2">
-    Enter PIN
-  </label>
-
-  <div className="flex justify-center gap-3 mb-5">
-    {pin.map((digit, index) => (
-      <input
-        key={index}
-        type="password"
-        inputMode="numeric"
-        maxLength="1"
-        value={digit}
-        onChange={(e) => handlePinChange(e.target.value, index, "pin")}
-        onKeyDown={(e) => handleKeyDown(e, index, "pin")}
-        ref={(el) => (pinRefs.current[index] = el)}
-        className="
-          w-12 h-12 text-center rounded-lg text-lg
-          border border-gray-300 dark:border-white/10
-          bg-white dark:bg-white/5
-          text-blue-950 dark:text-gray-100
-          focus:outline-none focus:ring-1 focus:ring-blue-700
-        "
-      />
-    ))}
-  </div>
-
-
-  {error && (
-    <p className="text-red-500 text-sm mb-4">
-      {error}
-    </p>
-  )}
-
-  <button
-    className="
-      w-full bg-blue-950 dark:bg-blue-600
-      text-white rounded-lg py-2 font-medium
-      hover:bg-blue-900 dark:hover:bg-blue-500
-      transition
-    "
-    onClick={handleSavePin}
-  >
-    Login
-  </button>
-
-  <div className="text-center text-sm text-gray-600 dark:text-gray-400 mt-5 flex justify-evenly">
-      <button
-        onClick={() => setPinOpen(false)}
-        className="text-blue-800 dark:text-blue-400 hover:text-blue-950 dark:hover:text-blue-300 font-medium cursor-pointer"
-      >
-        Login with otp
-      </button>
-      <button
-        onClick={() => setPinOpen(false)}
-        className="text-blue-800 dark:text-blue-400 hover:text-blue-950 dark:hover:text-blue-300 font-medium cursor-pointer"
-      >
-        Login with password
-      </button>
-    </div>
-</motion.div>
-
-  );
-}

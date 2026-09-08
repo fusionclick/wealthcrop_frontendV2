@@ -11,11 +11,10 @@ export const fetchPositions = (sync = false) =>
 export const fetchKotakStatus = () =>
   getApiWithToken(`${base}/portfolio/stocks/kotak-status`);
 
-export const saveKotakCredentials = (mpin, totpSecret) =>
-  postApiWithToken(`${base}/portfolio/stocks/kotak-credentials`, {
-    mpin,
-    totp_secret: totpSecret,
-  });
+// { access_token, ucc, mobile?, mpin?, totp_secret? } — access token and UCC are required,
+// they are what identify the investor's own Kotak account.
+export const saveKotakCredentials = (payload) =>
+  postApiWithToken(`${base}/portfolio/stocks/kotak-credentials`, payload);
 
 export const syncStockPortfolio = () =>
   postApiWithToken(`${base}/portfolio/stocks/sync`, {});

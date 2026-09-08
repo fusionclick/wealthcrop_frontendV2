@@ -102,6 +102,17 @@ import ExploreFO from "./pages/future_&_options/ExploreFO";
 import PositionsFO from "./pages/future_&_options/PositionsFO";
 import OrdersFO from "./pages/future_&_options/OrdersFO";
 import { isPinExpired } from "./utils/pinExpireChecker";
+
+// PIN gate sirf dashboard par lagta hai. Onboarding (signup -> verify -> KYC) ke
+// beech user ko PIN nahi poochhna — wahan uska PIN hota hi nahi.
+const PIN_FREE_ROUTES = ["/login", "/signup", "/verify-otp", "/kyc", "/reset-password", "/reset-pin"];
+
+// Onboarding screens ek viewport me rehni chahiye — footer/disclaimer wahan sirf
+// scroll banate hain. Wahi routes jinme PIN gate nahi lagta.
+const CHROME_FREE_ROUTES = PIN_FREE_ROUTES;
+
+import KotakGate from "./components/stocks/KotakGate";
+import ModuleGate from "./components/ModuleGate";
 import LoginPinModal from "./utils/LoginPinModal";
 import ResetPassword from "./pages/ResetPassword";
 import StockHandler from "./utils/socketHandler";
@@ -116,7 +127,17 @@ import { getApiWithToken } from "./api/api";
 import { fetchInvestorData } from "./redux/investorDataSlice";
 
 
-const queryClient = new QueryClient();
+// ponytail: react-query ke defaults kabhi set hi nahi hue the. refetchOnWindowFocus har tab
+// switch par saari queries dobara chalata tha — BSE down ho to wahi 502 baar-baar aata tha.
+// FundDetails apna refetchOnWindowFocus khud true karta hai, wo pehle jaisa hi chalega.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 function App() {
 
@@ -317,9 +338,9 @@ const StockDetails = lazy(() => import("./components/StockDetails"));
 
 useEffect(() => {
   const check = () => {
-    if (token && isPinExpired()) { // ADD token check
-      setLocked(true);
-    }
+    const onboarding = PIN_FREE_ROUTES.some((p) => pathname.startsWith(p));
+    const needsPin = localStorage.getItem("pin_set") !== "true";
+    setLocked(Boolean(token) && !onboarding && (needsPin || isPinExpired()));
   };
 
   check();
@@ -327,7 +348,7 @@ useEffect(() => {
   const interval = setInterval(check, 5000);
 
   return () => clearInterval(interval);
-}, [token]);
+}, [token, pathname]);
 
     const dispatch = useDispatch();
 
@@ -379,14 +400,19 @@ useEffect(() => {
           <Routes>
             {/* Protected routes */}
             <Route element={<ProtectRoute user={token} />}>
-              {/* Stocks */}
-              <Route path="/user/stocks" element={<Dashboard />}>
-                <Route index element={<Navigate to="explore" replace />} />
-                <Route path="explore" element={<Explore />} />
-                <Route path="holdings" element={<Holdings />} />
-                <Route path="positions" element={<Positions />} />
-                <Route path="orders" element={<Orders />} />
-                <Route path="watchlist" element={<Watchlist />} />
+              {/* Stocks — trades on the investor's own Kotak account, so the gate asks
+                  them to link one the first time they open this section. */}
+              <Route element={<ModuleGate setting="equity_enabled" label="Stock trading" />}>
+              <Route element={<KotakGate />}>
+                <Route path="/user/stocks" element={<Dashboard />}>
+                  <Route index element={<Navigate to="explore" replace />} />
+                  <Route path="explore" element={<Explore />} />
+                  <Route path="holdings" element={<Holdings />} />
+                  <Route path="positions" element={<Positions />} />
+                  <Route path="orders" element={<Orders />} />
+                  <Route path="watchlist" element={<Watchlist />} />
+                </Route>
+              </Route>
               </Route>
 
               {/* MutualFund */}
@@ -400,12 +426,16 @@ useEffect(() => {
                 <Route path="watchlist" element={<WatchlistMF />} />
               </Route>
 
-              {/* Future and Options */}
-              <Route path="/user/future_and_options" element={<FODashboard />}>
-                <Route index element={<Navigate to="explore" replace />} />
-                <Route path="explore" element={<ExploreFO />} />
-                <Route path="positions" element={<PositionsFO />} />
-                <Route path="orders" element={<OrdersFO />} />
+              {/* Future and Options — same Kotak account as stocks */}
+              <Route element={<ModuleGate setting="fno_enabled" label="Futures & Options" />}>
+              <Route element={<KotakGate />}>
+                <Route path="/user/future_and_options" element={<FODashboard />}>
+                  <Route index element={<Navigate to="explore" replace />} />
+                  <Route path="explore" element={<ExploreFO />} />
+                  <Route path="positions" element={<PositionsFO />} />
+                  <Route path="orders" element={<OrdersFO />} />
+                </Route>
+              </Route>
               </Route>
 
               <Route path="/mutual_fund/manage-sip" element={<ManageSipPage />} />
@@ -590,7 +620,7 @@ useEffect(() => {
       </main>
 
       {/* ================= FOOTER ================= */}
-      <Footer />
+      {!CHROME_FREE_ROUTES.some((p) => pathname.startsWith(p)) && <Footer />}
 
       {/*  BOTTOM SPACER (mobile only, matches BottomHeader height) */}
       {token && <div className="h-[72px] lg:hidden" />}

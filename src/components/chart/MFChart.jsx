@@ -5,11 +5,31 @@ import { RANGES, INTERVALS, bucketSeries, fmtLabel } from "./navSeries";
 export default function MFChart({ series = [], height = 320, synthetic = false }) {
   const [range, setRange] = useState("1Y");
   const [interval, setInterval] = useState("D");
+  // ponytail: native <input type="date"> — koi date-picker library nahi. min/max chart
+  // ke apne data se aate hain, to koi aisi tareekh chuni hi nahi ja sakti jispar NAV nahi.
+  const [span, setSpan] = useState({ from: "", to: "" });
+  const custom = Boolean(span.from || span.to);
+
+  const bounds = useMemo(() => {
+    const rows = series.filter((d) => d?.timestamp && Number(d.nav) > 0);
+    const iso = (ts) => new Date(ts * 1000).toISOString().slice(0, 10);
+    return rows.length ? { min: iso(rows[0].timestamp), max: iso(rows[rows.length - 1].timestamp) } : {};
+  }, [series]);
 
   const rows = useMemo(
-    () => bucketSeries(series, range, interval).map((d) => ({ ...d, nav: Number(d.nav), label: fmtLabel(d.timestamp, interval) })),
-    [series, range, interval]
+    () =>
+      bucketSeries(series, range, interval, custom ? span : null).map((d) => ({
+        ...d,
+        nav: Number(d.nav),
+        label: fmtLabel(d.timestamp, interval),
+      })),
+    [series, range, interval, custom, span]
   );
+
+  const pickRange = (r) => {
+    setSpan({ from: "", to: "" });
+    setRange(r);
+  };
 
   const change = rows.length > 1 ? ((rows[rows.length - 1].nav - rows[0].nav) / rows[0].nav) * 100 : null;
   const up = (change ?? 0) >= 0;
@@ -27,7 +47,7 @@ export default function MFChart({ series = [], height = 320, synthetic = false }
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
         <div className="flex flex-wrap gap-1.5">
           {Object.keys(RANGES).map((r) => (
-            <button key={r} type="button" onClick={() => setRange(r)} className={btn(range === r)}>
+            <button key={r} type="button" onClick={() => pickRange(r)} className={btn(!custom && range === r)}>
               {r}
             </button>
           ))}
@@ -41,9 +61,41 @@ export default function MFChart({ series = [], height = 320, synthetic = false }
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <span className="text-xs text-slate-500 dark:text-[var(--text-secondary)]">Date range</span>
+        <input
+          type="date"
+          aria-label="From date"
+          value={span.from}
+          min={bounds.min}
+          max={span.to || bounds.max}
+          onChange={(e) => setSpan((p) => ({ ...p, from: e.target.value }))}
+          className="border border-slate-200 rounded-md px-2 py-1 text-xs bg-white dark:bg-[var(--white-5)] dark:border-[var(--border-color)] dark:text-[var(--text-primary)]"
+        />
+        <span className="text-xs text-slate-400">to</span>
+        <input
+          type="date"
+          aria-label="To date"
+          value={span.to}
+          min={span.from || bounds.min}
+          max={bounds.max}
+          onChange={(e) => setSpan((p) => ({ ...p, to: e.target.value }))}
+          className="border border-slate-200 rounded-md px-2 py-1 text-xs bg-white dark:bg-[var(--white-5)] dark:border-[var(--border-color)] dark:text-[var(--text-primary)]"
+        />
+        {custom && (
+          <button
+            type="button"
+            onClick={() => setSpan({ from: "", to: "" })}
+            className="text-xs font-medium text-blue-600 hover:underline"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
       {!rows.length ? (
         <div style={{ height }} className="flex items-center justify-center text-sm text-slate-400 border border-slate-200 rounded-xl dark:border-[var(--border-color)]">
-          NAV chart unavailable
+          {custom ? "No NAV published in this date range" : "NAV chart unavailable"}
         </div>
       ) : (
         <>
@@ -54,7 +106,7 @@ export default function MFChart({ series = [], height = 320, synthetic = false }
             {change != null && (
               <span className={`text-sm font-medium ${up ? "text-emerald-600" : "text-red-500"}`}>
                 {up ? "+" : ""}
-                {change.toFixed(2)}% · {range}
+                {change.toFixed(2)}% · {custom ? `${span.from || bounds.min} → ${span.to || bounds.max}` : range}
               </span>
             )}
           </div>

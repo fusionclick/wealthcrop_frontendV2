@@ -90,7 +90,7 @@ export default function PaymentPromptModal({
               dark:text-[var(--text-primary)]
             "
           >
-            Order Created Successfully
+            Complete your payment
           </h3>
 
           <p
@@ -103,8 +103,8 @@ export default function PaymentPromptModal({
               dark:text-[var(--text-secondary)]
             "
           >
-            Your order has been submitted successfully. Complete the payment now
-            to process your investment.
+            We could not open the payment page automatically. Use the button below —
+            units are allotted only once payment reaches BSE.
           </p>
 
           {/* Info Box */}

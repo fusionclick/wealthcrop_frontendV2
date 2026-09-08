@@ -266,7 +266,7 @@ const CombinedMF = () => {
                         }}
                         className="mt-2 text-xs px-3 py-1 rounded-md bg-red-600 text-white"
                       >
-                        Sell
+                        Redeem
                       </button>
                     )}
                   </div>

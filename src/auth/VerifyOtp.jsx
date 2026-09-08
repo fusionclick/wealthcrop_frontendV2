@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { useDispatch } from "react-redux";
+import { login } from "../redux/authenticationSlice";
+import { motion } from "framer-motion";
 import { MdMarkEmailRead } from "react-icons/md";
-import { postApi, postApiWithToken } from "../api/api";
+import { postApi } from "../api/api";
 import { toastError, toastSuccess } from "../utils/notifyCustom";
 
 const RESEND_SECONDS = 30;
@@ -14,15 +16,19 @@ export default function VerifyOtp() {
   // Landed here directly (refresh / deep link) — nothing to verify.
   if (!form) return <Navigate to="/signup" replace />;
 
-  return <VerifyOtpScreen form={form} />;
+  return <VerifyOtpScreen form={form} initialOtp={state?.otp} />;
 }
 
-function VerifyOtpScreen({ form }) {
+function VerifyOtpScreen({ form, initialOtp }) {
+  const dispatch = useDispatch();
+  // ponytail: local Laravel OTP response me bhejta hai. Inbox par depend mat karo —
+  // temp-mail domains transactional mail chupchap drop kar dete hain.
+  const [devOtp, setDevOtp] = useState(initialOtp);
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
-  const [pinOpen, setPinOpen] = useState(false);
   const [cooldown, setCooldown] = useState(RESEND_SECONDS);
   const refs = useRef([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     refs.current[0]?.focus();
@@ -65,6 +71,7 @@ function VerifyOtpScreen({ form }) {
     try {
       const res = await postApi(url, form);
       if (res?.status === 200 || res?.status === true) {
+        setDevOtp(res?.otp);
         setOtp(["", "", "", "", "", ""]);
         setCooldown(RESEND_SECONDS);
         refs.current[0]?.focus();
@@ -90,8 +97,9 @@ function VerifyOtpScreen({ form }) {
     try {
       const res = await postApi(url, { ...form, otp: code });
       if (res?.status === 200 || res?.status === true) {
-        localStorage.setItem("pin_expiry", Date.now() + 30 * 60 * 1000);
         localStorage.setItem("token", res?.token);
+        localStorage.setItem("pin_set", "false");
+        localStorage.removeItem("pin_expiry");
         localStorage.setItem("username", res?.data?.name);
         localStorage.setItem("email", res?.data?.email);
 
@@ -117,7 +125,8 @@ function VerifyOtpScreen({ form }) {
         localStorage.setItem("currentAccount", JSON.stringify(newAccount));
 
         toastSuccess(res?.message || "Email verified");
-        setPinOpen(true);
+        dispatch(login(res?.token));
+        navigate("/kyc", { replace: true });
       }
     } catch (error) {
       toastError(error?.message || "Invalid or expired OTP");
@@ -131,10 +140,7 @@ function VerifyOtpScreen({ form }) {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-[#020617] px-4">
       <div className="w-full max-w-md bg-white dark:bg-[#020617] rounded-2xl shadow-sm dark:shadow-none p-8 border border-gray-100 dark:border-white/10">
-        <AnimatePresence mode="wait">
-          {!pinOpen ? (
-            <motion.div
-              key="otp"
+        <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
@@ -154,6 +160,12 @@ function VerifyOtpScreen({ form }) {
                   {form.email}
                 </p>
               </div>
+
+              {import.meta.env.DEV && devOtp && (
+                <p className="text-center text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-lg py-2 mb-4">
+                  dev only — OTP: <span className="font-mono font-semibold tracking-widest">{devOtp}</span>
+                </p>
+              )}
 
               <form onSubmit={verify} noValidate>
                 <div className="flex justify-center gap-2 sm:gap-3 mb-6" onPaste={handlePaste}>
@@ -212,145 +224,8 @@ function VerifyOtpScreen({ form }) {
                   Go back
                 </Link>
               </div>
-            </motion.div>
-          ) : (
-            <SetPin key="setPin" />
-          )}
-        </AnimatePresence>
+        </motion.div>
       </div>
     </div>
-  );
-}
-
-// -------------------------
-//  SET PIN (last signup step, then straight to KYC)
-// -------------------------
-function SetPin() {
-  const [pin, setPin] = useState(["", "", "", ""]);
-  const [confirmPin, setConfirmPin] = useState(["", "", "", ""]);
-  const [error, setError] = useState("");
-  const [saving, setSaving] = useState(false);
-  const pinRefs = useRef([]);
-  const confirmRefs = useRef([]);
-  const navigate = useNavigate();
-
-  const handlePinChange = (value, index, type) => {
-    if (!/^\d?$/.test(value)) return;
-
-    if (type === "pin") {
-      const next = [...pin];
-      next[index] = value;
-      setPin(next);
-      if (value && index < 3) pinRefs.current[index + 1]?.focus();
-    } else {
-      const next = [...confirmPin];
-      next[index] = value;
-      setConfirmPin(next);
-      if (value && index < 3) confirmRefs.current[index + 1]?.focus();
-    }
-  };
-
-  const handleKeyDown = (e, index, type) => {
-    const arr = type === "pin" ? pin : confirmPin;
-    const refs = type === "pin" ? pinRefs : confirmRefs;
-    if (e.key === "Backspace" && !arr[index] && index > 0) {
-      refs.current[index - 1]?.focus();
-    }
-  };
-
-  const handleSavePin = async () => {
-    if (pin.join("").length !== 4) {
-      setError("Enter a 4-digit PIN.");
-      return;
-    }
-    if (pin.join("") !== confirmPin.join("")) {
-      setError("PINs do not match. Please try again.");
-      return;
-    }
-
-    const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_SET_PIN}`;
-    setSaving(true);
-    try {
-      const res = await postApiWithToken(url, { pin: Number(pin.join("")) });
-      if (res?.status === 200 || res?.status) {
-        setError("");
-        toastSuccess(res?.message || "PIN set");
-        navigate("/kyc", { replace: true });
-      }
-    } catch (err) {
-      toastError(err?.response?.data?.message || err?.message || "Could not save PIN");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      transition={{ duration: 0.3 }}
-      className="text-center"
-    >
-      <h2 className="text-xl font-semibold text-blue-950 dark:text-gray-100 mb-2">
-        Set your 4-digit PIN 🔒
-      </h2>
-      <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">
-        You&apos;ll use this PIN to access your account securely
-      </p>
-
-      <label className="text-sm font-medium text-blue-950 dark:text-gray-200 block mb-2">
-        Enter PIN
-      </label>
-      <div className="flex justify-center gap-3 mb-5">
-        {pin.map((digit, index) => (
-          <input
-            key={index}
-            type="password"
-            inputMode="numeric"
-            maxLength="1"
-            value={digit}
-            onChange={(e) => handlePinChange(e.target.value, index, "pin")}
-            onKeyDown={(e) => handleKeyDown(e, index, "pin")}
-            ref={(el) => (pinRefs.current[index] = el)}
-            className="w-12 h-12 text-center rounded-lg text-lg border border-gray-300 dark:border-white/10
-            bg-white dark:bg-white/5 text-blue-950 dark:text-gray-100
-            focus:outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-700/20 transition"
-          />
-        ))}
-      </div>
-
-      <label className="text-sm font-medium text-blue-950 dark:text-gray-200 block mb-2">
-        Confirm PIN
-      </label>
-      <div className="flex justify-center gap-3 mb-4">
-        {confirmPin.map((digit, index) => (
-          <input
-            key={index}
-            type="password"
-            inputMode="numeric"
-            maxLength="1"
-            value={digit}
-            onChange={(e) => handlePinChange(e.target.value, index, "confirm")}
-            onKeyDown={(e) => handleKeyDown(e, index, "confirm")}
-            ref={(el) => (confirmRefs.current[index] = el)}
-            className="w-12 h-12 text-center rounded-lg text-lg border border-gray-300 dark:border-white/10
-            bg-white dark:bg-white/5 text-blue-950 dark:text-gray-100
-            focus:outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-700/20 transition"
-          />
-        ))}
-      </div>
-
-      {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-
-      <button
-        onClick={handleSavePin}
-        disabled={saving}
-        className="w-full bg-blue-950 dark:bg-blue-600 text-white rounded-lg py-2.5 font-medium
-        hover:bg-blue-900 dark:hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed transition cursor-pointer"
-      >
-        {saving ? "Saving..." : "Save PIN & Start KYC"}
-      </button>
-    </motion.div>
   );
 }
