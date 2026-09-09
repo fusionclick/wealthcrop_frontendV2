@@ -102,7 +102,12 @@ test("a rejected field can actually be corrected", () => {
 });
 
 test("BSE's answer from add_ucc is shown immediately", () => {
-  assert.match(kyc, /const immediate = verdictFromUccStatus\(res\?\.data\?\.status\)/);
+  // Was verdictFromUccStatus(res.data.status). add_ucc's own reply does not reliably carry
+  // the UCC's status, so the page fell back to Laravel's separate bse-status sync — and
+  // when that did not answer, the investor sat on "awaiting BSE verification" with nothing
+  // useful to click. The server now looks the UCC up at BSE and returns the verdict as
+  // `kyc`; verdictFromAddUcc prefers it and still falls back to the old field.
+  assert.match(kyc, /const immediate = verdictFromAddUcc\(res\?\.data\)/);
   assert.match(kyc, /if \(immediate\) setBseVerdict\(immediate\)/);
 });
 

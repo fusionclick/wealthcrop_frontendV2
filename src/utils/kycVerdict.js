@@ -15,6 +15,10 @@ export const isKycVerified = (status) => VERIFIED.includes(String(status || "").
 // Ye table Backend/src/mf/kyc.js ke UCC_TO_KYC ka mirror hai; dono ko saath badalna.
 const UCC_TO_KYC = {
   APPROVED: "verified",
+  // Observed live: an investor already placing orders reports ACTIVE, not APPROVED. It was
+  // missing from both this table and the server's, so the page told a fully active
+  // investor their KYC was still awaiting verification.
+  ACTIVE: "verified",
   PENDING_VERIFICATION: "pending",
   PENDING: "pending",
   REJECTED: "rejected",
@@ -27,6 +31,29 @@ export const verdictFromUccStatus = (uccStatus) => {
   const status = String(uccStatus || "").trim().toUpperCase();
   const kyc = UCC_TO_KYC[status];
   return kyc ? { kyc_status: kyc, ucc_status: status, reasons: [], error: "" } : null;
+};
+
+/**
+ * add_ucc now replies with `kyc`: the verdict the server read straight from BSE for the
+ * UCC it just created. Prefer it. The page used to wait on Laravel's separate bse-status
+ * sync, and when that did not answer the investor was stranded on "awaiting BSE
+ * verification" with nothing useful to click.
+ *
+ * `demo` marks a UAT pass-through, kept so the screen can say so rather than present it
+ * as a real BSE verification.
+ */
+export const verdictFromAddUcc = (data) => {
+  const kyc = data?.kyc;
+  if (kyc?.kyc_status) {
+    return {
+      kyc_status: kyc.kyc_status,
+      ucc_status: kyc.ucc_status || null,
+      reasons: Array.isArray(kyc.reasons) ? kyc.reasons : [],
+      error: "",
+      demo: Boolean(kyc.auto_verified_on_demo),
+    };
+  }
+  return verdictFromUccStatus(data?.status);
 };
 
 // `bse: null` = Laravel Node/BSE tak pahunch hi nahi paya — stored status jaisa tha waisa hai.
@@ -64,7 +91,9 @@ export function reviewCopy(verdict, checking = false) {
     : "KYC submitted — awaiting BSE verification";
 
   const guidance = verified
-    ? "You can start investing."
+    ? verdict?.demo
+      ? "Verified on BSE's test environment — you can start investing here. On the live host BSE approves this itself."
+      : "You can start investing."
     : rejected
     ? "Please contact support to correct your details — re-checking will not change this."
     : "BSE has not verified your UCC yet. Check again in a moment, or continue to the dashboard.";

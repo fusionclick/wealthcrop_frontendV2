@@ -24,7 +24,7 @@ import { logout } from "../../redux/authenticationSlice";
 import { nodeUrl, laravelUrl } from "../../utils/nodeApi";
 import { validateKycStep } from "../../utils/FormSchema";
 import { KYC_DEMO } from "../../utils/kycDemoData";
-import { verdictFrom, verdictFromUccStatus, isKycVerified, reviewCopy, BSE_UNREACHABLE, VERIFIED_VERDICT } from "../../utils/kycVerdict";
+import { verdictFrom, verdictFromAddUcc, isKycVerified, reviewCopy, BSE_UNREACHABLE, VERIFIED_VERDICT } from "../../utils/kycVerdict";
 
 const steps = ["Personal", "Bank", "Docs", "Nominee", "Review"];
 
@@ -532,9 +532,11 @@ useEffect(() => {
         setIsUccCreated(true);
         setUccError("");
         const clientCode = res?.data?.client_code || payload.client_code;
-        // BSE ka faisla isi jawab mein hai (demo par APPROVED), to foran dikhao — Laravel ka
-        // sync peechhe chalta rahega aur authoritative status DB mein likhega.
-        const immediate = verdictFromUccStatus(res?.data?.status);
+        // The server now reads BSE's verdict for the UCC it just created and returns it as
+        // `kyc`, so the page no longer depends on Laravel's separate bse-status sync
+        // answering — when that failed, the investor was stranded on "awaiting BSE
+        // verification" with nothing to click. Laravel still syncs and stores behind this.
+        const immediate = verdictFromAddUcc(res?.data);
         if (immediate) setBseVerdict(immediate);
         // ponytail: 2-minute UCC status poll hata diya — verdict Laravel ke bse-status sync se
         // aata hai, aur pending par "Check again" hai. Poll sirf pending path ko 2 minute rokta tha.

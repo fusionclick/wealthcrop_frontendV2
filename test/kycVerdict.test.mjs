@@ -100,3 +100,37 @@ test("the KYC name is validated the way BSE validates it, and is actually saved"
   }
 
 });
+
+test("ACTIVE is a verified UCC, and the demo pass-through is labelled", async () => {
+  const { verdictFromUccStatus, verdictFromAddUcc, reviewCopy, isKycVerified } =
+    await import("../src/utils/kycVerdict.js");
+
+  // Observed live: an investor already placing orders comes back ACTIVE, not APPROVED.
+  // It was in neither status table, so a fully active investor was told KYC was pending.
+  assert.equal(verdictFromUccStatus("ACTIVE").kyc_status, "verified");
+  assert.equal(verdictFromUccStatus("active").kyc_status, "verified");
+  assert.equal(verdictFromUccStatus("APPROVED").kyc_status, "verified");
+  // Everything else keeps its meaning — a refused UCC is never waved through.
+  assert.equal(verdictFromUccStatus("REJECTED").kyc_status, "rejected");
+  assert.equal(verdictFromUccStatus("DEACTIVATED").kyc_status, "rejected");
+  assert.equal(verdictFromUccStatus("PENDING_VERIFICATION").kyc_status, "pending");
+  assert.equal(verdictFromUccStatus("SOMETHING_NEW"), null, "unknown still defers to the server");
+
+  // The server's verdict wins over add_ucc's own status field.
+  const fromServer = verdictFromAddUcc({
+    status: "PENDING_VERIFICATION",
+    kyc: { kyc_status: "verified", ucc_status: "PENDING_VERIFICATION", auto_verified_on_demo: true, reasons: [] },
+  });
+  assert.equal(fromServer.kyc_status, "verified");
+  assert.equal(fromServer.demo, true);
+  // No `kyc` block: fall back to the old field rather than losing the verdict entirely.
+  assert.equal(verdictFromAddUcc({ status: "ACTIVE" }).kyc_status, "verified");
+  assert.equal(verdictFromAddUcc({}), null);
+
+  // A UAT pass-through must never read as a real BSE verification.
+  const demoCopy = reviewCopy(fromServer);
+  assert.ok(isKycVerified(fromServer.kyc_status));
+  assert.match(demoCopy.detail, /test environment/i);
+  const realCopy = reviewCopy({ kyc_status: "verified", reasons: [] });
+  assert.doesNotMatch(realCopy.detail, /test environment/i);
+});
