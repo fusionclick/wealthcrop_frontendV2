@@ -179,12 +179,15 @@ const ExploreMF = () => {
         <aside className="rounded-lg border border-slate-200 dark:border-[var(--border-color)] bg-white dark:bg-[var(--card-bg)] p-6 flex flex-col items-center justify-center text-center">
           <div className="text-5xl mb-3">🚀</div>
           <p className="font-semibold text-slate-900 dark:text-[var(--text-primary)]">Don&apos;t know where to start?</p>
-          <Link
-            to="/mutual_fund/sip-setup"
+          {/* Was a link straight to /mutual_fund/sip-setup, which passes no fund — so the
+              setup page sent BSE an empty src_scheme and every SIP registration failed.
+              A SIP starts from a fund, so send them to the list. */}
+          <a
+            href="#all-funds"
             className="mt-4 px-5 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium"
           >
-            Let&apos;s start a SIP
-          </Link>
+            Browse funds to SIP
+          </a>
         </aside>
       </div>
 

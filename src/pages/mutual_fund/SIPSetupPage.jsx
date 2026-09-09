@@ -26,9 +26,17 @@ const SIPSetupPage = () => {
   });
   const [loading, setLoading] = useState(false);
 
-  const generateSipRefId = () => `SIP${Date.now()}${Math.floor(Math.random() * 1000)}`;
+  // The BSE reference id is generated server-side with the rest of the payload now.
 
   const handleRegister = async () => {
+    // A SIP needs a fund. This page was only ever reachable from a promo link that passed
+    // none, so src_scheme went to BSE empty and every registration failed — send the
+    // investor to pick one instead of posting a request that cannot succeed.
+    if (!fund.scheme_bse_code) {
+      toastError("Pick a fund first — open it from Explore and start the SIP there.");
+      navigate("/user/mutual_fund/explore");
+      return;
+    }
     const minSip = fund.minSip || 500;
     const err = validateInvestorReady(investorData, minSip, amount);
     if (err) {
@@ -37,32 +45,16 @@ const SIPSetupPage = () => {
     }
 
     setLoading(true);
+    // Intent only. The BSE payload is built server-side now — the UCC, member code and
+    // demat details come from the session there, not from whatever this page believes.
     const payload = {
       data: {
-        sxp_type: "sip",
-        mem_sxp_ref_id: generateSipRefId(),
-        investor: { ucc: investorData?.kyc?.ucc_code },
-        member: "91010",
-        src_scheme: fund.scheme_bse_code || "",
-        kyc_passed: true,
-        dest_scheme: "",
+        scheme: fund.scheme_bse_code,
         amount: Number(amount),
-        cur: "INR",
-        is_fresh: true,
-        phys_or_demat: "d",
-        start_date: startDate,
-        end_date: endDate,
         freq: frequency,
         txn_date: Number(sipDay),
-        email: investorData?.email || "",
-        holder: [{ holder_rank: "1", email: investorData?.email || "" }],
-        depository_acct: {
-          depository: "C",
-          dp_id: investorData?.kyc?.dp_id || "",
-          client_id: investorData?.kyc?.client_id || "",
-        },
-        is_nomination_opted: false,
-        nomination_auth_mode: 0,
+        start_date: startDate,
+        end_date: endDate,
       },
     };
 
@@ -92,6 +84,21 @@ const SIPSetupPage = () => {
           <h1 className="text-xl font-bold text-gray-800 dark:text-[var(--text-primary)]">Set Up SIP</h1>
           {fund.name && <p className="text-sm text-gray-500 dark:text-[var(--text-secondary)] mt-1">{fund.name}</p>}
         </div>
+
+        {/* Reached without a fund — say so up front rather than after a failed submit. */}
+        {!fund.scheme_bse_code && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/30 p-4">
+            <p className="text-sm text-amber-800 dark:text-amber-300">
+              No fund selected. Open a fund from Explore and start the SIP from there.
+            </p>
+            <button
+              onClick={() => navigate("/user/mutual_fund/explore")}
+              className="mt-3 text-sm font-medium text-blue-700 dark:text-blue-400 underline"
+            >
+              Browse funds
+            </button>
+          </div>
+        )}
 
         <div className="space-y-4">
           <div>
@@ -163,7 +170,7 @@ const SIPSetupPage = () => {
           </button>
           <button
             onClick={handleRegister}
-            disabled={loading}
+            disabled={loading || !fund.scheme_bse_code}
             className="flex-1 py-3 rounded-lg bg-blue-600 text-white font-medium disabled:opacity-50 dark:bg-blue-500"
           >
             {loading ? "Registering…" : "Start SIP"}

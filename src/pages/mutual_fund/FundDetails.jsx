@@ -379,6 +379,34 @@ const [activeInfo, setActiveInfo] = useState(null);
         Redeem
       </button>
 
+      {/* The SIP setup page needs a fund, and until now nothing passed it one — its only
+          entry point was a promo link carrying no state, so every registration reached BSE
+          with an empty src_scheme. This is that entry point. Shown only where BSE says the
+          scheme accepts a SIP. */}
+      {fundsList?.sip_allowed === true && (
+        <button
+          onClick={() =>
+            navigate("/mutual_fund/sip-setup", {
+              state: {
+                fund: {
+                  name: fundsList?.name,
+                  scheme_bse_code: fundsList?.scheme_bse_code || code,
+                  scheme_isin: fundsList?.scheme_isin || isin,
+                  minSip: fundsList?.minSip,
+                },
+              },
+            })
+          }
+          className="
+            px-5 py-2 rounded-xl
+            border border-emerald-600 text-emerald-700 dark:text-emerald-400
+            font-semibold hover:bg-emerald-50 dark:hover:bg-emerald-500/10
+          "
+        >
+          Start SIP
+        </button>
+      )}
+
       <div className="text-right text-sm text-[var(--text-secondary)]">
         <div>
           Nav:
