@@ -92,7 +92,11 @@ export function reviewCopy(verdict, checking = false) {
 
   const guidance = verified
     ? verdict?.demo
-      ? "Verified on BSE's test environment — you can start investing here. On the live host BSE approves this itself."
+      // This said "you can start investing here", which turned out to be wrong: BSE's UAT
+      // host leaves every new UCC at PENDING_VERIFICATION and refuses to trade on one
+      // (order_new answers id_not_exist), so marking KYC verified lets the flow continue
+      // but does not make a purchase go through there. Say so rather than promise it.
+      ? "Marked verified so you can continue on BSE's test environment. BSE does not activate new accounts there, so a purchase may still be refused — on the live host BSE approves this itself."
       : "You can start investing."
     : rejected
     ? "Please contact support to correct your details — re-checking will not change this."
