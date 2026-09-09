@@ -19,14 +19,11 @@
             document.documentElement.classList.remove('dark');
             return;
           }
-          // no stored preference — use system preference
-          if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            document.documentElement.classList.add('dark');
-          } else {
-            document.documentElement.classList.remove('dark');
-          }
+          // no stored preference — dark is the default (Kotak-Neo is dark-first)
+          document.documentElement.classList.add('dark');
         } catch (e) {
-          // ignore
+          // no localStorage — still default to dark
+          document.documentElement.classList.add('dark');
         }
       })();
     </script>

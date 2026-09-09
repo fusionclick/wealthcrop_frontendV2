@@ -30,7 +30,6 @@ const steps = ["Personal", "Bank", "Docs", "Nominee", "Review"];
 
 export default function KYCFlow() {
   const [step, setStep] = useState(0);
-  const [submitting, setSubmitting] = useState(false);
   const [stepError, setStepError] = useState("");
   // field -> message; ek saath saari galtiyan dikhti hain, ek-ek karke nahi
   const [fieldErrors, setFieldErrors] = useState({});
@@ -74,7 +73,6 @@ const [docUploaded, setDocUploaded] = useState({
       throw new Error(res?.message || "Failed to fetch");
     }
   
-    console.log("User Data", res?.data);
     
     return res.data?.data;
   };
@@ -103,7 +101,6 @@ const [docUploaded, setDocUploaded] = useState({
         return updated
       })
 
-      console.log("KYC Step", userData?.kyc_steps);
       
     },[userData])
 
@@ -357,19 +354,11 @@ const getNameParts = (fullName = "") => {
 
   //  FINAL SUBMIT
   const submitKYC = async () => {
-    setSubmitting(true);
-    try {
-      // Replace with real API
-      await new Promise((r) => setTimeout(r, 2000));
-      console.log("KYC SUBMITTED", kycData);
-      setStep(4);
-    } catch (e) {
-      toastError("KYC submission failed");
-    } finally {
-      setSubmitting(false);
-    }
-
-
+    // The real submission is the BSE add_ucc effect below: it posts the UCC, reads BSE's
+    // ucc_status, and lets Laravel write kyc_status. This used to be a 2-second setTimeout
+    // and a console.log, so the investor saw a "submitted" state that had asked BSE nothing.
+    // Landing on the review step is what actually starts the BSE call.
+    setStep(4);
   };
 
   //! Generate Client Code
@@ -426,11 +415,8 @@ useEffect(() => {
     const dp_id = userData?.kyc?.dp_id || generate10Digit();
     const client_id = userData?.kyc?.client_id || generate10Digit();
 
-    console.log(dp_id);
-    console.log(client_id);
     
     try {
-      console.log("userData", userData);
 
       const addressLine1 = userData?.profile?.address_line1 || "";
       const pincode = userData?.profile?.pincode || "";
@@ -473,7 +459,6 @@ useEffect(() => {
           acc_type: userData?.bank_accounts?.[0]?.account_type || "SB",
         },
       };
-      console.log("UCC Payload", payload);
 
       const uccUrl = nodeUrl(import.meta.env.VITE_ADD_UCC || "/v2/add_ucc");
       // ponytail: bearer lazmi hai — Node ka requireInvestor bina token 401 deta hai. Pehle
@@ -481,7 +466,6 @@ useEffect(() => {
       // catch khud BSE ki field-wise galtiyan toast karta hai.
       const res = await postApiWithToken(uccUrl, payload, { silent: true, throwOnError: true });
 
-      console.log("UCC response", res);
       if (res?.data?.client_code || res?.status === "success") {
         setIsUccCreated(true);
         setUccError("");
@@ -585,7 +569,6 @@ const retryUcc = () => {
 
               const res = await postApiWithToken(url, payload)
 
-              console.log("mandate creation response", res);
               
 
               // if(res?.status === 200 || res?.status === true){
@@ -610,7 +593,6 @@ const retryUcc = () => {
       client_id
     },)
 
-    console.log("Ucc send response", res);
 
 
     if(res?.status === 200 || res?.status === true){
@@ -855,10 +837,10 @@ useEffect(() => {
       ) : (
         <button
           onClick={handlePrimaryAction}
-          disabled={submitting}
+          disabled={loadingStep}
           className="text-sm px-5 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700"
         >
-          {submitting ? "Submitting..." : "Submit KYC"}
+          {loadingStep ? "Submitting..." : "Submit KYC"}
         </button>
       )}
     </div>

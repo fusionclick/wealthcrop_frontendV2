@@ -13,11 +13,12 @@ export default function ThemeToggle() {
     }
   });
 
-  // Initialize theme
+  // Initialize theme.
+  // No stored preference → dark. Same default as the anti-FOUC script in
+  // index.html, so the two can't disagree.
   useLayoutEffect(() => {
     if (theme === null) {
-      const isDark = document.documentElement.classList.contains("dark");
-      setTheme(isDark ? "dark" : "light");
+      setTheme("dark");
     }
   }, [theme]);
 

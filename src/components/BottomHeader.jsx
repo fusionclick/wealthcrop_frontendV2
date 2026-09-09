@@ -39,31 +39,31 @@ const BottomHeader = () => {
     {
       key: "stocks",
       label: "Stocks",
-      icon: <PiChartLineUpFill size={24} />,
+      icon: <PiChartLineUpFill size={20} />,
       path: "/user/stocks/explore",
     },
     {
       key: "funds",
       label: "Funds",
-      icon: <FaChartPie size={22} />,
+      icon: <FaChartPie size={19} />,
       path: "/user/mutual_fund/explore",
     },
     {
       key: "baskets",
       label: "Baskets",
-      icon: <FaShoppingBasket size={22} />,
+      icon: <FaShoppingBasket size={19} />,
       path: "/baskets",
     },
     {
       key: "orders",
       label: "Orders",
-      icon: <MdReceiptLong size={24} />,
+      icon: <MdReceiptLong size={20} />,
       path: "/user/stocks/orders",
     },
     {
       key: "profile",
       label: "Profile",
-      icon: <HiUser size={24} />,
+      icon: <HiUser size={20} />,
       path: "/profile",
     },
   ];
@@ -72,13 +72,12 @@ const BottomHeader = () => {
     <div
       className="
         fixed bottom-0 left-0 w-full z-50
-        backdrop-blur-md
-        bg-white/90 dark:bg-slate-900/95
-        border-t border-gray-200 dark:border-slate-700
-        h-[72px]
+        bg-[var(--app-bg)]
+        border-t border-[var(--border-color)]
+        h-[56px]
       "
     >
-      <div className="flex justify-around items-center h-full px-2">
+      <div className="flex justify-around items-center h-full px-1">
         {tabs.map((tab) => {
           const active = isActive(tab.key);
 
@@ -86,28 +85,28 @@ const BottomHeader = () => {
             <button
               key={tab.key}
               onClick={() => navigate(tab.path)}
-              className="flex flex-col items-center justify-center relative px-3 py-2"
+              className="flex flex-col items-center justify-center relative px-3 py-1"
             >
               {/* Active indicator */}
               {active && (
-                <span className="absolute -top-1 h-1 w-6 rounded-full bg-blue-500" />
+                <span className="absolute top-0 h-[2px] w-6 bg-[var(--accent)]" />
               )}
 
               <div
                 className={`transition-colors ${
                   active
-                    ? "text-blue-600 dark:text-blue-400"
-                    : "text-gray-500 dark:text-gray-400"
+                    ? "text-[var(--accent)]"
+                    : "text-[var(--text-secondary)]"
                 }`}
               >
                 {tab.icon}
               </div>
 
               <span
-                className={`text-[11px] font-medium mt-1 ${
+                className={`text-[10px] font-medium mt-0.5 leading-none ${
                   active
-                    ? "text-blue-600 dark:text-blue-400"
-                    : "text-gray-500 dark:text-gray-400"
+                    ? "text-[var(--accent)]"
+                    : "text-[var(--text-secondary)]"
                 }`}
               >
                 {tab.label}

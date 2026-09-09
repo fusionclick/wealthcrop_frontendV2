@@ -167,20 +167,20 @@ const email = current?.email
   return (
     <>
      <nav
-  className={`w-full bg-white dark:bg-[var(--app-bg)] shadow-sm
-  border-b border-gray-100 dark:border-[var(--border-color)]
+  className={`w-full bg-[var(--app-bg)]
+  border-b border-[var(--border-color)]
   fixed top-0 left-0 z-[55] transition-all duration-300
   ${isScroll ? "-translate-y-full opacity-0" : "translate-y-0 opacity-100"}`}
 >
   {/* ⭐ Always on top of everything */}
   <MutualFundCarousel />
 
-  <div className="flex justify-between items-center px-6 md:px-12">
+  <div className="flex justify-between items-center px-4 md:px-8 py-1">
     {/* Logo */}
     <div className="flex items-center space-x-2">
       <Link to="/" className="mb-1">
         <img
-          className="w-36 md:w-40 h-auto"
+          className="w-28 md:w-32 h-auto"
           src={logo}
           alt="Wealthcrop Logo"
         />
@@ -202,13 +202,13 @@ const email = current?.email
         placeholder="Search for stocks, mutual funds..."
         onFocus={() => token && setIsSearchOpen(true)}
         className="
-          w-full border border-gray-200 dark:border-white/10
-          bg-white dark:bg-white/5
-          rounded-full pl-10 pr-4 py-2 text-sm
-          focus:outline-none focus:ring-1 focus:ring-blue-700
-          text-blue-900 dark:text-gray-200
-          placeholder-gray-400 dark:placeholder-gray-500
-          shadow-sm cursor-pointer
+          w-full border border-[var(--border-color)]
+          bg-[var(--glass-bg)]
+          rounded-full pl-10 pr-4 py-1.5 text-[13px]
+          focus:outline-none
+          text-[var(--text-primary)]
+          placeholder-[var(--text-secondary)]
+          cursor-pointer
         "
       />
       <svg
@@ -231,13 +231,13 @@ const email = current?.email
     <div className="hidden md:flex items-center space-x-5">
       {token ? (
         <>
-          <Link to="/notifications" className="text-blue-900 dark:text-gray-200 hover:text-blue-700 dark:hover:text-blue-400 transition relative">
+          <Link to="/notifications" className="text-[var(--text-primary)] hover:text-[var(--accent)] transition relative">
             <HiBell className="text-2xl" />
             <span className="absolute top-0 right-0 w-2 h-2 bg-red-600 rounded-full"></span>
           </Link>
 
           <div className="relative group">
-            <button className="text-blue-900 dark:text-gray-200 hover:text-blue-700 dark:hover:text-blue-400 transition cursor-pointer mt-1.5">
+            <button className="text-[var(--text-primary)] hover:text-[var(--accent)] transition cursor-pointer mt-1.5">
               <User className="text-3xl" />
             </button>
 
@@ -404,7 +404,7 @@ const email = current?.email
       className="
         flex items-center gap-2 
         text-gray-700 dark:text-gray-300 
-        cursor-pointer hover:text-blue-700 dark:hover:text-blue-400 
+        cursor-pointer hover:text-[var(--accent)] 
         font-medium border-b border-dashed"
     >
       <LogOut size={18} />
@@ -420,7 +420,7 @@ const email = current?.email
         <>
           <Link
             to="/login"
-            className="bg-blue-900 text-white rounded-full px-5 py-2 text-sm font-medium hover:bg-blue-800 shadow-sm transition"
+            className="bg-blue-900 text-white rounded-full px-4 py-1.5 text-[13px] font-semibold hover:bg-blue-800 transition"
           >
             Login / Signup
           </Link>
@@ -431,7 +431,7 @@ const email = current?.email
 
     {/* Mobile Menu Toggle */}
     <button
-      className="md:hidden text-blue-900 dark:text-gray-200 text-2xl"
+      className="md:hidden text-[var(--text-primary)] text-2xl"
       onClick={() => setMenuOpen(!menuOpen)}
     >
       {menuOpen ? <HiX /> : <HiMenu />}
@@ -440,10 +440,10 @@ const email = current?.email
 
  {/* Mobile Dropdown */}
 <div
-  className={`md:hidden space-y-4
-  bg-white dark:bg-[#020617]
-  border-t border-gray-100 dark:border-white/10
-  px-6 py-4 shadow-md transition-all duration-300 ease-in-out ${
+  className={`md:hidden space-y-3
+  bg-[var(--app-bg)]
+  border-t border-[var(--border-color)]
+  px-4 py-3 transition-all duration-300 ease-in-out ${
     menuOpen ? "max-h-screen opacity-100" : "max-h-0 opacity-0 overflow-hidden"
   }`}
 >
@@ -452,7 +452,7 @@ const email = current?.email
     <button
       onClick={() => setMfOpen(!mfOpen)}
       className="w-full flex justify-between items-center
-      text-blue-900 dark:text-gray-200
+      text-[var(--text-primary)]
       font-medium"
     >
       <span>Mutual Funds</span>
@@ -461,10 +461,10 @@ const email = current?.email
 
     {mfOpen && (
       <div className="pl-4 pt-2 space-y-2 text-sm">
-        <Link to="/user/mutual_fund" className="block text-blue-900 dark:text-gray-300">
+        <Link to="/user/mutual_fund" className="block text-[var(--text-secondary)]">
           Explore Funds
         </Link>
-        <Link to="/user/mutual_fund/sip" className="block text-blue-900 dark:text-gray-300">
+        <Link to="/user/mutual_fund/sip" className="block text-[var(--text-secondary)]">
           SIP Investment
         </Link>
       </div>
@@ -476,7 +476,7 @@ const email = current?.email
     <button
       onClick={() => setStocksOpen(!stocksOpen)}
       className="w-full flex justify-between items-center
-      text-blue-900 dark:text-gray-200
+      text-[var(--text-primary)]
       font-medium"
     >
       <span>Stocks</span>
@@ -485,10 +485,10 @@ const email = current?.email
 
     {stocksOpen && (
       <div className="pl-4 pt-2 space-y-2 text-sm">
-        <Link to="/user/stocks" className="block text-blue-900 dark:text-gray-300">
+        <Link to="/user/stocks" className="block text-[var(--text-secondary)]">
           Stock Dashboard
         </Link>
-        <Link to="/ipo" className="block text-blue-900 dark:text-gray-300">
+        <Link to="/ipo" className="block text-[var(--text-secondary)]">
           IPO
         </Link>
       </div>
@@ -500,7 +500,7 @@ const email = current?.email
     <button
       onClick={() => setFnoOpen(!fnoOpen)}
       className="w-full flex justify-between items-center
-      text-blue-900 dark:text-gray-200
+      text-[var(--text-primary)]
       font-medium"
     >
       <span>F&O</span>
@@ -509,13 +509,13 @@ const email = current?.email
 
     {fnoOpen && (
       <div className="pl-4 pt-2 space-y-2 text-sm">
-        <Link to="/user/future_and_options/explore" className="block text-blue-900 dark:text-gray-300">
+        <Link to="/user/future_and_options/explore" className="block text-[var(--text-secondary)]">
           Explore F&O
         </Link>
-        <Link to="/user/future_and_options/positions" className="block text-blue-900 dark:text-gray-300">
+        <Link to="/user/future_and_options/positions" className="block text-[var(--text-secondary)]">
           Positions
         </Link>
-        <Link to="/user/future_and_options/orders" className="block text-blue-900 dark:text-gray-300">
+        <Link to="/user/future_and_options/orders" className="block text-[var(--text-secondary)]">
           Orders
         </Link>
       </div>
@@ -527,7 +527,7 @@ const email = current?.email
     <button
       onClick={() => setCalcOpen(!calcOpen)}
       className="w-full flex justify-between items-center
-      text-blue-900 dark:text-gray-200
+      text-[var(--text-primary)]
       font-medium"
     >
       <span>Calculators</span>
@@ -536,13 +536,13 @@ const email = current?.email
 
     {calcOpen && (
       <div className="pl-4 pt-2 space-y-2 text-sm">
-        <Link to="/calculator/sip-calculator" className="block text-blue-900 dark:text-gray-300">
+        <Link to="/calculator/sip-calculator" className="block text-[var(--text-secondary)]">
           Mutual Fund Calculator
         </Link>
-        <Link to="/calculator/fd-calculator" className="block text-blue-900 dark:text-gray-300">
+        <Link to="/calculator/fd-calculator" className="block text-[var(--text-secondary)]">
           FD Calculator
         </Link>
-        <Link to="/calculator/retirement-calculator" className="block text-blue-900 dark:text-gray-300">
+        <Link to="/calculator/retirement-calculator" className="block text-[var(--text-secondary)]">
           Retirement Calculator
         </Link>
       </div>
@@ -550,17 +550,17 @@ const email = current?.email
   </div>
 
   {/* ---------------- Static Links ---------------- */}
-  <Link to="/blogs" className="block text-blue-900 dark:text-gray-200 font-medium">
+  <Link to="/blogs" className="block text-[var(--text-primary)] font-medium">
     Blog
   </Link>
-  <Link to="/support" className="block text-blue-900 dark:text-gray-200 font-medium">
+  <Link to="/support" className="block text-[var(--text-primary)] font-medium">
     Help
   </Link>
 
   {/* ---------------- AUTH SECTION ---------------- */}
   {token ? (
     <div className="flex items-center justify-center gap-5 mt-5
-    text-blue-900 dark:text-gray-200">
+    text-[var(--text-primary)]">
       <HiBell className="text-2xl" />
       <Link to="/profile">
         <HiUserCircle className="text-3xl" />
@@ -587,7 +587,7 @@ const email = current?.email
         bg-white dark:bg-white/5
         rounded-full px-4 py-2 text-sm
         focus:outline-none focus:ring-1 focus:ring-blue-700
-        text-blue-900 dark:text-gray-200
+        text-[var(--text-primary)]
         placeholder-gray-400 dark:placeholder-gray-500
       "
     />
