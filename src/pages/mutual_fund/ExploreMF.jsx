@@ -157,7 +157,7 @@ const ExploreMF = () => {
                 <button
                   key={`rail-${f.scheme_isin}-${f.scheme_bse_code}`}
                   onClick={() => openFund(f)}
-                  className="snap-start shrink-0 w-52 text-left rounded-2xl p-4 bg-white dark:bg-[var(--card-bg)] border border-slate-200 dark:border-[var(--border-color)] shadow-sm hover:shadow-md hover:border-slate-300 transition"
+                  className="snap-start shrink-0 w-52 text-left rounded-lg p-4 bg-white dark:bg-[var(--card-bg)] border border-slate-200 dark:border-[var(--border-color)] hover:border-slate-300 dark:hover:border-slate-600 transition"
                 >
                   <AmcMark name={f.name} className="h-9 w-9" />
                   <p className="text-sm font-semibold mt-3 line-clamp-2 min-h-10 text-slate-900 dark:text-[var(--text-primary)]">
@@ -175,7 +175,8 @@ const ExploreMF = () => {
           )}
         </div>
 
-        <aside className="rounded-2xl border border-slate-200 dark:border-[var(--border-color)] bg-gradient-to-b from-sky-50 to-white dark:from-[var(--white-10)] dark:to-[var(--card-bg)] p-6 flex flex-col items-center justify-center text-center">
+        {/* Neo ke side panels flat hote hain — gradient hata diya, hairline hi separator hai. */}
+        <aside className="rounded-lg border border-slate-200 dark:border-[var(--border-color)] bg-white dark:bg-[var(--card-bg)] p-6 flex flex-col items-center justify-center text-center">
           <div className="text-5xl mb-3">🚀</div>
           <p className="font-semibold text-slate-900 dark:text-[var(--text-primary)]">Don&apos;t know where to start?</p>
           <Link
@@ -286,30 +287,42 @@ const ExploreMF = () => {
         </div>
       </div>
 
+      {/* Kotak Neo ka scheme list: card grid nahi, ek hi container me dense rows
+          jo hairline se alag hoti hain. Har row — AMC mark, naam + meta, aur
+          dayen taraf NAV. Grid me 4 columns par naam do lines me toot te the aur
+          NAV har card me alag jagah baithti thi; list me sab ek axis par aata hai. */}
       {isLoading ? (
         FundListSkeleton()
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="rounded-lg border border-slate-200 dark:border-[var(--border-color)] bg-white dark:bg-[var(--card-bg)] divide-y divide-slate-200 dark:divide-[var(--border-color)] overflow-hidden">
           {shown.map((fund) => (
             <button
               key={`${fund.scheme_isin}-${fund.scheme_bse_code}`}
               onClick={() => openFund(fund)}
-              className="text-left rounded-2xl p-4 bg-white dark:bg-[var(--card-bg)] border border-slate-200 dark:border-[var(--border-color)] shadow-sm hover:shadow-md hover:border-slate-300 transition"
+              className="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-[var(--white-5)] transition"
             >
-              <AmcMark name={fund.name} />
-              <p className="text-sm font-semibold mt-3 line-clamp-2 min-h-10 text-slate-900 dark:text-[var(--text-primary)]">
-                {fund.name || "—"}
-              </p>
-              <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">{fund.subType || fund.category || "Mutual Fund"}</p>
-              <FundBadges fund={fund} className="mt-2" />
-              <div className="flex justify-between items-center mt-4 text-sm">
-                <span className="font-medium text-slate-800 dark:text-[var(--text-primary)]">
-                  {navLabel(fund, navs)}
-                </span>
-                <span className="text-xs text-slate-500">
-                  {fund.minLumpsum ? `Min ₹${fund.minLumpsum}` : navDate(fund, navs) || ""}
-                </span>
+              <AmcMark name={fund.name} className="h-9 w-9 shrink-0" />
+
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium leading-snug line-clamp-2 text-slate-900 dark:text-[var(--text-primary)]">
+                  {fund.name || "—"}
+                </p>
+                <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mt-0.5 line-clamp-1">
+                  {fund.subType || fund.category || "Mutual Fund"}
+                </p>
+                <FundBadges fund={fund} className="mt-1.5" />
               </div>
+
+              <div className="text-right shrink-0">
+                <p className="text-sm font-semibold text-slate-900 dark:text-[var(--text-primary)]">
+                  {navLabel(fund, navs)}
+                </p>
+                <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mt-0.5">
+                  {fund.minLumpsum ? `Min ₹${fund.minLumpsum}` : navDate(fund, navs) || ""}
+                </p>
+              </div>
+
+              <MdChevronRight className="text-xl shrink-0 text-slate-400 dark:text-[var(--text-secondary)]" />
             </button>
           ))}
         </div>

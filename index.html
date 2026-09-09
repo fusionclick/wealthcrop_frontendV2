@@ -19,11 +19,16 @@
             document.documentElement.classList.remove('dark');
             return;
           }
-          // no stored preference — dark is the default (Kotak-Neo is dark-first)
-          document.documentElement.classList.add('dark');
+          // No stored preference — follow the OS, which is what the original
+          // (commented-out) boot script in this file did. Dark-first was a
+          // Kotak-Neo decision and the palette has been reverted, so it goes too.
+          if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
         } catch (e) {
-          // no localStorage — still default to dark
-          document.documentElement.classList.add('dark');
+          // no localStorage — leave the light default in place
         }
       })();
     </script>

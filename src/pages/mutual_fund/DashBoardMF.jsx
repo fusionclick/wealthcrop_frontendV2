@@ -86,28 +86,53 @@ const DashBoardMF = () => {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-            <div className="bg-white dark:bg-[var(--white-10)] p-4 rounded-xl border shadow-sm dark:border-[var(--border-color)]">
-              <p className="text-[11px] text-slate-500">Current Value</p>
-              <p className="text-lg font-semibold">₹{currentValue.toLocaleString()}</p>
+          {/* Kotak Neo ka portfolio header: chaar alag boxes nahi — ek card jisme
+              current value sabse bari, uske saamne total P&L, aur neeche hairline
+              ke paar Invested / Returns / XIRR ki ek qatar. Ek hi baseline par
+              padhne se compare karna aasaan hota hai. */}
+          <div className="bg-white dark:bg-[var(--card-bg)] rounded-lg border border-slate-200 dark:border-[var(--border-color)] p-5 mb-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-[var(--text-secondary)]">
+                  Current value
+                </p>
+                <p className="text-3xl font-semibold mt-1 text-slate-900 dark:text-[var(--text-primary)]">
+                  {money(currentValue)}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-[var(--text-secondary)]">
+                  Total P&amp;L
+                </p>
+                <p className={`text-lg font-semibold mt-1 ${totalReturns >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                  {totalReturns >= 0 ? "+" : "−"}{money(Math.abs(totalReturns))}
+                </p>
+                {totalInvested > 0 && (
+                  <p className={`text-xs ${totalReturns >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                    {totalReturns >= 0 ? "+" : "−"}
+                    {Math.abs((totalReturns / totalInvested) * 100).toFixed(2)}%
+                  </p>
+                )}
+              </div>
             </div>
-            <div className="bg-white dark:bg-[var(--white-10)] p-4 rounded-xl border shadow-sm dark:border-[var(--border-color)]">
-              <p className="text-[11px] text-slate-500">Invested</p>
-              <p className="text-lg font-semibold">₹{totalInvested.toLocaleString()}</p>
-            </div>
-            <div className="bg-white dark:bg-[var(--white-10)] p-4 rounded-xl border shadow-sm dark:border-[var(--border-color)]">
-              <p className="text-[11px] text-slate-500">P&amp;L</p>
-              <p className={`text-lg font-semibold ${totalReturns >= 0 ? "text-emerald-600" : "text-red-500"}`}>
-                {totalReturns >= 0 ? "+" : ""}₹{totalReturns.toFixed(0)}
-              </p>
-            </div>
-            <div className="bg-white dark:bg-[var(--white-10)] p-4 rounded-xl border shadow-sm dark:border-[var(--border-color)]">
-              <p className="text-[11px] text-slate-500">Returns (XIRR est.)</p>
-              <p className="text-lg font-semibold">{xirr}%</p>
+
+            <div className="grid grid-cols-3 gap-4 mt-5 pt-4 border-t border-slate-200 dark:border-[var(--border-color)]">
+              <div>
+                <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">Invested</p>
+                <p className="text-sm font-semibold mt-0.5">{money(totalInvested)}</p>
+              </div>
+              <div>
+                <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">Active SIPs</p>
+                <p className="text-sm font-semibold mt-0.5">{activeSipCount}</p>
+              </div>
+              <div>
+                <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">XIRR (est.)</p>
+                <p className="text-sm font-semibold mt-0.5">{xirr}%</p>
+              </div>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-[var(--white-10)] border dark:border-[var(--border-color)] rounded-xl p-4 mb-5">
+          <div className="bg-white dark:bg-[var(--card-bg)] border border-slate-200 dark:border-[var(--border-color)] rounded-lg p-4 mb-5">
             <p className="text-sm font-semibold mb-2">Asset Allocation</p>
             <div className="h-56">
               <ResponsiveContainer>
@@ -136,72 +161,86 @@ const DashBoardMF = () => {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-[var(--white-10)] border dark:border-[var(--border-color)] rounded-xl p-4 mb-5">
-            <p className="text-sm font-semibold mb-2">Active SIPs: {activeSipCount}</p>
-            <div className="flex flex-wrap gap-2">
-              <button onClick={() => navigate("/mutual_fund/manage-sip")} className="bg-blue-600 text-white px-4 py-1.5 rounded-md text-xs">Manage SIPs</button>
-              <button onClick={() => navigate("/mutual_fund/redeem")} className="bg-red-600 text-white px-4 py-1.5 rounded-md text-xs">Redeem</button>
-              <button onClick={() => navigate("/mutual_fund/switch")} className="bg-indigo-600 text-white px-4 py-1.5 rounded-md text-xs">Switch</button>
-            </div>
+          {/* Portfolio-level actions. Count ab summary card me hai, yahan dohrana
+              bekaar tha. */}
+          <div className="flex flex-wrap gap-2 mb-5">
+            <button onClick={() => navigate("/mutual_fund/manage-sip")} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-md text-xs font-medium">Manage SIPs</button>
+            <button onClick={() => navigate("/mutual_fund/redeem")} className="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded-md text-xs font-medium">Redeem</button>
+            <button onClick={() => navigate("/mutual_fund/switch")} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-md text-xs font-medium">Switch</button>
           </div>
 
-          <div className="flex justify-between mb-2">
+          <div className="flex justify-between items-center mb-2">
             <p className="text-sm font-semibold">Your Funds</p>
-            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="text-xs border rounded-md p-1">
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="text-xs border border-slate-200 dark:border-[var(--border-color)] rounded-md p-1">
               <option value="name">Sort by Name</option>
               <option value="amount">Sort by Invested</option>
               <option value="returns">Sort by Returns</option>
             </select>
           </div>
 
-          <div className="space-y-3">
-            {sortedFunds.map((fund, idx) => (
-              <div
-                key={idx}
-                role="button"
-                tabIndex={0}
-                onClick={() => setOpenHolding(fund)}
-                onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setOpenHolding(fund)}
-                className="p-4 rounded-lg border bg-white dark:bg-[var(--white-10)] dark:border-[var(--border-color)] flex justify-between gap-3 cursor-pointer hover:border-slate-300 hover:shadow-sm transition"
-              >
-                <div>
-                  <p className="font-medium text-sm">{fund.scheme_name}</p>
-                  <p className="text-xs text-gray-500">{fund.scheme_category || "—"}</p>
-                  <p className="text-[11px] text-blue-600 mt-1">Tap for details</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold text-sm">₹{Number(fund.inv_amo || 0).toLocaleString()}</p>
-                  <p className={`text-xs ${Number(fund.ret_percentage) >= 0 ? "text-emerald-600" : "text-red-500"}`}>
-                    {fund.ret_percentage != null ? `${fund.ret_percentage}%` : "—"}
-                  </p>
-                  {/* Mutual fund par sirf do actions hote hain — Invest more aur Redeem. */}
-                  <div className="mt-2 flex justify-end gap-2">
-                    <button
-                      type="button"
-                      className="text-xs px-3 py-1 rounded-md bg-emerald-600 text-white"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(fundBuyPath(fund.scheme_isin, fund.scheme_bse_code));
-                      }}
-                    >
-                      Invest more
-                    </button>
-                    <button
-                      type="button"
-                      className="text-xs px-3 py-1 rounded-md bg-red-600 text-white"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate("/mutual_fund/redeem", {
-                          state: { scheme_bse_code: fund.scheme_bse_code, code: fund.scheme_bse_code },
-                        });
-                      }}
-                    >
-                      Redeem
-                    </button>
+          {/* Neo ka holdings list: har holding ek card nahi, ek row. Value dayen
+              taraf ek hi axis par, P&L uske neeche — poori list ek nazar me scan
+              hoti hai. Invest more / Redeem row ke andar hi rehte hain. */}
+          <div className="rounded-lg border border-slate-200 dark:border-[var(--border-color)] bg-white dark:bg-[var(--card-bg)] divide-y divide-slate-200 dark:divide-[var(--border-color)] overflow-hidden">
+            {sortedFunds.map((fund, idx) => {
+              const pct = Number(fund.ret_percentage);
+              const up = !Number.isNaN(pct) && pct >= 0;
+              return (
+                <div
+                  key={idx}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setOpenHolding(fund)}
+                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setOpenHolding(fund)}
+                  className="px-4 py-3 flex items-start justify-between gap-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-[var(--white-5)] transition"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-sm leading-snug line-clamp-2 text-slate-900 dark:text-[var(--text-primary)]">
+                      {fund.scheme_name}
+                    </p>
+                    <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mt-0.5">
+                      {fund.scheme_category || "—"}
+                    </p>
+                    {/* Mutual fund par sirf do actions hote hain — Invest more aur Redeem. */}
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        type="button"
+                        className="text-[11px] px-3 py-1 rounded-md border border-emerald-600 text-emerald-700 dark:text-emerald-400 font-medium hover:bg-emerald-50 dark:hover:bg-emerald-500/10"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(fundBuyPath(fund.scheme_isin, fund.scheme_bse_code));
+                        }}
+                      >
+                        Invest more
+                      </button>
+                      <button
+                        type="button"
+                        className="text-[11px] px-3 py-1 rounded-md border border-red-600 text-red-600 dark:text-red-400 font-medium hover:bg-red-50 dark:hover:bg-red-500/10"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate("/mutual_fund/redeem", {
+                            state: { scheme_bse_code: fund.scheme_bse_code, code: fund.scheme_bse_code },
+                          });
+                        }}
+                      >
+                        Redeem
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <p className="font-semibold text-sm text-slate-900 dark:text-[var(--text-primary)]">
+                      {money(fund.inv_amo)}
+                    </p>
+                    <p className={`text-xs mt-0.5 ${up ? "text-emerald-600" : "text-red-500"}`}>
+                      {fund.ret_percentage != null && !Number.isNaN(pct)
+                        ? `${up ? "+" : ""}${pct}%`
+                        : "—"}
+                    </p>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <HoldingSheet

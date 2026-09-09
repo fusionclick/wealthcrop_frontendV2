@@ -59,33 +59,33 @@ html, body {
      Values are kept in sync here so both agree; the design layer is the source
      of truth. Do not add a token here without adding it there. */
   .dark {
-    /* DARK THEME — Kotak-Neo flat */
-    --app-bg: #0B0C0E;
-    --card-bg: #15171C;
-    --border-color: #23262E;
-    --gray-800: #1C1F26;
-    --gray-900: #15171C;
-    --white-5: rgba(255, 255, 255, 0.04);
-    --white-10: rgba(255, 255, 255, 0.08);
-    --text-primary: #F2F4F7;
-    --text-secondary: #8A9199;
-    --vol-up: rgba(0, 179, 134, 0.40);
-    --vol-down: rgba(255, 91, 91, 0.40);
+    /* DARK THEME — original slate palette */
+    --app-bg: #020617;
+    --card-bg: #020617;
+    --border-color: rgba(255, 255, 255, 0.10);
+    --gray-800: #1f2937;
+    --gray-900: #020617;
+    --white-5: rgba(255, 255, 255, 0.05);
+    --white-10: rgba(255, 255, 255, 0.10);
+    --text-primary: #ffffff;
+    --text-secondary: #94a3b8;
+    --vol-up: rgba(16, 185, 129, 0.55);
+    --vol-down: rgba(239, 68, 68, 0.55);
 
-    --chart-up: #00B386;
-    --chart-down: #FF5B5B;
-    --chart-line: #ED1C24;
+    --chart-up: #22c55e;
+    --chart-down: #ef4444;
+    --chart-line: #38bdf8;
   }
 }
 
 select option {
   background-color: #ffffff;
-  color: #101317;
+  color: #000000;
 }
 
 .dark select option {
-  background-color: #15171C; /* Neo card */
-  color: #F2F4F7;            /* light text */
+  background-color: #0f172a; /* dark slate */
+  color: #e5e7eb;            /* light text */
 }
 
 
@@ -254,49 +254,53 @@ select option {
 } 
 
 /* =========================================================================
-   Kotak-Neo surface language — poori app, ek file se
+   Kotak-Neo LAYOUT language on the app's ORIGINAL palette — poori app, ek file se
    ponytail: har component me class lagane ke bajaye app ke surface utilities
    (bg-white / bg-gray-50 / bg-blue-950 ...) ko flat bana diya. ~190 files ke
    diff ki jagah ek block.
 
    Before: translucent frosted cards (backdrop-blur 18px + sheen gradient +
    soft blue drop-shadow) floating on a fixed 3-blob blue radial wallpaper.
-   After:  opaque flat surfaces on a near-black (dark) / white (light) page,
-   separated by 1px hairlines instead of shadows, 8px radii, red accent.
+   After:  Neo ka LAYOUT — opaque flat surfaces, 1px hairlines (shadows nahi),
+   8px radii, dense rows, tabular figures.
+
+   COLOUR: yahan Neo ka red/near-black NAHI hai. Palette wahi purani hai —
+   light #eef3fb page par safed cards, dark #020617 slate, primary blue,
+   green/red market semantics. Layout badla hai, rang nahi.
 
    Ceiling: `bg-white` ke saare instances ek jaisa treat hote hain. Kisi surface
    ko is layer se bahar rakhna ho to us element par `no-glass` laga do.
    ========================================================================= */
 
 :root {
-  /* ---- semantic surface/text (light) ---- */
-  --app-bg: #FFFFFF;
-  --card-bg: #FFFFFF;
-  --border-color: #E3E6EB;
-  --text-primary: #101317;
-  --text-secondary: #6B7280;
+  /* ---- semantic surface/text (light) — original palette ---- */
+  --app-bg: #eef3fb;
+  --card-bg: #ffffff;
+  --border-color: #e5e7eb;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
 
-  --white-5: #F5F6F8;
-  --white-10: #EDEFF3;
-  --gray-700: #E3E6EB;
-  --gray-800: #F5F6F8;
-  --gray-900: #FFFFFF;
-  --soft-bg: #F5F6F8;
+  --white-5: #f6f8fc;
+  --white-10: #eef3fb;
+  --gray-700: #e5e7eb;
+  --gray-800: #f1f5f9;
+  --gray-900: #ffffff;
+  --soft-bg: #f6f8fc;
 
-  /* ---- market semantics (never brand-red) ---- */
-  --chart-up: #00B386;
-  --chart-down: #FF5B5B;
-  --chart-line: #ED1C24;
-  --vol-up: rgba(0, 179, 134, 0.40);
-  --vol-down: rgba(255, 91, 91, 0.40);
+  /* ---- market semantics ---- */
+  --chart-up: #22c55e;
+  --chart-down: #ef4444;
+  --chart-line: #38bdf8;
+  --vol-up: rgba(16, 185, 129, 0.55);
+  --vol-down: rgba(239, 68, 68, 0.55);
 
-  /* ---- Kotak accent ---- */
-  --accent: #ED1C24;
-  --accent-strong: #C8151C;
-  --accent-fg: #FFFFFF;
-  --accent-soft: rgba(237, 28, 36, 0.10);
+  /* ---- accent = the app's own blue (focus rings, active states) ---- */
+  --accent: #2563eb;
+  --accent-strong: #1d4ed8;
+  --accent-fg: #ffffff;
+  --accent-soft: rgba(37, 99, 235, 0.10);
 
-  /* ---- flatness knobs ---- */
+  /* ---- flatness knobs (layout, not colour) ---- */
   --radius-card: 8px;
   --radius-input: 6px;
   --app-header-h: 5.5rem;
@@ -304,38 +308,42 @@ select option {
   /* ---- legacy `--glass-*` names, flat values ----
      Names kept: 135+ components + this file reference them. "glass" ab
      literal nahi hai — inhe surface tokens ki tarah padho. */
-  --glass-bg: #F5F6F8;         /* recessed surface (inputs) */
-  --glass-bg-strong: #FFFFFF;  /* primary card */
-  --glass-bg-soft: #F5F6F8;    /* nested / subtle surface */
-  --glass-border: #E3E6EB;     /* hairline */
+  --glass-bg: #f6f8fc;         /* recessed surface (inputs) */
+  --glass-bg-strong: #ffffff;  /* primary card */
+  --glass-bg-soft: #f6f8fc;    /* nested / subtle surface */
+  --glass-border: #e5e7eb;     /* hairline */
   --glass-blur: none;          /* flat: no backdrop-filter anywhere */
   --glass-ring: none;          /* hairline ab outline se aata hai, shadow se nahi */
   --glass-sheen: none;         /* no gloss gradient */
   /* Shadows sirf true overlays (modal/dropdown) par, aur halke. */
-  --glass-shadow: 0 6px 16px -6px rgba(16, 19, 23, 0.14),
-                  0 1px 2px rgba(16, 19, 23, 0.06);
+  --glass-shadow: 0 6px 16px -6px rgba(15, 23, 42, 0.14),
+                  0 1px 2px rgba(15, 23, 42, 0.06);
 }
 
 .dark {
-  --app-bg: #0B0C0E;
-  --card-bg: #15171C;
-  --border-color: #23262E;
-  --text-primary: #F2F4F7;
-  --text-secondary: #8A9199;
+  --app-bg: #020617;
+  --card-bg: #020617;
+  --border-color: rgba(255, 255, 255, 0.10);
+  --text-primary: #ffffff;
+  --text-secondary: #94a3b8;
 
-  --white-5: rgba(255, 255, 255, 0.04);
-  --white-10: rgba(255, 255, 255, 0.08);
-  --gray-700: #2B2F38;
-  --gray-800: #1C1F26;
-  --gray-900: #15171C;
-  --soft-bg: #1C1F26;
+  --white-5: rgba(255, 255, 255, 0.05);
+  --white-10: rgba(255, 255, 255, 0.10);
+  --gray-700: #334155;
+  --gray-800: #1f2937;
+  --gray-900: #020617;
+  --soft-bg: #0f172a;
 
-  --accent-soft: rgba(237, 28, 36, 0.16);
+  --accent: #3b82f6;
+  --accent-strong: #2563eb;
+  --accent-soft: rgba(59, 130, 246, 0.16);
 
-  --glass-bg: #1C1F26;
-  --glass-bg-strong: #15171C;
-  --glass-bg-soft: #1C1F26;
-  --glass-border: #23262E;
+  /* Card aur page ka bg ek hi hai (dono #020617) — Neo ki tarah cards ko
+     hairline alag karti hai, shadow nahi. Nested surface ek step raised. */
+  --glass-bg: #0f172a;
+  --glass-bg-strong: #020617;
+  --glass-bg-soft: #0f172a;
+  --glass-border: rgba(255, 255, 255, 0.10);
   --glass-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.65),
                   0 1px 2px rgba(0, 0, 0, 0.40);
 }
@@ -424,10 +432,10 @@ html.dark, .dark body {
   -webkit-backdrop-filter: none;
 }
 :where([class~="bg-blue-950"], [class~="bg-slate-900"]):not(.no-glass):not(button):not(a) {
-  background-color: #15171C;
+  background-color: #0f172a;
   background-image: none;
   box-shadow: none;
-  outline: 1px solid #23262E;
+  outline: 1px solid rgba(255, 255, 255, 0.10);
   outline-offset: -1px;
 }
 
@@ -452,29 +460,11 @@ html.dark, .dark body {
   border-radius: var(--radius-card);
 }
 
-/* Primary actions + active states: blue fills → Kotak red.
-   bg-blue-950 jaan-boojh kar bahar hai — wo dark panel hai, action nahi. */
-:where(
-  [class~="bg-blue-500"], [class~="bg-blue-600"], [class~="bg-blue-700"],
-  [class~="bg-blue-800"], [class~="bg-blue-900"], [class~="bg-indigo-600"]
-):not(.no-glass) {
-  background-color: var(--accent);
-  color: var(--accent-fg);
-  border-color: var(--accent);
-}
-:where(
-  [class~="hover:bg-blue-500"], [class~="hover:bg-blue-600"], [class~="hover:bg-blue-700"],
-  [class~="hover:bg-blue-800"], [class~="hover:bg-blue-900"]
-):not(.no-glass):hover {
-  background-color: var(--accent-strong);
-}
-/* Blue tints (selected rows, soft badges) → red tint */
-:where([class~="bg-blue-50"], [class~="bg-blue-100"], [class~="bg-blue-200"]):not(.no-glass) {
-  background-color: var(--accent-soft);
-}
+/* NOTE: yahan pehle blue fills ko Kotak red par remap karne wala block tha.
+   Hata diya — client ne layout Neo jaisa maanga, rang purana. Ab `bg-blue-600`
+   apna hi blue rehta hai; koi component-level class badalne ki zaroorat nahi. */
 
-/* Inputs / selects: flat recessed field, red focus ring (a11y: focus stays
-   clearly visible, ab colour brand ka hai). */
+/* Inputs / selects: flat recessed field, blue focus ring (a11y: focus visible). */
 :where(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not(.no-glass) {
   background-color: var(--glass-bg);
   background-image: none;
@@ -500,8 +490,8 @@ html.dark, .dark body {
 /* Accessibility: surfaces ab bhi opaque hain (kuch translucent bacha hi nahi),
    par --white-5/--white-10 tints ko bhi solid kar do. */
 @media (prefers-reduced-transparency: reduce) {
-  :root { --white-5: #F5F6F8; --white-10: #EDEFF3; }
-  .dark { --white-5: #1C1F26; --white-10: #23262E; }
+  :root { --white-5: #f6f8fc; --white-10: #eef3fb; }
+  .dark { --white-5: #0f172a; --white-10: #1e293b; }
   :where([class~="bg-white"], [class~="bg-gray-50"], [class~="bg-gray-100"], input, select, textarea) {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;

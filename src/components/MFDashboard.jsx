@@ -172,38 +172,21 @@ const MFDashboard = () => {
                {/* Tabs + Search */}
            <div className="lg:hidden block">  
            <MobileSearchBox/>
-<div className="bg-slate-100 dark:bg-[#111827] p-2 rounded-xl ">
-  <nav className="flex gap-2 items-center overflow-x-auto scrollbar-hide ">
+{/* Neo ke mobile tabs flat pills hain — gradient, ring aur drop-shadow hata diye.
+    Active = solid blue fill, baaki sirf text. Rang wahi purana blue. */}
+<div className="bg-slate-100 dark:bg-[var(--white-5)] p-1 rounded-lg">
+  <nav className="flex gap-1 items-center overflow-x-auto scrollbar-hide">
     {topTabs.map((tab) => (
       <NavLink
         key={tab.name}
         to={tab.link}
         end
         className={({ isActive }) =>
-          `
-          px-5 py-2 rounded-lg text-sm font-semibold
-          transition-all duration-300 whitespace-nowrap
-
-          ${
+          `px-4 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
             isActive
-              ? `
-                bg-gradient-to-r from-blue-500 to-blue-500
-                text-white
-                shadow-lg shadow-blue-600/30
-                ring-1 ring-blue-400/40
-                dark:from-blue-500 dark:to-indigo-500
-              `
-              : `
-                text-slate-600
-                hover:bg-red-50 hover:text-red-600
-                hover:ring-1 hover:ring-red-400/30
-
-                dark:text-slate-300
-                dark:hover:bg-red-500/10
-                dark:hover:text-red-400
-              `
-          }
-          `
+              ? "bg-blue-600 text-white"
+              : "text-slate-600 hover:text-blue-700 dark:text-slate-300 dark:hover:text-white"
+          }`
         }
       >
         {tab.name}
