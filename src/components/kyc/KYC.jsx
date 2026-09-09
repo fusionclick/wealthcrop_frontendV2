@@ -678,6 +678,19 @@ const retryUcc = async () => {
           }
 
   // Laravel stores the UCC, asks BSE for the verdict and answers { kyc_status, bse }.
+  /**
+   * "Could not reach BSE" means we learned nothing, so it must never replace something we
+   * already learned.
+   *
+   * This is what made the screen flip: add_ucc came back verified and rendered as such,
+   * then sendUcc (the Laravel storage call) and the automatic bse-status check each wrote
+   * BSE_UNREACHABLE over it — the investor watched "KYC verified" turn back into "awaiting
+   * BSE verification" a second later. A real verdict from BSE still overwrites freely;
+   * only the no-information cases are guarded.
+   */
+  const keepVerified = (fallback) =>
+    setBseVerdict((prev) => (isKycVerified(prev?.kyc_status) ? prev : fallback));
+
   const sendUcc = async (ucc, dp_id, client_id) => {
   const url= `${import.meta.env.VITE_URL}/kyc/ucc_add`
   setCheckingBse(true);
@@ -694,15 +707,20 @@ const retryUcc = async () => {
     if(res?.status === 200 || res?.status === true){
       pendingUcc.current = null; // Laravel ke paas UCC hai — ab bse-status kaafi hai
       toastSuccess(res?.message)
-      setBseVerdict(verdictFrom(res));
+      // This is the storage call, not a verdict source. It runs immediately after add_ucc
+      // set a verified verdict, so an unguarded write here is what the investor saw as
+      // "KYC verified" turning back into "awaiting BSE verification" a moment later.
+      const next = verdictFrom(res);
+      if (next.error) keepVerified(next);
+      else setBseVerdict(next);
     } else {
-      setBseVerdict(BSE_UNREACHABLE);
+      keepVerified(BSE_UNREACHABLE);
     }
     return res;
 
   } catch (error) {
     console.log(error?.message);
-    setBseVerdict(BSE_UNREACHABLE);
+    keepVerified(BSE_UNREACHABLE);
 
   } finally {
     setCheckingBse(false);
@@ -740,10 +758,14 @@ const checkBseStatus = async () => {
     const res = await getApiWithToken(`${import.meta.env.VITE_URL}/kyc/bse-status`);
     const body = res?.data;
     if (!(body?.status === 200 || body?.status === true)) {
-      setBseVerdict(BSE_UNREACHABLE);
+      keepVerified(BSE_UNREACHABLE);
       return;
     }
-    setBseVerdict(verdictFrom(body));
+    // `bse: null` in the body means Laravel could not reach BSE, so verdictFrom() carries
+    // no new information either — only its `error`. Guard both the same way.
+    const next = verdictFrom(body);
+    if (next.error) keepVerified(next);
+    else setBseVerdict(next);
     if (isKycVerified(body.kyc_status)) {
       toastSuccess("KYC verified by BSE. Please sign in to continue.");
       finishKyc();
@@ -756,13 +778,16 @@ const checkBseStatus = async () => {
 // Existing UCC on the Review step: ask BSE once on load; the button repeats it.
 useEffect(() => {
   if (step !== 4 || !userData?.kyc?.ucc_code || bseChecked.current) return;
+  // add_ucc already came back verified — there is nothing to ask, and asking is exactly
+  // what used to undo it.
+  if (isKycVerified(bseVerdict?.kyc_status)) return;
   bseChecked.current = true;
   if (isKycVerified(userData.kyc.kyc_status)) {
     setBseVerdict(VERIFIED_VERDICT);
     return;
   }
   checkBseStatus();
-}, [step, userData]);
+}, [step, userData, bseVerdict]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#020617] flex flex-col items-center px-4 py-4">

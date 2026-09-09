@@ -121,3 +121,21 @@ test("the typed legal name actually reaches the server", () => {
   assert.match(kyc, /\/\^\[A-Za-z\]\[A-Za-z \.'\]\*\$\/\.test\(holderName\)/);
   assert.match(kyc, /"person\.first_name"/, "the guard names the field the UI routes on");
 });
+
+test("a failed status check never downgrades a verdict we already have", () => {
+  // Reported live: the screen showed "KYC verified", then flipped to "awaiting BSE
+  // verification". add_ucc returned verified and rendered; the automatic bse-status check
+  // then ran, Laravel's sync failed, and BSE_UNREACHABLE overwrote the good verdict.
+  // "Could not reach BSE" means we learned nothing — it must never replace what we learned.
+  assert.match(kyc, /const keepVerified = \(fallback\) =>\s*\n?\s*setBseVerdict\(\(prev\) => \(isKycVerified\(prev\?\.kyc_status\) \? prev : fallback\)\)/);
+  // Three write sites had to be guarded, not one: sendUcc's non-200 branch, its catch, and
+  // the automatic bse-status check. sendUcc runs immediately after add_ucc sets the
+  // verified verdict, so it was the one the investor actually saw undo it.
+  assert.equal((kyc.match(/keepVerified\(BSE_UNREACHABLE\)/g) || []).length, 3);
+  assert.doesNotMatch(kyc, /setBseVerdict\(BSE_UNREACHABLE\)/, "no unguarded overwrite may come back");
+  assert.equal((kyc.match(/if \(next\.error\) keepVerified\(next\)/g) || []).length, 2, "sendUcc and the check");
+  // Laravel answering 200 with `bse: null` is the same "learned nothing" case.
+  assert.match(kyc, /if \(next\.error\) keepVerified\(next\);\s*\n?\s*else setBseVerdict\(next\)/);
+  // And once verified there is nothing to ask, so the automatic check does not even run.
+  assert.match(kyc, /if \(isKycVerified\(bseVerdict\?\.kyc_status\)\) return;/);
+});
