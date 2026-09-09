@@ -70,6 +70,11 @@ export const holdingMatchesScheme = (h, { isin, code, schemeBse }) => {
 export const fundBuyPath = (isin, code) =>
   isin || code ? `${fundPath(isin, code)}/buy` : MF_EXPLORE_PATH;
 
+// Same rules as /buy: the scheme lives in the URL so a refresh or a shared link still
+// knows which fund the SIP is for. With neither identifier there is no SIP to set up.
+export const fundSipPath = (isin, code) =>
+  isin || code ? `${fundPath(isin, code)}/sip` : MF_EXPLORE_PATH;
+
 const RISK_RANK = { conservative: 1, moderate: 2, aggressive: 3 };
 const FUND_RISK_RANK = (fundRisk = "") => {
   const r = fundRisk.toLowerCase();

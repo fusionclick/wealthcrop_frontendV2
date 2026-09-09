@@ -437,6 +437,12 @@ useEffect(() => {
 
               <Route path="/mutual_fund/manage-sip" element={<ManageSipPage />} />
               <Route path="/mutual_fund/sip-setup" element={<SIPSetupPage />} />
+              {/* Same page, but the scheme is in the URL — survives a refresh and can be
+                  linked. The bare /sip-setup route above only works while router state
+                  lives, which is why a reload used to drop the fund and post an empty
+                  src_scheme to BSE. Declared before /:isin/:code so the literal segments
+                  above cannot be swallowed by the dynamic pair. */}
+              <Route path="/mutual_fund/:isin/:code/sip" element={<SIPSetupPage />} />
               <Route path="/mutual_fund/redeem" element={<RedeemMF />} />
               <Route path="/mutual_fund/switch" element={<SwitchMF />} />
               <Route

@@ -13,7 +13,7 @@ import { postApi, postApiWithToken } from "../../api/api";
 import { useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
 import FundDetailsPageSkeleton from "../../components/ui/skeleton/main/FundDetailsPageSkeleton";
-import { holdingMatchesScheme, isMfSaved, nodeUrl, toggleMfWatchlist } from "../../utils/nodeApi";
+import { fundSipPath, holdingMatchesScheme, isMfSaved, nodeUrl, toggleMfWatchlist } from "../../utils/nodeApi";
 import { toastSuccess } from "../../utils/notifyCustom";
 
 const fmtPct = (v) => (v == null || Number.isNaN(Number(v)) ? "—" : `${Number(v).toFixed(2)}%`);
@@ -385,18 +385,17 @@ const [activeInfo, setActiveInfo] = useState(null);
           scheme accepts a SIP. */}
       {fundsList?.sip_allowed === true && (
         <button
-          onClick={() =>
-            navigate("/mutual_fund/sip-setup", {
-              state: {
-                fund: {
-                  name: fundsList?.name,
-                  scheme_bse_code: fundsList?.scheme_bse_code || code,
-                  scheme_isin: fundsList?.scheme_isin || isin,
-                  minSip: fundsList?.minSip,
-                },
+          onClick={() => navigate(fundSipPath(fundsList?.scheme_isin || isin, fundsList?.scheme_bse_code || code), {
+            state: {
+              fund: {
+                name: fundsList?.name,
+                scheme_bse_code: fundsList?.scheme_bse_code || code,
+                scheme_isin: fundsList?.scheme_isin || isin,
+                minSip: fundsList?.minSip,
+                nav: fundsList?.nav,
               },
-            })
-          }
+            },
+          })}
           className="
             px-5 py-2 rounded-xl
             border border-emerald-600 text-emerald-700 dark:text-emerald-400
@@ -690,6 +689,31 @@ const [activeInfo, setActiveInfo] = useState(null);
                     ₹{sipFV.toLocaleString()} ({sipGainPct.toFixed(2)}%)
                   </span>
                 </p>
+
+                {/* The investor has just chosen an amount and a duration here; carrying
+                    both into the setup form beats making them type it again. */}
+                {fundsList?.sip_allowed === true && (
+                  <button
+                    onClick={() =>
+                      navigate(fundSipPath(fundsList?.scheme_isin || isin, fundsList?.scheme_bse_code || code), {
+                        state: {
+                          fund: {
+                            name: fundsList?.name,
+                            scheme_bse_code: fundsList?.scheme_bse_code || code,
+                            scheme_isin: fundsList?.scheme_isin || isin,
+                            minSip: fundsList?.minSip,
+                            nav: fundsList?.nav,
+                          },
+                          amount: sipAmt,
+                          years: duration,
+                        },
+                      })
+                    }
+                    className="mt-4 w-full py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+                  >
+                    Start this SIP
+                  </button>
+                )}
               </div>
             </div>
           )}

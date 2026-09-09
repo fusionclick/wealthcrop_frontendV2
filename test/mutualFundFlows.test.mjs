@@ -128,3 +128,38 @@ test("portfolio pies aggregate real holdings, not fixtures", () => {
     assert.doesNotMatch(src, /allocation = \[\s*\{/, `${file}: no hardcoded allocation`);
   }
 });
+
+test("a SIP can be set up for a specific fund, and survives a refresh", async () => {
+  const { fundSipPath, MF_EXPLORE_PATH } = await import("../src/utils/nodeApi.js");
+  const app = fs.readFileSync("src/App.jsx", "utf8");
+  const fd = fs.readFileSync("src/pages/mutual_fund/FundDetails.jsx", "utf8");
+  const sip = fs.readFileSync("src/pages/mutual_fund/SIPSetupPage.jsx", "utf8");
+
+  // The scheme must be in the URL. Router state alone dies on reload, which is why the
+  // page previously lost the fund and posted an empty src_scheme to BSE.
+  assert.match(app, /path="\/mutual_fund\/:isin\/:code\/sip"/);
+  const sipRoute = new RegExp(`^${"/mutual_fund/:isin/:code/sip".replace(/:[^/]+/g, "[^/]+")}$`);
+  assert.match(fundSipPath("INF200K01214", "007G"), sipRoute);
+  assert.match(fundSipPath("", "007G"), sipRoute, "code only still resolves");
+  assert.match(fundSipPath("INF200K01214", ""), sipRoute, "ISIN only still resolves");
+  assert.equal(fundSipPath("", ""), MF_EXPLORE_PATH, "no fund, nowhere to set up a SIP");
+
+  // Two entry points on the fund page, both gated on BSE saying the scheme takes a SIP.
+  assert.equal((fd.match(/fundSipPath\(/g) || []).length, 2, "Start SIP button + calculator");
+  assert.equal((fd.match(/fundsList\?\.sip_allowed === true/g) || []).length, 2);
+  assert.match(fd, /Start SIP/);
+  assert.match(fd, /Start this SIP/);
+
+  // The page falls back to fetching the scheme when it was not handed one.
+  assert.match(sip, /const \{ isin, code \} = useParams\(\)/);
+  assert.match(sip, /scheme_code: code/);
+  // And it cannot submit an amount below the fund's own minimum.
+  assert.match(sip, /Number\(amount\) < minSip/);
+  assert.match(sip, /!installments/);
+  // Intent only — the BSE payload is the server's job now. Match assignments, not the
+  // word: the comment explaining the old bug legitimately mentions src_scheme.
+  assert.doesNotMatch(sip, /member:\s*"91010"/);
+  assert.doesNotMatch(sip, /src_scheme:/);
+  assert.doesNotMatch(sip, /investor:\s*\{\s*ucc/);
+  assert.match(sip, /scheme: fund\.scheme_bse_code/);
+});
