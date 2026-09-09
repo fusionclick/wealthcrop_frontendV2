@@ -57,11 +57,36 @@ test("the review step never ends on a spinner", () => {
   // "Your KYC is being submitted" used to spin forever when add_ucc failed: the catch only
   // fired a toast and isUccCreated stayed false.
   assert.match(kyc, /setUccError\(/, "the failure is captured, not just toasted");
-  // the catch clears the loading state too, not only the success path
-  assert.equal((kyc.match(/setIsUccCreated\(true\)/g) || []).length, 3, "success, catch, and the resume path");
+  // Was 3 — success, catch, resume. The 4th is the `stop()` helper, which now covers the
+  // pre-flight guards (short address, malformed pincode, missing bank account). Those
+  // three used to `return` after a toast alone, so the spinner ran forever with no error
+  // shown and no way out. Raising the count records a new cleared path, not a weaker test.
+  assert.equal((kyc.match(/setIsUccCreated\(true\)/g) || []).length, 4, "success, catch, resume, and the pre-flight guards");
+  assert.match(kyc, /const stop = \(field, message, fix\) =>/, "guards fail like a BSE rejection");
   assert.match(kyc, /We could not submit your KYC/);
   assert.match(kyc, /Try again/);
   assert.match(kyc, /uccRequested\.current = false;/, "retry re-arms the one-shot guard");
+});
+
+test("a rejected field can actually be corrected", () => {
+  // The live dead end: BSE rejected the pincode, and the only buttons were "Try again",
+  // which resends identical data and fails identically, and "Continue to sign in". So KYC
+  // could never complete and no mutual fund could be bought.
+  assert.match(kyc, /const FIELD_STEP = \[/, "fields map to the step that owns them");
+  assert.match(kyc, /\[\/\^\(address\|profile\|personal\)\\b\/i, 0/);
+  assert.match(kyc, /Edit \{target\[2\]\.toLowerCase\(\)\}/, "primary action goes back to that step");
+  assert.match(kyc, /onEdit=\{\(target\) =>/);
+
+  // BSE names the same problem once per address block; showing it twice is noise.
+  assert.match(kyc, /const seen = new Set\(\)/);
+  assert.match(kyc, /if \(seen\.has\(key\)\) return false/);
+  // Its own fix hint is shown rather than dropped.
+  assert.match(kyc, /\{e\.fix &&/);
+
+  // The reason a correction would otherwise appear to do nothing: userData was fetched
+  // once and never refreshed, so the UCC payload kept reading the OLD pincode.
+  assert.match(kyc, /await refetch\(\);/, "fresh profile after each step submit");
+  assert.equal((kyc.match(/await refetch\(\);/g) || []).length, 2, "step submit and retry");
 });
 
 test("BSE's answer from add_ucc is shown immediately", () => {

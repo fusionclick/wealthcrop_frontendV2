@@ -49,6 +49,10 @@ const bseChecked = useRef(false);
 const pendingUcc = useRef(null);
 // add_ucc fail ho jaye to page ko hamesha ke liye spinner par mat chhodo
 const [uccError, setUccError] = useState("");
+// BSE ki field-level errors ({field, message, fix}). Pehle sirf message join kar ke
+// dikhaya jata tha aur "Try again" wahi data dobara bhejta tha — yaani pincode jaisi
+// galti se nikalne ka koi rasta hi nahi tha. Field rakhne se us step par wapas ja sakte hain.
+const [uccErrors, setUccErrors] = useState([]);
 const [retryTick, setRetryTick] = useState(0);
 
 const navigate = useNavigate()
@@ -182,12 +186,19 @@ const handlePrimaryAction = async () => {
 
     //  check API success properly
     if (res?.status === true || res?.status === 200) {
-      
+
       //  mark step success (green)
       setCompletedSteps((prev) => ({
         ...prev,
         [step]: true,
       }));
+
+      // `refetch` was destructured from the query and never called, so `userData` kept the
+      // values loaded when the page opened. The UCC payload reads its address, PAN and
+      // bank details from there — meaning a corrected pincode was saved to the profile and
+      // then the OLD one was sent to BSE anyway, and the same rejection came back. Pull the
+      // fresh record before moving on.
+      await refetch();
 
       //  move to next step
       if (step < 4) {
@@ -421,16 +432,36 @@ useEffect(() => {
       const addressLine1 = userData?.profile?.address_line1 || "";
       const pincode = userData?.profile?.pincode || "";
 
+      // These two used to `return` after a toast alone, leaving isUccCreated false — so the
+      // review step span its "submitting" spinner forever with no error and no way out.
+      // Fail the same way a BSE rejection does, so the Edit button appears.
+      const stop = (field, message, fix) => {
+        setUccErrors([{ field, message, fix }]);
+        setUccError(message);
+        toastError(message);
+        setIsUccCreated(true);
+        uccRequested.current = false;
+      };
+
       // T1.5 — Validate address line1 minimum 8 chars before hitting BSE
       if (addressLine1.trim().length < 8) {
-        toastError("Address line 1 must be at least 8 characters. Please update your profile.");
+        stop(
+          "address.line1",
+          "Address line 1 must be at least 8 characters.",
+          'Enter a more detailed address (e.g. "Flat 12, Green Park Society")'
+        );
         return;
       }
 
-      // T1.6 — Validate pincode is a valid 6-digit India postal code
+      // T1.6 — Shape only. Whether the pincode actually exists is BSE's call (msgid 560),
+      // and it checks against the real postal database — this cannot.
       const PINCODE_REGEX = /^[1-9][0-9]{5}$/;
       if (!PINCODE_REGEX.test(pincode)) {
-        toastError("Invalid pincode. Please enter a valid 6-digit India pincode.");
+        stop(
+          "address.pincode",
+          "Enter a valid 6-digit India pincode.",
+          "Six digits, not starting with 0 (e.g. 700091)"
+        );
         return;
       }
 
@@ -440,9 +471,11 @@ useEffect(() => {
       // instead and send them back to the step that fixes it.
       const bankAccount = userData?.bank_accounts?.[0];
       if (!bankAccount?.account_number || !bankAccount?.ifsc_code) {
-        setUccError("Add your bank account before we register your UCC with BSE.");
-        toastError("Your bank account is missing. Complete the Bank step first.");
-        uccRequested.current = false;
+        stop(
+          "bank.account_number",
+          "Add your bank account before we register your UCC with BSE.",
+          "Account number and IFSC are both required"
+        );
         return;
       }
 
@@ -502,16 +535,25 @@ useEffect(() => {
         }
       }
     } catch (error) {
-      const bseErrors = error.response?.data?.errors;
-      if (bseErrors?.length) {
-        bseErrors.forEach(e => toastError(e.message));
+      // BSE reports the same problem once per address block, so the screen used to read
+      // "Invalid pincode …; Invalid pincode …". One line per distinct field.
+      const seen = new Set();
+      const bseErrors = (error.response?.data?.errors || []).filter((e) => {
+        const key = `${e?.field}|${e?.message}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      if (bseErrors.length) {
+        bseErrors.forEach((e) => toastError(e.message));
       } else {
         toastError(error.response?.data?.error || error.message || "UCC registration failed");
       }
       console.error("UCC Error:", error.response?.data || error.message);
       // Spinner sirf tab tak jab tak request chal rahi hai. Fail par error + retry.
+      setUccErrors(bseErrors);
       setUccError(
-        bseErrors?.map((e) => e.message).join("; ") ||
+        bseErrors.map((e) => e.message).join("; ") ||
           error.response?.data?.error ||
           error.message ||
           "Could not register your UCC with BSE."
@@ -523,12 +565,30 @@ useEffect(() => {
   createUCC();
 }, [step, userData, retryTick]);
 
+/**
+ * Which step owns a field BSE complained about, so the investor can go and change it.
+ * Without this the only buttons on a failure were "Try again" — which resends the exact
+ * same data and fails identically — and "Continue to sign in", so a wrong pincode was a
+ * dead end and KYC could never complete.
+ */
+const FIELD_STEP = [
+  [/^(address|profile|personal)\b/i, 0, "Personal details"],
+  [/^bank/i, 1, "Bank details"],
+  [/^(doc|document|proof)/i, 2, "Documents"],
+  [/^nominee/i, 3, "Nominee"],
+];
+const stepForField = (field = "") =>
+  FIELD_STEP.find(([re]) => re.test(String(field))) || [null, 0, "Personal details"];
+
 // "Try again" — UCC banane ki koshish dobara. Ref reset kiye bina effect skip kar deta hai.
-const retryUcc = () => {
+const retryUcc = async () => {
   uccRequested.current = false;
   setUccError("");
+  setUccErrors([]);
   setIsUccCreated(false);
   setBseVerdict(null);
+  // Retrying with the same cached profile would send the same rejected values again.
+  await refetch();
   setRetryTick((n) => n + 1);
 };
 
@@ -764,7 +824,26 @@ useEffect(() => {
               jawab usi waqt state badalta hai — exit beech mein ruk jata tha aur panel
               khali reh jata tha. Ye aakhri screen hai, isay animation par depend nahi karna. */}
           {step === 4 ? (
-            <ReviewStep isUccCreated={isUccCreated} verdict={bseVerdict} checking={checkingBse} onCheck={checkBseStatus} onFinish={finishKyc} error={uccError} onRetry={retryUcc} />
+            <ReviewStep
+              isUccCreated={isUccCreated}
+              verdict={bseVerdict}
+              checking={checkingBse}
+              onCheck={checkBseStatus}
+              onFinish={finishKyc}
+              error={uccError}
+              errors={uccErrors}
+              onRetry={retryUcc}
+              // Send them to the step that owns the field BSE rejected, with the failure
+              // cleared so the form is editable again rather than sitting behind an error.
+              onEdit={(target) => {
+                uccRequested.current = false;
+                setUccError("");
+                setUccErrors([]);
+                setIsUccCreated(false);
+                setStep(target);
+              }}
+              stepForField={stepForField}
+            />
           ) : (
           <AnimatePresence mode="wait">
             <motion.div
@@ -1497,23 +1576,53 @@ function VideoKYCStep({ data, onChange, uploadDocument }) {
   );
 }
 
-function ReviewStep({ isUccCreated, verdict, checking, onCheck, onFinish, error, onRetry }) {
+function ReviewStep({ isUccCreated, verdict, checking, onCheck, onFinish, error, errors = [], onRetry, onEdit, stepForField }) {
   const { heading, detail, verified, canRecheck } = reviewCopy(verdict, checking);
+  // BSE names the field it rejected. Where it does, the primary action is to go and change
+  // it — "Try again" resends identical data, so on a wrong pincode it can only fail again.
+  const fixable = errors.filter((e) => e?.field);
+  const target = fixable.length ? stepForField?.(fixable[0].field) : null;
   return (
     <>
 
           {error ? (
-     <div className="text-center space-y-3 flex items-center flex-col justify-center h-80">
+     <div className="text-center space-y-3 flex items-center flex-col justify-center min-h-80 py-6">
       <div className="bg-red-100 text-red-600 p-4 rounded-full dark:bg-red-500/15 dark:text-red-400">
         <FileText size={28} />
       </div>
       <h2 className="text-lg font-semibold dark:text-white">We could not submit your KYC</h2>
-      <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md" role="alert">{error}</p>
-      <div className="flex gap-2 mt-2">
+
+      {fixable.length ? (
+        <ul className="text-sm max-w-md w-full space-y-2 text-left" role="alert">
+          {fixable.map((e, i) => (
+            <li key={i} className="rounded-lg border border-red-200 dark:border-red-500/25 bg-red-50 dark:bg-red-500/10 px-3 py-2">
+              <p className="text-red-700 dark:text-red-300">{e.message}</p>
+              {e.fix && <p className="text-xs text-red-600/80 dark:text-red-400/80 mt-0.5">{e.fix}</p>}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md" role="alert">{error}</p>
+      )}
+
+      <div className="flex flex-wrap gap-2 mt-2 justify-center">
+        {target && (
+          <button
+            type="button"
+            onClick={() => onEdit?.(target[1])}
+            className="bg-blue-950 dark:bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-900 dark:hover:bg-blue-500 transition"
+          >
+            Edit {target[2].toLowerCase()}
+          </button>
+        )}
         <button
           type="button"
           onClick={onRetry}
-          className="bg-blue-950 dark:bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-900 dark:hover:bg-blue-500 transition"
+          className={`px-5 py-2 rounded-lg text-sm font-medium transition ${
+            target
+              ? "border border-gray-300 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
+              : "bg-blue-950 dark:bg-blue-600 text-white hover:bg-blue-900 dark:hover:bg-blue-500"
+          }`}
         >
           Try again
         </button>
