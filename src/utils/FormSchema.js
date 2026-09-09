@@ -83,7 +83,15 @@ export const forgotPasswordSchema = z.object({
 export const kycStepSchemas = {
   // 0 — Personal
   0: z.object({
-    name: z.string().trim().min(2, "Full name is required"),
+    // BSE registers this as the holder name and accepts only letters, spaces, "." and
+    // "'" — errcode alpha_special otherwise. Catch it here rather than at the very last
+    // step, where the only way back used to be starting over.
+    name: z
+      .string()
+      .trim()
+      .min(2, "Full name is required")
+      .max(70, "Full name is too long")
+      .regex(/^[A-Za-z][A-Za-z .']*$/, "Use letters only — no digits or symbols, as printed on your PAN"),
     pan: z.string().trim().regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, "PAN must look like ABCDE1234F"),
     aadhar: z.string().trim().regex(/^[0-9]{12}$/, "Aadhaar must be 12 digits"),
     // <input type="date"> hamesha YYYY-MM-DD deta hai; range check phir bhi chahiye

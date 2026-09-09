@@ -81,3 +81,22 @@ test("an unfamiliar ucc_status yields nothing, so the server's sync decides", ()
     assert.equal(verdictFromUccStatus(s), null, String(s));
   }
 });
+
+test("the KYC name is validated the way BSE validates it, and is actually saved", async () => {
+  const { validateKycStep } = await import("../src/utils/FormSchema.js");
+  const { KYC_DEMO } = await import("../src/utils/kycDemoData.js");
+  const base = { ...KYC_DEMO[0] };
+  const nameErr = (name) => validateKycStep(0, { ...base, name }).name;
+
+  // The live rejection: a signup handle reached BSE as the holder name.
+  assert.match(nameErr("Minhal128"), /letters only/i);
+  assert.match(nameErr("A"), /required/i);
+  for (const bad of ["Ravi_Kumar", "Ravi@Kumar", "Ravi 2nd", "123", " "]) {
+    assert.ok(nameErr(bad), `${bad} should be rejected`);
+  }
+  // BSE accepts letters, spaces, "." and "'" — real names must still pass.
+  for (const ok of ["Ramesh Kumar Sharma", "R. K. Sharma", "D'Souza", "Mary Anne"]) {
+    assert.equal(nameErr(ok), undefined, `${ok} should be accepted`);
+  }
+
+});

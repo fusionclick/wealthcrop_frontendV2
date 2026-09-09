@@ -235,7 +235,11 @@ const stepApiConfig = {
   0: {
     url: `${import.meta.env.VITE_URL}/kyc/profile`,
     getPayload: (data) => ({
-      // name: data.name,
+      // The form has always shown "Full Name (as per PAN)" and this line has always been
+      // commented out, so the typed name was thrown away and BSE received the signup
+      // username instead — "Minhal128" came back as errcode alpha_special, and no amount
+      // of editing the form could change it.
+      name: data.name,
       pan_number: data.pan,
       aadhaar_number: data.aadhar,
       dob: data.dob,
@@ -465,6 +469,19 @@ useEffect(() => {
         return;
       }
 
+      // BSE takes only letters, spaces, "." and "'" in the holder name (alpha_special).
+      // The signup username lands here when the KYC form's name was never saved, so a
+      // handle like "Minhal128" reaches BSE and the whole registration fails.
+      const holderName = String(userData?.name || "").trim();
+      if (!/^[A-Za-z][A-Za-z .']*$/.test(holderName)) {
+        stop(
+          "person.first_name",
+          "Name may contain only letters, spaces, '.' and \"'\"",
+          "Enter your name exactly as printed on your PAN card — no digits"
+        );
+        return;
+      }
+
       // The Bank step writes this, so it is normally present. When it is not, the payload
       // used to fall back to a literal "123456789012" — a made-up account number registered
       // at BSE against a real investor, which redemptions would later pay into. Refuse
@@ -572,7 +589,9 @@ useEffect(() => {
  * dead end and KYC could never complete.
  */
 const FIELD_STEP = [
-  [/^(address|profile|personal)\b/i, 0, "Personal details"],
+  // BSE says "person.first_name", not "personal" — without this it only reached step 0 by
+  // falling through to the default, which would have been wrong for any other field.
+  [/^(address|profile|person|personal|holder)\b/i, 0, "Personal details"],
   [/^bank/i, 1, "Bank details"],
   [/^(doc|document|proof)/i, 2, "Documents"],
   [/^nominee/i, 3, "Nominee"],

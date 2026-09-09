@@ -73,7 +73,19 @@ test("a rejected field can actually be corrected", () => {
   // which resends identical data and fails identically, and "Continue to sign in". So KYC
   // could never complete and no mutual fund could be bought.
   assert.match(kyc, /const FIELD_STEP = \[/, "fields map to the step that owns them");
-  assert.match(kyc, /\[\/\^\(address\|profile\|personal\)\\b\/i, 0/);
+  // Assert the mapping, not the literal source: pull the step-0 pattern out and run BSE's
+  // real field names through it. "person.first_name" is what alpha_special arrives with,
+  // and it does NOT match the word "personal" — it only reached step 0 by falling through
+  // to the default, which would have been wrong for a bank or nominee field.
+  const step0 = kyc.match(/\[(\/\^\([^/]+\)\\b\/i), 0, "Personal details"\]/);
+  assert.ok(step0, "step 0 pattern not found");
+  const re = new RegExp(step0[1].slice(1, step0[1].lastIndexOf("/")), "i");
+  for (const f of ["person.first_name", "address.pincode", "address.line1", "profile.dob"]) {
+    assert.ok(re.test(f), `${f} must route to Personal details`);
+  }
+  for (const f of ["bank.account_number", "nominee.name"]) {
+    assert.equal(re.test(f), false, `${f} must not route to Personal details`);
+  }
   assert.match(kyc, /Edit \{target\[2\]\.toLowerCase\(\)\}/, "primary action goes back to that step");
   assert.match(kyc, /onEdit=\{\(target\) =>/);
 
@@ -92,4 +104,15 @@ test("a rejected field can actually be corrected", () => {
 test("BSE's answer from add_ucc is shown immediately", () => {
   assert.match(kyc, /const immediate = verdictFromUccStatus\(res\?\.data\?\.status\)/);
   assert.match(kyc, /if \(immediate\) setBseVerdict\(immediate\)/);
+});
+
+test("the typed legal name actually reaches the server", () => {
+  // The form has always shown "Full Name (as per PAN)", but the step-0 payload had
+  // `// name: data.name` commented out, so the value was discarded and the UCC payload
+  // fell back to the signup username — which BSE rejected as alpha_special.
+  assert.match(kyc, /getPayload: \(data\) => \(\{[\s\S]{0,600}?\n\s*name: data\.name,/);
+  assert.doesNotMatch(kyc, /^\s*\/\/\s*name: data\.name,\s*$/m, "must not be commented out again");
+  // And it is checked before the last step, where it used to be a dead end.
+  assert.match(kyc, /\/\^\[A-Za-z\]\[A-Za-z \.'\]\*\$\/\.test\(holderName\)/);
+  assert.match(kyc, /"person\.first_name"/, "the guard names the field the UI routes on");
 });
