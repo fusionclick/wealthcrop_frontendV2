@@ -50,12 +50,8 @@ const KotakGate = () => {
           aria-modal="true"
           aria-labelledby="kotak-gate-title"
         >
-          {/* Colour behind the glass — without something to refract, a blur reads as flat grey. */}
-          <div
-            aria-hidden
-            className="pointer-events-none fixed left-1/2 top-1/2 h-[36rem] w-[36rem] -translate-x-1/2 -translate-y-1/2
-                       rounded-full bg-[radial-gradient(circle,rgba(56,189,248,0.35),rgba(37,99,235,0.18)_45%,transparent_70%)] blur-3xl"
-          />
+          {/* The blue glow existed to give the old glass something to refract. The app is flat
+              now and the blur is gone, so it was just a blue smear on a red-accented dark UI. */}
 
           <div className="relative my-auto w-full max-w-md">
             {/* Gradient hairline that the card sits inside of. */}

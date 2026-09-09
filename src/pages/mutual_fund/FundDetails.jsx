@@ -270,9 +270,12 @@ const [activeInfo, setActiveInfo] = useState(null);
           ) : null}
         </div>
 
-        {/* PHYSICAL / SIP / PLAN — same BSE flags Explore shows on the card. Renders
-            nothing when BSE did not send them, so it is safe on any scheme. */}
-        <FundBadges fund={{ ...fund, ...fundsList }} className="mt-2" />
+        {/* PHYSICAL / SIP / PLAN — same BSE flags Explore shows on the card. `/scheme-details`
+            runs the same mapScheme() as `/master-scheme-list`, so `physical_only`, `sip_allowed`
+            and `plan` arrive on `data.scheme_info` and are already inside fundsList. The admin-set
+            `admin_category` pill is the one Explore has and this page does not: it is attached
+            by the catalogue, not by this endpoint. */}
+        <FundBadges fund={fundsList} className="mt-2" />
 
         {/* SAVE + SHARE (SMALL) */}
         <div className="flex md:hidden gap-3 mt-3">

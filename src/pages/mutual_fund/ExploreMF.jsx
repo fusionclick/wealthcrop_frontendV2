@@ -8,7 +8,6 @@ import FundListSkeleton from "../../components/ui/skeleton/main/FundListSkeleton
 import { nodeUrl, fundPath } from "../../utils/nodeApi";
 import AmcMark from "../../components/AmcMark";
 import { navLabel, navDate, useNavMap } from "../../utils/navSocket";
-import { NFO_FUNDS } from "../NFO";
 import FundBadges from "../../components/FundBadges";
 import { toastInfo } from "../../utils/notifyCustom";
 
@@ -222,24 +221,9 @@ const ExploreMF = () => {
 
       <div className="mb-8">
         <SectionHead title="New Fund Offer (NFO)" to="/nfo" />
-        <Rail>
-          {NFO_FUNDS.slice(0, 8).map((n, i) => (
-            <Link
-              key={`nfo-${i}`}
-              to="/nfo"
-              className="snap-start shrink-0 w-52 rounded-2xl p-4 bg-white dark:bg-[var(--card-bg)] border border-slate-200 dark:border-[var(--border-color)] shadow-sm hover:shadow-md transition"
-            >
-              <AmcMark name={n.name} className="h-9 w-9" />
-              <p className="text-sm font-semibold mt-3 line-clamp-2 min-h-10 text-slate-900 dark:text-[var(--text-primary)]">{n.name}</p>
-              <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">
-                {n.category} • {n.risk}
-              </p>
-              <span className="inline-block mt-3 text-[10px] font-semibold px-2 py-1 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">
-                LIVE TILL {String(n.close).toUpperCase()}
-              </span>
-            </Link>
-          ))}
-        </Rail>
+        <div className="rounded-2xl p-6 bg-white dark:bg-[var(--card-bg)] border border-slate-200 dark:border-[var(--border-color)] text-sm text-slate-500 dark:text-[var(--text-secondary)] text-center">
+          No NFOs are open right now.
+        </div>
       </div>
 
       <div className="mb-10">

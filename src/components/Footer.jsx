@@ -1,65 +1,24 @@
 // Updated Footer Component
 // (Attractive sections + copyright moved to last + extended sections only)
 import { Link } from "react-router-dom";
-import {
-  FaFacebookF,
-  FaTwitter,
-  FaLinkedinIn,
-  FaInstagram,
-  FaGooglePlay,
-  FaApple,
-} from "react-icons/fa";
 import logo from "../assets/logo.png";
 
 const Footer = () => {
-  const amcs = [
-    "Aditya Birla Sun Life",
-    "Axis",
-    "Baroda",
-    "BNP Paribas",
-    "Canara Robeco",
-    "DSP",
-    "Edelweiss",
-    "Franklin Templeton",
-    "HDFC",
-    "ICICI Prudential",
-    "Kotak",
-    "L&T",
-    "Mirae Asset",
-    "Motilal Oswal",
-    "Nippon India",
-    "PPFAS",
-    "Quant",
-    "SBI",
-    "Tata",
-    "UTI",
-  ];
-
-  const mutualFunds = [
-    "Mirae Asset Emerging Bluechip",
-    "Axis Focused 25",
-    "ICICI Value Discovery",
-    "Axis Midcap",
-    "ICICI Nifty Next 50",
-    "Axis Long Term Equity",
-    "Nippon Pharma",
-    "ICICI Balanced Advantage",
-    "DSP Quant Fund",
-  ];
-
+  // ponytail: /stocks/:name goes straight to fetchStockDetails(symbol), so the link has to
+  // carry the NSE ticker — a slugified company name ("reliance-industries") loads a blank page.
   const stocks = [
-    "Reliance Industries",
-    "TCS",
-    "Infosys",
-    "HDFC Bank",
-    "ICICI Bank",
-    "Kotak Bank",
-    "Larsen & Toubro",
-    "Asian Paints",
-    "Tata Motors",
-    "Maruti Suzuki",
-    "Nestle",
-    "HUL",
+    ["Reliance Industries", "RELIANCE"],
+    ["TCS", "TCS"],
+    ["Infosys", "INFY"],
+    ["HDFC Bank", "HDFCBANK"],
+    ["ICICI Bank", "ICICIBANK"],
+    ["Kotak Bank", "KOTAKBANK"],
+    ["Larsen & Toubro", "LT"],
+    ["Asian Paints", "ASIANPAINT"],
+    ["Tata Motors", "TATAMOTORS"],
+    ["Maruti Suzuki", "MARUTI"],
+    ["Nestle", "NESTLEIND"],
+    ["HUL", "HINDUNILVR"],
   ];
 
   const calculators = [
@@ -74,15 +33,6 @@ const Footer = () => {
     "APY Calculator",
     "Inflation Calculator",
     "HRA Calculator",
-  ];
-
-  const fdPartners = [
-    "HDFC",
-    "Bajaj Finance",
-    "Mahindra Finance",
-    "PNB Housing",
-    "Shriram Transport Finance",
-    "National Housing Bank",
   ];
 
 const Section = ({ title, list, basePath }) => (
@@ -101,24 +51,31 @@ const Section = ({ title, list, basePath }) => (
 
     {/* Inline links with bars */}
     <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-      {list.map((item, idx) => (
-        <div key={idx} className="flex items-center">
-          <Link
-            to={`${basePath}/${item.toLowerCase().replace(/ /g, "-")}`}
-            className="
-              transition-colors
-              hover:text-blue-700 dark:hover:text-blue-400
-            "
-          >
-            {item}
-          </Link>
+      {list.map((item, idx) => {
+        // Plain string = slug is the label; tuple = explicit slug the route can actually use.
+        const [label, slug] = Array.isArray(item)
+          ? item
+          : [item, item.toLowerCase().replace(/ /g, "-")];
 
-          {/* Show | except last */}
-          {idx !== list.length - 1 && (
-            <span className="px-2 text-gray-400 dark:text-gray-500">|</span>
-          )}
-        </div>
-      ))}
+        return (
+          <div key={idx} className="flex items-center">
+            <Link
+              to={`${basePath}/${slug}`}
+              className="
+                transition-colors
+                hover:text-blue-700 dark:hover:text-blue-400
+              "
+            >
+              {label}
+            </Link>
+
+            {/* Show | except last */}
+            {idx !== list.length - 1 && (
+              <span className="px-2 text-gray-400 dark:text-gray-500">|</span>
+            )}
+          </div>
+        );
+      })}
     </div>
   </div>
 );
@@ -151,33 +108,10 @@ const Section = ({ title, list, basePath }) => (
         Download the app
       </p>
 
-      <div className="flex gap-3">
-        <Link
-          className="
-            flex items-center gap-2 px-3 py-1.5 rounded-lg
-            border border-gray-300 dark:border-white/10
-            text-blue-950 dark:text-gray-200
-            hover:bg-gray-50 dark:hover:bg-[var(--white-5)]
-            transition
-          "
-        >
-          <FaGooglePlay className="text-lg" />
-          <span className="text-sm font-medium">Google Play</span>
-        </Link>
-
-        <Link
-          className="
-            flex items-center gap-2 px-3 py-1.5 rounded-lg
-            border border-gray-300 dark:border-white/10
-            text-blue-950 dark:text-gray-200
-            hover:bg-gray-50 dark:hover:bg-white/5
-            transition
-          "
-        >
-          <FaApple className="text-lg" />
-          <span className="text-sm font-medium">App Store</span>
-        </Link>
-      </div>
+      {/* The Google Play and App Store buttons lived here as <Link> elements with no `to`
+          prop — react-router v7 destructures `to` in resolveTo, so they were the same
+          throw-or-inert defect as the social icons. There is no published app to point them
+          at either. Restore them as <a href> once the store listings exist. */}
     </div>
 
     {/* MIDDLE — NAVIGATION */}
@@ -235,21 +169,8 @@ const Section = ({ title, list, basePath }) => (
       </Link>
     </div>
 
-    {/* RIGHT — SOCIAL ICONS */}
-    <div className="flex space-x-5 text-xl text-blue-950 dark:text-gray-300">
-      <a className="hover:text-blue-700 dark:hover:text-blue-400 transition">
-        <FaFacebookF />
-      </a>
-      <a className="hover:text-blue-700 dark:hover:text-blue-400 transition">
-        <FaTwitter />
-      </a>
-      <a className="hover:text-blue-700 dark:hover:text-blue-400 transition">
-        <FaLinkedinIn />
-      </a>
-      <a className="hover:text-blue-700 dark:hover:text-blue-400 transition">
-        <FaInstagram />
-      </a>
-    </div>
+    {/* ponytail: social icons removed — they were href-less anchors and no handle for any
+        network exists anywhere in the repo. Add them back with real profile URLs. */}
 
   </div>
 </footer>
@@ -268,17 +189,9 @@ const Section = ({ title, list, basePath }) => (
 >
   <div className="max-w-7xl mx-auto px-6 space-y-12">
     
-    <Section
-      title="Asset Management Companies (AMCs)"
-      list={amcs}
-      basePath="/stocks"
-    />
-
-    <Section
-      title="Popular Mutual Funds"
-      list={mutualFunds}
-      basePath="/mutual_fund"
-    />
+    {/* ponytail: AMC, "Popular Mutual Funds" and "Fixed Deposit Partners" sections removed.
+        A fund link needs /mutual_fund/:isin/:code and we have neither; there is no /fd route
+        and no AMC page with real data — every one of those links was a 404 or a blank page. */}
 
     <Section
       title="Popular Stocks"
@@ -290,12 +203,6 @@ const Section = ({ title, list, basePath }) => (
       title="Financial Calculators"
       list={calculators}
       basePath="/calculator"
-    />
-
-    <Section
-      title="Fixed Deposit Partners"
-      list={fdPartners}
-      basePath="/fd"
     />
 
     {/* DISCLAIMER */}

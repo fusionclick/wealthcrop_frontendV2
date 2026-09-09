@@ -38,9 +38,13 @@ test("a UCC that Laravel never stored is retried, not left orphaned", () => {
   assert.match(kyc, /pendingUcc\.current = null;/);
 });
 
-test("the mandate is only registered once BSE has verified the UCC", () => {
-  const gated = /if \(isKycVerified\(synced\?\.kyc_status\)\) \{\s*\/\/[^\n]*\n\s*mandateCreation\(clientCode\);/;
-  assert.match(kyc, gated, "a PENDING_VERIFICATION UCC cannot carry a mandate");
+test("KYC never auto-registers a mandate", () => {
+  // This used to assert the opposite — that a mandate WAS registered once BSE verified the
+  // UCC. The gate was right; the payload was not. mandateCreation() posted a hardcoded
+  // fixture (someone else's VPA, a fixed 15000, a distributor ARN that is not ours) against
+  // a real investor's UCC. A mandate is a payment authorisation, so it belongs to SIP setup
+  // with the investor's own VPA, not to an automatic side effect of finishing KYC.
+  assert.doesNotMatch(kyc, /^\s*mandateCreation\(/m, "no live call site may remain");
 });
 
 test("demo fill button is guarded by a literal import.meta.env.DEV expression", () => {

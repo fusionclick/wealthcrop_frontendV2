@@ -13,7 +13,7 @@ const ChangePin = () => {
 
   const handleUpdate = async () => { 
     if (newPin !== confirmPin) {
-      alert("Pins do not match!");
+      toastError("Pins do not match!");
       return;
     }
 
@@ -48,11 +48,6 @@ const ChangePin = () => {
     dark:bg-[var(--card-bg)]
   "
 >
-  {/* Decorative blobs (keep light, they work fine in dark too) */}
-  <div className="absolute -top-16 -left-16 w-40 h-40 bg-blue-200 rounded-full mix-blend-multiply opacity-50"></div>
-  <div className="absolute -bottom-16 -right-16 w-48 h-48 bg-red-200 rounded-full mix-blend-multiply opacity-40"></div>
-  <div className="absolute top-20 left-1/2 -translate-x-1/2 w-24 h-24 bg-emerald-200 rounded-full mix-blend-multiply opacity-30"></div>
-
   {/* Content */}
   <h2
     className="

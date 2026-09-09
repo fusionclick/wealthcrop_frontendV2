@@ -105,7 +105,7 @@ export default function HoldingSheet({ holding, source = "internal", onClose, on
         <div className="flex gap-3 mt-5">
           <button
             type="button"
-            onClick={() => navigate(code || isin ? fundBuyPath(isin, code) : "/user/mutual_fund/explore")}
+            onClick={() => navigate(fundBuyPath(isin, code))}
             className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium"
           >
             Invest more

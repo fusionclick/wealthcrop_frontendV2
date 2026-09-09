@@ -134,3 +134,16 @@ test("sources parts se derive hoti hai", () => {
     assert.deepEqual(r.sources, r.parts.map((p) => p.source))
   );
 });
+
+test("row scheme_isin carry karti hai — Invest more ka URL isi se banta hai", () => {
+  const c = combinePortfolio(INT, EXT, navOf);
+  assert.equal(c.rows.find((r) => r.scheme_bse_code === "PPCH-GR").scheme_isin, "INF879O01019");
+  // BSE order_list ISIN bhejta hi nahi — internal row par khali string, undefined nahi.
+  assert.equal(c.rows.find((r) => r.scheme_bse_code === "HDFC-GR").scheme_isin, "");
+});
+
+test("merge par jis side ISIN ho wohi bachti hai", () => {
+  const ext = [{ id: 9, scheme_name: "HDFC FLEXI CAP - GROWTH", scheme_bse_code: "HDFC-GR", scheme_isin: "INF179K01YV8", units: 10, nav: 1000, invested_amount: 8000 }];
+  const hdfc = combinePortfolio(INT, ext, navOf).rows.find((r) => r.scheme_bse_code === "HDFC-GR");
+  assert.equal(hdfc.scheme_isin, "INF179K01YV8");
+});

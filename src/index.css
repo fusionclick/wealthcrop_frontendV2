@@ -372,6 +372,25 @@ html.dark, .dark body {
   box-shadow: none !important;
 }
 
+/* Tailwind ki apni `backdrop-blur-*` utilities `--tw-backdrop-blur` set karti hain,
+   is liye wo upar wale surface rules se bach nikalti thin — 31 files (modals, KotakGate,
+   calculators, HoldingSheet) abhi bhi frosted dikh rahi thin jabke baaki app flat ho
+   chuki thi. Neo ke modals par saaf scrim hota hai, blur nahi. `no-glass` par chhoot
+   hai, wahi convention jo upar chal rahi hai. */
+/* Deliberately NOT wrapped in :where() like the rules below it. Those override plain
+   `bg-*` classes; this one has to out-specify a real Tailwind utility (`.backdrop-blur-md`,
+   0-1-0), and :where() contributes zero specificity. Attribute + :not() gives 0-2-0. */
+[class*="backdrop-blur"]:not(.no-glass) {
+  /* The variable reset is the one that actually does the work. Tailwind's utility composes
+     `backdrop-filter: var(--tw-backdrop-blur,) …`, and lightningcss drops our unprefixed
+     `backdrop-filter: none` from the output entirely (checked the built CSS: only the
+     -webkit- form survives), so overriding the property alone leaves the standard one
+     blurring in Chrome and Firefox. Emptying the variable kills it whatever the prefix. */
+  --tw-backdrop-blur: initial;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 /* Card surfaces. `~=` exact token match karta hai, is liye bg-white/5 isme
    nahi aati.
    Hairline `outline` se aata hai, `border` se nahi: outline layout box ko nahi

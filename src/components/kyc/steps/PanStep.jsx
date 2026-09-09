@@ -1,11 +1,12 @@
 import { motion } from "framer-motion";
 import { useState } from "react";
+import { toastError } from "../../../utils/notifyCustom";
 
 export default function PanStep({ next, update }) {
   const [pan, setPan] = useState("");
 
   const verifyPan = () => {
-    if (pan.length !== 10) return alert("Invalid PAN");
+    if (pan.length !== 10) return toastError("Invalid PAN");
     update({ pan });
     next();
   };

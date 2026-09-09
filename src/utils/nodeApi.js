@@ -24,8 +24,18 @@ export const apiErrorMessage = (error, fallback = "Something went wrong. Please 
   return String(data.message || data.error || error?.message || fallback);
 };
 
-export const fundPath = (isin, code) =>
-  `/mutual_fund/${encodeURIComponent(isin || "")}/${encodeURIComponent(code || "")}`;
+export const MF_EXPLORE_PATH = "/user/mutual_fund/explore";
+
+// ponytail: React Router ka dynamic segment khali string se match nahi karta — ek bhi
+// khali segment poora URL catch-all 404 par gira deta hai. Portfolio rows par aksar sirf
+// BSE code hota hai (BSE order_list ISIN bhejta hi nahi), is liye jo value mojood hai
+// wahi dono segments mein bhej do: backend `/scheme-details` aur `/master-scheme-list`
+// dono ek hi value ko ISIN ya BSE code, jo bhi mile, us par match karte hain.
+export const fundPath = (isin, code) => {
+  const key = isin || code;
+  if (!key) return MF_EXPLORE_PATH;
+  return `/mutual_fund/${encodeURIComponent(key)}/${encodeURIComponent(code || key)}`;
+};
 
 export const MF_WATCHLIST_KEY = "wealthcrop_mf_watchlist";
 
@@ -57,7 +67,8 @@ export const holdingMatchesScheme = (h, { isin, code, schemeBse }) => {
   return false;
 };
 
-export const fundBuyPath = (isin, code) => `${fundPath(isin, code)}/buy`;
+export const fundBuyPath = (isin, code) =>
+  isin || code ? `${fundPath(isin, code)}/buy` : MF_EXPLORE_PATH;
 
 const RISK_RANK = { conservative: 1, moderate: 2, aggressive: 3 };
 const FUND_RISK_RANK = (fundRisk = "") => {
@@ -295,6 +306,8 @@ export const combinePortfolio = (internal = [], external = [], navOf = () => nul
       current: prev.current + row.current,
       units: (prev.units || 0) + (row.units || 0) || null,
       nav: prev.nav ?? row.nav,
+      // Internal side ISIN nahi bhejta, external bhejta hai — merge par jo mile wo rakho.
+      scheme_isin: prev.scheme_isin || row.scheme_isin || "",
       parts: mergeParts([...prev.parts, ...row.parts]),
       priced: prev.priced && row.priced,
     });
@@ -325,6 +338,8 @@ export const combinePortfolio = (internal = [], external = [], navOf = () => nul
       nav,
       folio,
       scheme_bse_code: f.scheme_bse_code || "",
+      // Row par dono identifiers rakho — Invest more ka URL inhi se banta hai.
+      scheme_isin: f.scheme_isin || "",
       parts: [{ source: "internal", invested, current, units, nav, folio, priced: true }],
       priced: true,
     });
@@ -354,6 +369,7 @@ export const combinePortfolio = (internal = [], external = [], navOf = () => nul
       nav,
       folio,
       scheme_bse_code: r.scheme_bse_code || "",
+      scheme_isin: r.scheme_isin || "",
       parts: [{ source: "external", invested, current, units: units || null, nav, folio, priced: value != null }],
       priced: value != null,
     });

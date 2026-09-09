@@ -9,6 +9,7 @@ import axios from "axios";
 import { IoLinkSharp } from "react-icons/io5";
 import { fetchFno, fetchMarketProducts, fetchEtfs } from "../../api/marketApi";
 import FnoOrderPanel from "./FnoOrderPanel";
+import { toastSuccess } from "../../utils/notifyCustom";
 
 const changeColor = (p) => (Number(p) >= 0 ? "text-green-600" : "text-red-600");
 
@@ -561,7 +562,7 @@ const MarketTable = ({ activeTab }) => {
   const handleBookmark = async (company) => {
     try {
       await axios.post("/api/bookmark", { company });
-      alert(`${company} bookmarked successfully!`);
+      toastSuccess(`${company} bookmarked successfully!`);
     } catch (err) {
       console.error("Bookmark failed", err);
     }

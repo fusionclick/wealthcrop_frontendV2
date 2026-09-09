@@ -15,6 +15,7 @@ import { useSelector } from "react-redux";
 import WatchlistPopup from "../../components/WatchlistPopup";
 import { stockLogoUrl } from "../../utils/stockLogo";
 import { normalizeTvSymbol } from "../../utils/tradingView";
+import { toastSuccess } from "../../utils/notifyCustom";
 
 
 const WATCHLIST_KEY = "wealthcrop_watchlist";
@@ -1387,7 +1388,7 @@ const MarketTable = ({ data = [], activeTab }) => {
   const handleBookmark = async (company) => {
     try {
       await axios.post("/api/bookmark", { company });
-      alert(`${company} bookmarked successfully!`);
+      toastSuccess(`${company} bookmarked successfully!`);
     } catch (err) {
       console.error("Bookmark failed", err);
     }

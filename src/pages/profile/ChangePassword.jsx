@@ -14,7 +14,7 @@ const ChangePassword = () => {
   const handleUpdate = async () => {
    const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_CHANGE_PASSWORD}`
     if (newPassword !== confirmPassword) {
-      alert("Passwords do not match!");
+      toastError("Passwords do not match!");
       return;
     }
      try {
@@ -46,11 +46,6 @@ const ChangePassword = () => {
     dark:bg-[var(--card-bg)]
   "
 >
-  {/* Decorative blobs */}
-  <div className="absolute -top-16 -left-16 w-40 h-40 bg-blue-200 rounded-full mix-blend-multiply opacity-50 dark:opacity-20"></div>
-  <div className="absolute -bottom-16 -right-16 w-48 h-48 bg-red-200 rounded-full mix-blend-multiply opacity-40 dark:opacity-20"></div>
-  <div className="absolute top-20 left-1/2 -translate-x-1/2 w-24 h-24 bg-emerald-200 rounded-full mix-blend-multiply opacity-30 dark:opacity-20"></div>
-
   {/* Content */}
   <h2
     className="

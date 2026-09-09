@@ -654,11 +654,11 @@ const ModifySipPage = ({ sip, onBack, onSave }) => {
 
   const handleSubmit = () => {
     if (!amount || amount <= 0) {
-      alert("Please enter a valid amount");
+      toastError("Please enter a valid amount");
       return;
     }
     if (sipDate < 1 || sipDate > 28) {
-      alert("SIP date must be between 1 and 28");
+      toastError("SIP date must be between 1 and 28");
       return;
     }
     onSave({ amount, sipDate, frequency });

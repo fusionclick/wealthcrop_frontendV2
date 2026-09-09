@@ -434,6 +434,18 @@ useEffect(() => {
         return;
       }
 
+      // The Bank step writes this, so it is normally present. When it is not, the payload
+      // used to fall back to a literal "123456789012" — a made-up account number registered
+      // at BSE against a real investor, which redemptions would later pay into. Refuse
+      // instead and send them back to the step that fixes it.
+      const bankAccount = userData?.bank_accounts?.[0];
+      if (!bankAccount?.account_number || !bankAccount?.ifsc_code) {
+        setUccError("Add your bank account before we register your UCC with BSE.");
+        toastError("Your bank account is missing. Complete the Bank step first.");
+        uccRequested.current = false;
+        return;
+      }
+
       const payload = {
         client_code: generateClientCode(userData?.name),
         first_name: userData?.name,
@@ -454,9 +466,9 @@ useEffect(() => {
         },
 
         bank: {
-          ifsc: userData?.bank_accounts?.[0]?.ifsc_code,
-          acc_no: userData?.bank_accounts?.[0]?.account_number || "123456789012",
-          acc_type: userData?.bank_accounts?.[0]?.account_type || "SB",
+          ifsc: bankAccount.ifsc_code,
+          acc_no: bankAccount.account_number,
+          acc_type: bankAccount.account_type || "SB",
         },
       };
 
@@ -480,8 +492,11 @@ useEffect(() => {
         pendingUcc.current = { ucc: clientCode, dp_id, client_id };
         const synced = await sendUcc(clientCode, dp_id, client_id);
         if (isKycVerified(synced?.kyc_status)) {
-          // mandate sirf verified UCC par — PENDING_VERIFICATION par BSE ise reject karta hai
-          mandateCreation(clientCode);
+          // mandateCreation() is NOT called here any more — see the note on the function.
+          // It registered a UPI AutoPay mandate at BSE from a hardcoded test fixture
+          // (someone else's VPA, a fixed ₹15,000, a distributor ARN that is not ours)
+          // against a real investor's UCC. A mandate is a payment authorisation; it belongs
+          // to SIP setup with the investor's own VPA, not to an automatic KYC side effect.
           toastSuccess("KYC verified by BSE. Please sign in to continue.");
           finishKyc();
         }
@@ -633,7 +648,7 @@ const checkBseStatus = async () => {
     const { ucc, dp_id, client_id } = pendingUcc.current;
     const retried = await sendUcc(ucc, dp_id, client_id);
     if (isKycVerified(retried?.kyc_status)) {
-      mandateCreation(ucc);
+      // Same reason as the other call site: no auto-mandate off a hardcoded fixture.
       toastSuccess("KYC verified by BSE. Please sign in to continue.");
       finishKyc();
     }
