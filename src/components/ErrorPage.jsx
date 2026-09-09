@@ -1,7 +1,9 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 
-const ErrorPage = ({ message }) => {
+// `notFound` sirf router ke catch-all route se aata hai — dead link "crash" jaisa
+// na lage, is liye wahan 404 wording dikhti hai. Baaki har jagah purana error text.
+const ErrorPage = ({ message, notFound }) => {
   const location = useLocation();
   const errorMessage = message || location.state?.message;
 
@@ -21,15 +23,22 @@ const ErrorPage = ({ message }) => {
       border border-blue-100 dark:border-white/10
     "
   >
-    <div className="text-6xl mb-4">😕</div>
+    <div className="text-6xl mb-4">{notFound ? "🧭" : "😕"}</div>
 
     <h1 className="text-3xl font-semibold text-blue-700 dark:text-blue-400 mb-2">
-      Something went wrong
+      {notFound ? "Page not found" : "Something went wrong"}
     </h1>
 
     <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed mb-6">
-      {errorMessage ||
-        "We hit a small bump while processing your request. Please try again."}
+      {notFound ? (
+        <>
+          <span className="break-all font-medium">{location.pathname}</span>{" "}
+          par koi page nahi hai.
+        </>
+      ) : (
+        errorMessage ||
+        "We hit a small bump while processing your request. Please try again."
+      )}
     </p>
 
     <Link
@@ -41,7 +50,7 @@ const ErrorPage = ({ message }) => {
         transition active:scale-95 inline-block
       "
     >
-      Go Back Home
+      {notFound ? "Go home" : "Go Back Home"}
     </Link>
   </div>
 </div>

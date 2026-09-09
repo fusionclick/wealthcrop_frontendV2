@@ -4,7 +4,6 @@ import {
   Newspaper,
   User,
   HelpCircle,
-  Download,
   Gift,
   Landmark,
   Calculator,
@@ -161,13 +160,6 @@ const MoreMenu = ({ token }) => {
                     title="Help & Support"
                     desc="FAQs & guidance."
                     onClick={() => navigate("/support")}
-                  />
-
-                  <MenuItem
-                    icon={Download}
-                    title="Downloads"
-                    desc="Statements & reports."
-                    onClick={() => navigate("/downloads")}
                   />
                 </div>
               </div>

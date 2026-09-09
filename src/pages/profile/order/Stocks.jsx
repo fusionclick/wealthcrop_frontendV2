@@ -1,44 +1,25 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import empty from "../../../assets/allorders.png";
 import { NavLink } from "react-router-dom";
+import { fetchStockOrders } from "../../../api/portfolioApi";
 
 const Stocks = () => {
-  // 🔹 Dummy stock data (you can later fetch from API)
-  const [stocks, setStocks] = useState([
-    {
-      id: 1,
-      name: "Reliance Industries",
-      symbol: "RELIANCE",
-      qty: 10,
-      avgPrice: 2485.5,
-      ltp: 2502.3,
-      change: "+0.67%",
-      orderDate: "2025-11-10",
-    },
-    {
-      id: 2,
-      name: "Tata Consultancy Services",
-      symbol: "TCS",
-      qty: 5,
-      avgPrice: 3710.0,
-      ltp: 3695.5,
-      change: "-0.39%",
-      orderDate: "2025-11-11",
-    },
-    {
-      id: 3,
-      name: "HDFC Bank",
-      symbol: "HDFCBANK",
-      qty: 8,
-      avgPrice: 1530.2,
-      ltp: 1555.1,
-      change: "+1.63%",
-      orderDate: "2025-11-12",
-    },
-  ]);
+  const [stocks, setStocks] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // 🔸 Uncomment to test empty state
-  // const [stocks, setStocks] = useState([]);
+  const load = useCallback(() => {
+    setLoading(true);
+    fetchStockOrders()
+      .then((res) => setStocks(res?.data?.data ?? []))
+      .catch(() => setStocks([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 15000);
+    return () => clearInterval(t);
+  }, [load]);
 
   return (
    <div
@@ -48,7 +29,11 @@ const Stocks = () => {
     dark:bg-[var(--card-bg)]
   "
 >
-  {stocks.length === 0 ? (
+  {loading && stocks.length === 0 ? (
+    <p className="text-sm text-slate-500 dark:text-[var(--text-secondary)] py-8 text-center">
+      Loading orders…
+    </p>
+  ) : stocks.length === 0 ? (
     // 🔹 Empty State
     <div
       className="
@@ -112,7 +97,7 @@ const Stocks = () => {
       </div>
     </div>
   ) : (
-    // 🔹 Stock List
+    // 🔹 Order List
     <div className="overflow-x-auto">
       <h2
         className="
@@ -121,7 +106,7 @@ const Stocks = () => {
           dark:text-[var(--text-primary)]
         "
       >
-        Your Stock Portfolio
+        Your Stock Orders
       </h2>
 
       <table
@@ -141,13 +126,13 @@ const Stocks = () => {
         >
           <tr>
             {[
-              "Name",
               "Symbol",
+              "Side",
               "Qty",
-              "Avg Price",
-              "LTP",
-              "Change",
-              "Order Date",
+              "Price",
+              "Type",
+              "Status",
+              "Placed At",
             ].map((h) => (
               <th
                 key={h}
@@ -165,9 +150,9 @@ const Stocks = () => {
         </thead>
 
         <tbody>
-          {stocks.map((stock) => (
+          {stocks.map((order) => (
             <tr
-              key={stock.id}
+              key={order.id}
               className="
                 border-t transition
                 hover:bg-gray-50
@@ -183,37 +168,37 @@ const Stocks = () => {
                   dark:text-[var(--text-primary)]
                 "
               >
-                <NavLink to="/">{stock.name}</NavLink>
-              </td>
-
-              <td className="px-4 py-2 text-gray-700 dark:text-[var(--text-secondary)]">
-                {stock.symbol}
-              </td>
-
-              <td className="px-4 py-2 text-right text-gray-700 dark:text-[var(--text-secondary)]">
-                {stock.qty}
-              </td>
-
-              <td className="px-4 py-2 text-right text-gray-700 dark:text-[var(--text-secondary)]">
-                ₹{stock.avgPrice.toFixed(2)}
-              </td>
-
-              <td className="px-4 py-2 text-right text-gray-700 dark:text-[var(--text-secondary)]">
-                ₹{stock.ltp.toFixed(2)}
+                {order.symbol}
               </td>
 
               <td
-                className={`px-4 py-2 text-right font-medium ${
-                  stock.change.startsWith("+")
+                className={`px-4 py-2 font-medium ${
+                  order.side === "BUY"
                     ? "text-green-600 dark:text-emerald-400"
                     : "text-red-500 dark:text-rose-400"
                 }`}
               >
-                {stock.change}
+                {order.side}
               </td>
 
               <td className="px-4 py-2 text-right text-gray-700 dark:text-[var(--text-secondary)]">
-                {stock.orderDate}
+                {order.qty}
+              </td>
+
+              <td className="px-4 py-2 text-right text-gray-700 dark:text-[var(--text-secondary)]">
+                ₹{Number(order.price || 0).toFixed(2)}
+              </td>
+
+              <td className="px-4 py-2 text-gray-700 dark:text-[var(--text-secondary)]">
+                {order.orderType}
+              </td>
+
+              <td className="px-4 py-2 text-gray-700 dark:text-[var(--text-secondary)]">
+                {order.status}
+              </td>
+
+              <td className="px-4 py-2 text-right text-gray-700 dark:text-[var(--text-secondary)]">
+                {order.placedAt}
               </td>
             </tr>
           ))}

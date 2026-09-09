@@ -27,7 +27,8 @@ export default class ErrorBoundary extends Component {
   render() {
     const { error } = this.state;
     if (!error) return this.props.children;
-    // Production build mein message minified hota hai, is liye dono dikhate hain.
-    return <ErrorPage message={`Is page ko load karne mein masla hua. (${error.message || "Unknown error"})`} />;
+    // Production build mein message minified hota hai — user ko sirf friendly line
+    // dikhti hai, asli error upar componentDidCatch console.error kar chuka hai.
+    return <ErrorPage message="Is page ko load karne mein masla hua." />;
   }
 }

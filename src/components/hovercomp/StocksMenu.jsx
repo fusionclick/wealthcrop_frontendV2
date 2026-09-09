@@ -109,7 +109,7 @@ const isStocksActive = location.pathname.startsWith("/user/stocks");
                     icon={Layers}
                     title="ETF Investing"
                     desc="Diversified index investing."
-                    onClick={() => navigate("/signup")}
+                    onClick={() => navigate("/user/stocks/explore")}
                   />
 
                   <MenuItem
@@ -123,7 +123,7 @@ const isStocksActive = location.pathname.startsWith("/user/stocks");
                     icon={Download}
                     title="Documents"
                     desc="Statements & reports."
-                    onClick={() => navigate("/signup")}
+                    onClick={() => navigate("/reports")}
                   />
                 </div>
 
@@ -137,7 +137,7 @@ const isStocksActive = location.pathname.startsWith("/user/stocks");
                     icon={TrendingUp}
                     title="Market Watchlist"
                     desc="Track stocks live."
-                    onClick={() => navigate("/signup")}
+                    onClick={() => navigate("/user/stocks/watchlist")}
                   />
 
                   <MenuItem
@@ -167,14 +167,14 @@ const isStocksActive = location.pathname.startsWith("/user/stocks");
                     icon={BarChart2}
                     title="Top Gainers"
                     desc="Stocks rising today."
-                    onClick={() => navigate("/signup")}
+                    onClick={() => navigate("/user/stocks/explore")}
                   />
 
                   <MenuItem
                     icon={TrendingUp}
                     title="Market Trends"
                     desc="Analyst insights."
-                    onClick={() => navigate("/signup")}
+                    onClick={() => navigate("/market-news")}
                   />
                 </div>
 

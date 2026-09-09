@@ -53,7 +53,6 @@ import SIPs from "./pages/mutual_fund/SIPs";
 import FundDetails from "./pages/mutual_fund/FundDetails";
 // import StockDetails from "./components/StockDetails";
 import MutualFundCarousel from "./carousel/MutualFundCarousel";
-import DraggableQRCodeCard from "./components/DraggableQRCodeCard";
 import NFO from "./pages/NFO";
 import FDCalculator from "./pages/calculators/FDCalculator";
 import RetirementCalculator from "./pages/calculators/RetirementCalculator";
@@ -303,7 +302,6 @@ const StockDetails = lazy(() => import("./components/StockDetails"));
 
         try {
           const res = await getApiWithToken(url);
-          console.log("All Baskets", res?.data);
           setBaskets(res?.data?.data ?? []);
         } catch (error) {
           toastError(error.message);
@@ -380,7 +378,6 @@ useEffect(() => {
       {/*  Fixed Header */}
       {/*  Large screens (always show OldHeader) */}
       <ScrollToTopButton />
-      <DraggableQRCodeCard value="https://example.com" size={100} />
       {/* ================= TOP HEADER ================= */}
       {(!token || isLg) && <OldHeader />}
 
@@ -533,7 +530,7 @@ useEffect(() => {
 
             {/* Public routes */}
             <Route path="/" element={<Home />} />
-            <Route path="*" element={<ErrorPage />} />
+            <Route path="*" element={<ErrorPage notFound />} />
 
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Register />} />

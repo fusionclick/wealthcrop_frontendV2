@@ -88,10 +88,10 @@ const HeroSection = () => {
       </ul>
 
       <div className="flex gap-5 flex-wrap">
-        <Link
-          to="/about"
+        <a
+          href="#about"
           className="
-            inline-block 
+            inline-block
             bg-blue-950 dark:bg-blue-600
             text-white font-semibold px-8 py-3 rounded-lg shadow
             hover:bg-blue-900 dark:hover:bg-blue-500
@@ -99,7 +99,7 @@ const HeroSection = () => {
           "
         >
           Learn More
-        </Link>
+        </a>
 
         <a
           href="https://www.youtube.com"

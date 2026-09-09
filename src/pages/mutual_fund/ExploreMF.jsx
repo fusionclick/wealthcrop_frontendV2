@@ -118,9 +118,12 @@ const ExploreMF = () => {
   };
 
   const openFund = (f) => {
+    // Both facts matter and a scheme can be both: an `else if` hid the physical-only
+    // warning on every SIP-capable physical fund, which is the case where it counts most.
     if (f?.sip_allowed === true) {
       toastInfo(f.minSip ? `SIP available — from ₹${f.minSip}/month` : "SIP available on this fund");
-    } else if (f?.physical_only === true) {
+    }
+    if (f?.physical_only === true) {
       toastInfo("This scheme is held physically only — it cannot be bought on a demat account.");
     }
     navigate(fundPath(f.scheme_isin, f.scheme_bse_code));

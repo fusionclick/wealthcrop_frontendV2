@@ -121,7 +121,10 @@ const KotakLinkForm = ({ onLinked, forceOpen = false, compact = false }) => {
         />
       </div>
 
-      <details className="text-xs text-gray-600 dark:text-[var(--text-secondary)]">
+      {/* Open by default: the backend no longer borrows the platform's mobile/MPIN/TOTP for a
+          linked investor, so leaving these blank means orders are refused with nothing on
+          screen to explain why. */}
+      <details open className="text-xs text-gray-600 dark:text-[var(--text-secondary)]">
         <summary className="cursor-pointer select-none py-1">
           Also needed to place orders (mobile, MPIN, TOTP)
         </summary>

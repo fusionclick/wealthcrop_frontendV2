@@ -100,7 +100,7 @@ export default function ProfileSettingPopup({ onClose }) {
         {/* Links */}
         <div className="py-2 space-y-2">
           <Link
-            to="/orders"
+            to="/user/order"
             className="flex items-center gap-3 px-4 py-2 text-gray-800 hover:bg-gray-50"
           >
             <FileText size={18} />

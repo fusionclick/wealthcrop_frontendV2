@@ -464,14 +464,8 @@ const email = current?.email
         <Link to="/user/mutual_fund" className="block text-blue-900 dark:text-gray-300">
           Explore Funds
         </Link>
-        <Link to="/user/mf/sip" className="block text-blue-900 dark:text-gray-300">
+        <Link to="/user/mutual_fund/sip" className="block text-blue-900 dark:text-gray-300">
           SIP Investment
-        </Link>
-        <Link to="/user/mf/compare" className="block text-blue-900 dark:text-gray-300">
-          Compare Funds
-        </Link>
-        <Link to="/user/mf/elss" className="block text-blue-900 dark:text-gray-300">
-          ELSS Tax Saving
         </Link>
       </div>
     )}
@@ -494,14 +488,8 @@ const email = current?.email
         <Link to="/user/stocks" className="block text-blue-900 dark:text-gray-300">
           Stock Dashboard
         </Link>
-        <Link to="/user/ipo" className="block text-blue-900 dark:text-gray-300">
+        <Link to="/ipo" className="block text-blue-900 dark:text-gray-300">
           IPO
-        </Link>
-        <Link to="/user/screener" className="block text-blue-900 dark:text-gray-300">
-          Stock Screener
-        </Link>
-        <Link to="/user/etf" className="block text-blue-900 dark:text-gray-300">
-          ETF Investing
         </Link>
       </div>
     )}
@@ -521,17 +509,14 @@ const email = current?.email
 
     {fnoOpen && (
       <div className="pl-4 pt-2 space-y-2 text-sm">
-        <Link to="/user/fno/index-futures" className="block text-blue-900 dark:text-gray-300">
-          Index Futures
+        <Link to="/user/future_and_options/explore" className="block text-blue-900 dark:text-gray-300">
+          Explore F&O
         </Link>
-        <Link to="/user/fno/stock-futures" className="block text-blue-900 dark:text-gray-300">
-          Stock Futures
+        <Link to="/user/future_and_options/positions" className="block text-blue-900 dark:text-gray-300">
+          Positions
         </Link>
-        <Link to="/user/fno/options" className="block text-blue-900 dark:text-gray-300">
-          Options Trading
-        </Link>
-        <Link to="/user/fno/chains" className="block text-blue-900 dark:text-gray-300">
-          Option Chain
+        <Link to="/user/future_and_options/orders" className="block text-blue-900 dark:text-gray-300">
+          Orders
         </Link>
       </div>
     )}
@@ -551,13 +536,13 @@ const email = current?.email
 
     {calcOpen && (
       <div className="pl-4 pt-2 space-y-2 text-sm">
-        <Link className="block text-blue-900 dark:text-gray-300">
+        <Link to="/calculator/sip-calculator" className="block text-blue-900 dark:text-gray-300">
           Mutual Fund Calculator
         </Link>
-        <Link className="block text-blue-900 dark:text-gray-300">
+        <Link to="/calculator/fd-calculator" className="block text-blue-900 dark:text-gray-300">
           FD Calculator
         </Link>
-        <Link className="block text-blue-900 dark:text-gray-300">
+        <Link to="/calculator/retirement-calculator" className="block text-blue-900 dark:text-gray-300">
           Retirement Calculator
         </Link>
       </div>
@@ -568,7 +553,7 @@ const email = current?.email
   <Link to="/blogs" className="block text-blue-900 dark:text-gray-200 font-medium">
     Blog
   </Link>
-  <Link to="/help" className="block text-blue-900 dark:text-gray-200 font-medium">
+  <Link to="/support" className="block text-blue-900 dark:text-gray-200 font-medium">
     Help
   </Link>
 

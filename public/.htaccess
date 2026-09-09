@@ -5,12 +5,22 @@
 </IfModule>
 # php -- END cPanel-generated handler, do not edit
 
-# SPA fallback. The app is BrowserRouter, so /login and /mutual-funds are client-side
-# routes with no file behind them - without this Apache 404s every hard refresh and
-# every shared link. public/_redirects is Netlify syntax and Apache ignores it.
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
+
+  # Node BSE proxy. Must come before the SPA fallback, otherwise every mutual-fund
+  # call returns index.html with a 200 and the app silently gets HTML where it
+  # expects JSON. VITE_NODE_URL=/api/bse in the build, so this path is what the
+  # bundle calls.
+  # The !-f guard stops the loop: the rewritten /api/bse/index.php is a real file,
+  # so the rule does not fire a second time.
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^api/bse/?(.*)$ /api/bse/index.php [QSA,L]
+
+  # SPA fallback. The app is BrowserRouter, so /login and /mutual-funds are client-side
+  # routes with no file behind them - without this Apache 404s every hard refresh and
+  # every shared link. public/_redirects is Netlify syntax and Apache ignores it.
   RewriteRule ^index\.html$ - [L]
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d

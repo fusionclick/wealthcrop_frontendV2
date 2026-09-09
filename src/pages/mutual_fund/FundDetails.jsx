@@ -8,6 +8,7 @@ import MFChart from "../../components/chart/MFChart";
 import MutualFundInvestPage from "./MutualFundInvestPage";
 import { RedeemForm } from "./RedeemMF";
 import Riskometer from "../../components/Riskometer";
+import FundBadges from "../../components/FundBadges";
 import { postApi, postApiWithToken } from "../../api/api";
 import { useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
@@ -268,6 +269,10 @@ const [activeInfo, setActiveInfo] = useState(null);
           </span>
           ) : null}
         </div>
+
+        {/* PHYSICAL / SIP / PLAN — same BSE flags Explore shows on the card. Renders
+            nothing when BSE did not send them, so it is safe on any scheme. */}
+        <FundBadges fund={{ ...fund, ...fundsList }} className="mt-2" />
 
         {/* SAVE + SHARE (SMALL) */}
         <div className="flex md:hidden gap-3 mt-3">

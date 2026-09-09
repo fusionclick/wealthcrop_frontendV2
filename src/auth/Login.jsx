@@ -55,8 +55,7 @@ function LoginPage() {
   if (loginMode === "password") { 
     const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_USER_LOGIN}`;
     const res = await postApi(url, data)
-    console.log("Login response", res);
-    
+
     if(res?.status === 200 || res?.status === true){
           // localStorage.setItem("token", res?.token)
           localStorage.setItem("pin_set", res?.pin_set ? "true" : "false")
@@ -106,14 +105,15 @@ toastSuccess(res?.message);
 
 // Redux (store only current token)
 dispatch(login(newAccount.token));
-    
-    console.log("Password Login:", data);
+
     // localStorage.setItem("token","123456kjhhikk111")
     // Dispatch event to update App state
     window.dispatchEvent(new Event("storage"));
 
-    // Instantly redirect without reload
-    navigate("/");
+    // Instantly redirect without reload. "/" is the public marketing page - a signed-in
+    // investor belongs in the dashboard shell, which is where signup -> otp -> kyc -> login
+    // is meant to land.
+    navigate("/user/mutual_fund");
     // window.location.reload()
 reset();
     }else{
@@ -126,7 +126,6 @@ if (!otpSent) {
   try {
     // 📨 Step 1: Send OTP API call
     const res = await postApi(url, { email: data.email }); // change payload key if API expects something else
-console.log("Otp response", res);
 
     if (res.status === 200 || res.status === true) {
       // ponytail: never trust/store OTP from API body in prod (SMS path)
@@ -146,7 +145,6 @@ console.log("Otp response", res);
       
       //  Step 2: Verify OTP
       const enteredOtp = otp.join("");
-      console.log(enteredOtp);
 //       const otpMatch = enteredOtp === String(saveOTP);
 // if (!otpMatch) {
 //   toastError("Incorrect OTP");
@@ -162,9 +160,6 @@ console.log("Otp response", res);
         const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_VERIFY_OTP}`
         const res = await postApi(url, { email: data.email, otp: enteredOtp })
         if(res?.status === 200 || res?.status === true){
-        console.log("OTP entered:", enteredOtp);
-        console.log("Verify otp response", res);
-
           // localStorage.setItem("token", res?.token)
           localStorage.setItem("username", res?.data?.name)
           localStorage.setItem("pin_set", res?.pin_set ? "true" : "false")
@@ -176,7 +171,8 @@ console.log("Otp response", res);
       setOtp(["", "", "", "", "", ""]);
       setValue("otp", "");
       dispatch(login(res?.token))
-      navigate("/");
+      // Same destination as the password path — the dashboard, not the marketing page.
+      navigate("/user/mutual_fund");
         }
       } catch (error) {
         console.error("OTP Send Error:", error);

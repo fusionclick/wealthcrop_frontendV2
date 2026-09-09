@@ -83,7 +83,7 @@ const isStocksActive = location.pathname.startsWith("/user/future_and_options");
                 </p>
 
                 <button
-                  onClick={() => navigate("/user/fno/explore")}
+                  onClick={() => navigate("/user/future_and_options/explore")}
                   className="
                     inline-flex items-center gap-1 px-4 py-1.5 rounded-full
                     bg-gray-200 dark:bg-white/10

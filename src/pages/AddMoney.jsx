@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { IndianRupee, Wallet, CreditCard } from "lucide-react";
+import { IndianRupee, Wallet, Info } from "lucide-react";
 import moneyImg from "../assets/add_money.svg"; // 🟠 replace with your PNG
 
 const AddMoney = () => {
@@ -10,13 +10,7 @@ const AddMoney = () => {
     setAmount((prev) => (prev ? parseInt(prev) + value : value));
   };
 
-  const handleSubmit = () => {
-    if (!amount || parseFloat(amount) <= 0) {
-      alert("Please enter a valid amount!");
-      return;
-    }
-    alert(`₹${amount} will be added using ${method}`);
-  };
+  // ponytail: no payment gateway wired up yet, so there is nothing to submit to.
 
   return (
     <div
@@ -182,13 +176,14 @@ const AddMoney = () => {
 
       {/* Proceed Button */}
       <button
-        onClick={handleSubmit}
+        type="button"
+        disabled
         className="
-          w-full py-3 rounded-lg font-semibold transition active:scale-95
-          bg-orange-400 hover:bg-orange-500 text-white
+          w-full py-3 rounded-lg font-semibold transition
+          bg-gray-300 text-gray-600 cursor-not-allowed
 
-          dark:bg-orange-500
-          dark:hover:bg-orange-600
+          dark:bg-[var(--white-10)]
+          dark:text-[var(--text-secondary)]
         "
       >
         Proceed to Add ₹{amount || "0"}
@@ -197,16 +192,19 @@ const AddMoney = () => {
       {/* Info Section */}
       <div
         className="
-          mt-6 rounded-lg p-3 text-sm flex items-center gap-2
-          bg-green-50 border border-green-200 text-green-800
+          mt-6 rounded-lg p-3 text-sm flex items-start gap-2
+          bg-amber-50 border border-amber-200 text-amber-800
 
-          dark:bg-emerald-500/10
-          dark:border-emerald-500/30
-          dark:text-emerald-400
+          dark:bg-amber-500/10
+          dark:border-amber-500/30
+          dark:text-amber-400
         "
       >
-        <CreditCard size={16} className="text-green-600 dark:text-emerald-400" />
-        <p>100% Secure payments via UPI, Netbanking or Cards.</p>
+        <Info size={16} className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
+        <p>
+          Adding funds isn’t available yet — payments aren’t connected to this
+          account. You’ll be able to top up once your funds account goes live.
+        </p>
       </div>
     </div>
   </div>

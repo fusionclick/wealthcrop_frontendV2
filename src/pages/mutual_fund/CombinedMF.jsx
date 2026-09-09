@@ -4,7 +4,7 @@ import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { getApiWithToken, postApiWithToken } from "../../api/api";
-import { laravelUrl, nodeUrl, mergePortfolio, combinePortfolio } from "../../utils/nodeApi";
+import { laravelUrl, nodeUrl, mergePortfolio, combinePortfolio, fundBuyPath } from "../../utils/nodeApi";
 import { useNavMap, liveNav } from "../../utils/navSocket";
 import { ensureExternalNav } from "../../utils/externalNav";
 import FundDashboardSkeleton from "../../components/ui/skeleton/main/FundDashboardSkeleton";
@@ -254,20 +254,36 @@ const CombinedMF = () => {
                       {money(pnl)} ({pct.toFixed(2)}%)
                     </p>
                     {r.sources.includes("internal") && r.scheme_bse_code && (
-                      <button
-                        type="button"
-                        // preventDefault warna <summary> ke andar click row ko toggle kar deta hai
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          navigate("/mutual_fund/redeem", {
-                            state: { scheme_bse_code: r.scheme_bse_code, code: r.scheme_bse_code },
-                          });
-                        }}
-                        className="mt-2 text-xs px-3 py-1 rounded-md bg-red-600 text-white"
-                      >
-                        Redeem
-                      </button>
+                      // Mutual fund par sirf do actions hote hain — Invest more aur Redeem.
+                      // Dashboard aur HoldingSheet dono par ye jodi hai; ye page sirf Redeem
+                      // dikhata tha.
+                      <div className="mt-2 flex justify-end gap-2">
+                        <button
+                          type="button"
+                          // preventDefault warna <summary> ke andar click row ko toggle kar deta hai
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            navigate(fundBuyPath(r.scheme_isin, r.scheme_bse_code));
+                          }}
+                          className="text-xs px-3 py-1 rounded-md bg-emerald-600 text-white"
+                        >
+                          Invest more
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            navigate("/mutual_fund/redeem", {
+                              state: { scheme_bse_code: r.scheme_bse_code, code: r.scheme_bse_code },
+                            });
+                          }}
+                          className="text-xs px-3 py-1 rounded-md bg-red-600 text-white"
+                        >
+                          Redeem
+                        </button>
+                      </div>
                     )}
                   </div>
                 </>

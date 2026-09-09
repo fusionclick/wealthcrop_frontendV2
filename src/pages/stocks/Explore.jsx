@@ -722,24 +722,17 @@ const stockList =  useSelector((state) => state.stocks.stockList)
       dark:shadow-white/5
     "
   >
-    {[
-      "Sensex edges higher amid IT buying",
-      "RBI holds repo rate steady at 6.5%",
-      "FII inflows push Nifty above 25,500",
-    ].map((news, i) => (
-      <a
-        href="#"
-        key={i}
-        className="
-          block px-5 py-3 text-sm
-          text-gray-800 hover:bg-gray-50
-          dark:text-[var(--text-secondary)]
-          dark:hover:bg-[var(--white-5)]
-        "
-      >
-        {news}
-      </a>
-    ))}
+    {/* ponytail: no news provider connected — heading kept so the grid column
+        still balances against the right rail. */}
+    <p
+      className="
+        px-5 py-8 text-sm text-center
+        text-gray-500
+        dark:text-[var(--text-secondary)]
+      "
+    >
+      Market news isn’t connected yet. Headlines will appear here once the feed is live.
+    </p>
   </div>
 </div>
 
@@ -902,28 +895,8 @@ const stockList =  useSelector((state) => state.stocks.stockList)
 
         </div>
 
-        {/* Row 4: Knowledge Center */}
-        <div className="px-10 mt-10">
-          <h2 className="font-semibold text-lg mb-4 dark:text-(--text-primary)">Knowledge Center</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[
-              "How to start SIPs effectively",
-              "What is diversification in investing?",
-              "Top 5 safe long-term investment plans",
-            ].map((article) => (
-              <a
-                href="#"
-                key={article}
-                className="bg-white dark:bg-(--app-bg) rounded-xl shadow p-5 hover:shadow-md transition block dark:border border-(--border-color)"
-              >
-                <h3 className="font-medium text-blue-950 dark:text-(--text-primary) text-sm">{article}</h3>
-                <p className="text-gray-500 dark:text-(--text-secondary) text-xs mt-1">
-                  Learn about investment strategies and mutual funds
-                </p>
-              </a>
-            ))}
-          </div>
-        </div>
+        {/* ponytail: Knowledge Center removed — the articles were placeholders with
+            no destination. Restore when there is real content to link to. */}
       </div>
 
 

@@ -11,6 +11,7 @@ const AboutSection = () => {
 
   return (
     <section
+  id="about"
   className="
     py-20 px-6 text-center overflow-hidden
     bg-linear-to-b from-gray-50 to-sky-50

@@ -41,14 +41,6 @@ const faqs = [
 const FAQSection = () => {
   const [open, setOpen] = useState(null);
 
-  const handleWhatsapp = () => {
-  const phone = "91XXXXXXXXXX"; // your number
-  const message = "Hello, I need some help regarding your app!";
-  const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-
-  window.open(url, "_blank");
-};
-
 const navigate = useNavigate()
 const handleRedirect = (url)=>{
   navigate(url)
@@ -157,17 +149,18 @@ const handleRedirect = (url)=>{
           Live Chat
         </button>
 
-        <button
-          onClick={handleWhatsapp}
+        <a
+          href="mailto:support@wealthcrop.co?subject=Help%20request"
           className="
+            block text-center
             w-full py-2 rounded-lg font-medium
             bg-green-600 hover:bg-green-700
             dark:bg-green-500 dark:hover:bg-green-600
             text-white
           "
         >
-          WhatsApp Help
-        </button>
+          Email Support
+        </a>
       </div>
 
       <hr className="my-6 border-gray-200 dark:border-white/10" />
