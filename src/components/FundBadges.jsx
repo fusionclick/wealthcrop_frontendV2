@@ -18,10 +18,13 @@ export default function FundBadges({ fund, className = "" }) {
   const physical = fund?.physical_only === true;
   const sip = fund?.sip_allowed;
   const plan = fund?.plan;
-  if (!physical && sip == null && !plan) return null;
+  // Set by an admin in the Fund Catalogue, not by BSE. null means nobody classified it.
+  const adminCategory = fund?.admin_category;
+  if (!physical && sip == null && !plan && !adminCategory) return null;
 
   return (
     <div className={`flex flex-wrap gap-1.5 ${className}`}>
+      {adminCategory && <Pill tone="emerald">{adminCategory.replace(/_/g, " ").toUpperCase()}</Pill>}
       {plan && <Pill tone="slate">{plan.toUpperCase()}</Pill>}
       {physical && <Pill tone="amber">PHYSICAL ONLY</Pill>}
       {sip === true && <Pill tone="emerald">SIP</Pill>}
