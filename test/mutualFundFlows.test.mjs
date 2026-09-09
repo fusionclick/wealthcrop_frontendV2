@@ -81,3 +81,50 @@ test("fund URLs never emit an empty dynamic segment", () => {
   assert.equal(fundBuyPath("", ""), MF_EXPLORE_PATH);
   assert.match(app, /path="explore" element=\{<ExploreMF \/>\}/);
 });
+
+test("no mutual-fund chart renders invented data", () => {
+  const fd = fs.readFileSync("src/pages/mutual_fund/FundDetails.jsx", "utf8");
+
+  // Holdings, the equity/cash donut and the sector donut all came from a backend helper
+  // that returned constants — the same seven sector weights for every equity scheme in
+  // the catalogue, and holdings literally named "Financial basket". The backend returns
+  // [] now, so each section must be guarded or the page shows a heading over nothing.
+  for (const key of ["holdings", "assetSplit", "sectors"]) {
+    assert.ok(
+      fd.includes(`(fundsList?.${key} || []).length ? (`),
+      `${key} section must hide itself when empty`
+    );
+  }
+
+  // Alpha was (return - 0.12) against an invented benchmark, Beta was volatility / 0.16,
+  // and Top 5 / Top 20 summed the fabricated holdings. None may come back as a tile.
+  for (const gone of ["ratios?.alpha", "ratios?.beta", "ratios?.top5", "ratios?.top20"]) {
+    assert.equal(fd.includes(gone), false, `${gone} is not measurable — it must stay out`);
+  }
+
+  // What replaced them is computed from the published NAV series.
+  for (const real of ["ratios?.volatility", "ratios?.sharpe", "ratios?.sortino", "ratios?.maxDrawdown"]) {
+    assert.ok(fd.includes(real), `${real} missing`);
+  }
+  // A Sharpe ratio is meaningless without the rate it is measured against.
+  assert.match(fd, /ratios\?\.riskFreeRate/);
+  // Only measured metrics become tiles, and no tiles means no empty panel.
+  assert.match(fd, /\.filter\(\(m\) => m\.value != null\)/);
+  assert.match(fd, /\{fundamentals\.length \? \(/);
+
+  // The NAV chart is the one chart with a real source; it must stay wired to the series
+  // the backend fetches, not to a locally generated one.
+  assert.match(fd, /series=\{details\?\.data\?\.chartData \|\| \[\]\}/);
+  assert.match(fd, /synthetic=\{!!details\?\.data\?\.synthetic\}/);
+});
+
+test("portfolio pies aggregate real holdings, not fixtures", () => {
+  // These two charts were always real: they bucket the investor's own rows by category.
+  // The assertion pins that they read from the merged portfolio rather than a constant.
+  for (const file of ["src/pages/mutual_fund/DashBoardMF.jsx", "src/pages/mutual_fund/CombinedMF.jsx"]) {
+    const src = fs.readFileSync(file, "utf8");
+    assert.match(src, /const allocation = useMemo\(/, `${file}: allocation must be derived`);
+    assert.match(src, /(funds\.forEach|combined\.rows\.forEach)/, `${file}: from real rows`);
+    assert.doesNotMatch(src, /allocation = \[\s*\{/, `${file}: no hardcoded allocation`);
+  }
+});
