@@ -9,6 +9,24 @@ import { nodeUrl, validateInvestorReady, buildMandatePayload } from "../../utils
 // Showing it here means the investor sees exactly what is being registered.
 const PER_YEAR = { m: 12, q: 4, w: 52 };
 const money = (v) => `₹${Number(v || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+const SIP_DAYS = [1, 5, 10, 15, 20, 25, 28];
+const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/**
+ * BSE requires start_date's day-of-month to equal txn_date — anything else is
+ * `invalid_txn_date` (msgid 3809), which is exactly what the form used to send: SIP date
+ * "5th" alongside a start date of the 10th. So the two controls are kept in step here
+ * rather than left to disagree.
+ *
+ * Next occurrence of `day` strictly after today, so the first installment is never dated
+ * in the past. There is no minimum notice period — verified that a start one day out
+ * registers fine — so the nearest valid date is the right default.
+ */
+const nextOccurrence = (day, from = new Date()) => {
+  const d = new Date(from.getFullYear(), from.getMonth(), day);
+  if (d <= from) d.setMonth(d.getMonth() + 1);
+  return iso(d);
+};
 
 const SIPSetupPage = () => {
   const navigate = useNavigate();
@@ -42,17 +60,25 @@ const SIPSetupPage = () => {
   const [amount, setAmount] = useState(Math.max(seedAmount, minSip));
   const [frequency, setFrequency] = useState("m"); // m=monthly, w=weekly, q=quarterly
   const [sipDay, setSipDay] = useState(5);
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date();
-    d.setMonth(d.getMonth() + 1);
-    return d.toISOString().split("T")[0];
-  });
+  const [startDate, setStartDate] = useState(() => nextOccurrence(5));
   const [endDate, setEndDate] = useState(() => {
-    const d = new Date();
-    d.setMonth(d.getMonth() + 1);
+    const d = new Date(nextOccurrence(5));
     d.setFullYear(d.getFullYear() + seedYears);
-    return d.toISOString().split("T")[0];
+    return iso(d);
   });
+
+  // One control drives the other, both ways, so they can never be sent out of step.
+  const pickSipDay = (day) => {
+    setSipDay(day);
+    setStartDate(nextOccurrence(day));
+  };
+  const pickStartDate = (value) => {
+    setStartDate(value);
+    const day = Number(String(value).slice(8, 10));
+    if (day >= 1 && day <= 28) setSipDay(day);
+  };
+  // A 29th-31st start has no equivalent every month; BSE's SIP dates stop at 28.
+  const startDayTooLate = Number(String(startDate).slice(8, 10)) > 28;
   const [loading, setLoading] = useState(false);
 
   // Once the scheme arrives from the URL we know its real minimum; lift the amount to it
@@ -193,13 +219,20 @@ const SIPSetupPage = () => {
             <label className="block text-sm font-medium text-gray-700 dark:text-[var(--text-secondary)] mb-1">SIP Date</label>
             <select
               value={sipDay}
-              onChange={(e) => setSipDay(e.target.value)}
+              onChange={(e) => pickSipDay(Number(e.target.value))}
               className="w-full border rounded-lg px-3 py-2 text-gray-800 dark:bg-[var(--white-10)] dark:text-[var(--text-primary)] dark:border-[var(--border-color)]"
             >
-              {[1, 5, 10, 15, 20, 25, 28].map((d) => (
-                <option key={d} value={d}>{d}th of every month</option>
+              {SIP_DAYS.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                  {d === 1 ? "st" : d === 28 ? "th" : "th"} of every month
+                </option>
               ))}
             </select>
+            <p className="text-xs text-gray-400 mt-1">
+              Changing this moves the start date to the next {sipDay}
+              {sipDay === 1 ? "st" : "th"} — BSE requires them to match.
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -208,9 +241,15 @@ const SIPSetupPage = () => {
               <input
                 type="date"
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                min={iso(new Date(Date.now() + 86400000))}
+                onChange={(e) => pickStartDate(e.target.value)}
                 className="w-full border rounded-lg px-3 py-2 text-gray-800 dark:bg-[var(--white-10)] dark:text-[var(--text-primary)] dark:border-[var(--border-color)]"
               />
+              {startDayTooLate && (
+                <p className="text-xs text-red-500 mt-1">
+                  Pick a day from the 1st to the 28th — not every month has a 29th.
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-[var(--text-secondary)] mb-1">End Date</label>
@@ -253,7 +292,7 @@ const SIPSetupPage = () => {
           </button>
           <button
             onClick={handleRegister}
-            disabled={loading || !fund.scheme_bse_code || Number(amount) < minSip || !installments}
+            disabled={loading || !fund.scheme_bse_code || Number(amount) < minSip || !installments || startDayTooLate}
             className="flex-1 py-3 rounded-lg bg-blue-600 text-white font-medium disabled:opacity-50 dark:bg-blue-500"
           >
             {loading ? "Registering…" : "Start SIP"}

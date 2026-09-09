@@ -163,3 +163,20 @@ test("a SIP can be set up for a specific fund, and survives a refresh", async ()
   assert.doesNotMatch(sip, /investor:\s*\{\s*ucc/);
   assert.match(sip, /scheme: fund\.scheme_bse_code/);
 });
+
+test("SIP date and start date can never be sent out of step", () => {
+  // The live 502: SIP date "5th of every month" with a start date of the 10th. BSE ties
+  // the two together (invalid_txn_date, msgid 3809) and there is no minimum notice
+  // period, so the fix is to keep them in step rather than to push the start date out.
+  const sip = fs.readFileSync("src/pages/mutual_fund/SIPSetupPage.jsx", "utf8");
+  assert.match(sip, /const nextOccurrence = \(day, from = new Date\(\)\) =>/);
+  // Both directions: picking a SIP day moves the start date, and vice versa.
+  assert.match(sip, /const pickSipDay = \(day\) => \{[\s\S]*?setStartDate\(nextOccurrence\(day\)\)/);
+  assert.match(sip, /const pickStartDate = \(value\) => \{[\s\S]*?setSipDay\(day\)/);
+  // Neither control may still write its own state directly, or they drift apart again.
+  assert.doesNotMatch(sip, /onChange=\{\(e\) => setSipDay\(/);
+  assert.doesNotMatch(sip, /onChange=\{\(e\) => setStartDate\(/);
+  // A 29th-31st start has no monthly equivalent and BSE's SIP dates stop at 28.
+  assert.match(sip, /startDayTooLate/);
+  assert.match(sip, /disabled=\{[^}]*startDayTooLate\}/);
+});
