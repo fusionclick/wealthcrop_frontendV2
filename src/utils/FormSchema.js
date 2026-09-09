@@ -1,14 +1,36 @@
 import z from "zod";
 
+/**
+ * One password rule, shared by signup and reset.
+ *
+ * The old regex was /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/
+ * and rejected passwords that satisfied the message it printed. Two faults:
+ *
+ *   1. Only @$!%*?& counted as "special". A full stop, hyphen, underscore, #, + and most
+ *      of the keyboard did not, so "Johndoe1234." failed the lookahead.
+ *   2. The trailing [A-Za-z\d@$!%*?&]{6,} was a WHITELIST of permitted characters, so a
+ *      password containing any other symbol was rejected even when it also carried an
+ *      approved one — "Johndoe1234!." fails too. Password rules should never forbid
+ *      characters; that only shrinks the search space.
+ *
+ * Any non-alphanumeric now counts as special, and nothing is forbidden.
+ *
+ * Minimum is 8, not 6: Laravel validates 'password' => 'required|min:8' on register,
+ * login and reset, so a 6-character password passed the browser and came back a 422 from
+ * the server with a message that contradicted the one on screen.
+ */
+const PASSWORD_RULE = z
+  .string()
+  .min(8, "Password must be at least 8 characters")
+  .regex(/[a-z]/, "Password must include a lowercase letter")
+  .regex(/[A-Z]/, "Password must include an uppercase letter")
+  .regex(/\d/, "Password must include a number")
+  .regex(/[^A-Za-z0-9]/, "Password must include a special character (any symbol, e.g. . ! @ # -)");
+
 export const formSchema = z.object({
   username: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email address"),
-  password: z
-    .string()
-    .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/,
-      "Password must be at least 6 characters long and include uppercase, lowercase, number, and special character"
-    ),
+  password: PASSWORD_RULE,
 });
 
 
@@ -28,11 +50,7 @@ export const passwordLoginSchema = z.object({
 });
 
 export const resetPasswordSchema = z.object({
-  newPassword: z.string()
-  .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/,
-      "Password must be at least 6 characters long and include uppercase, lowercase, number, and special character"
-    ),
+  newPassword: PASSWORD_RULE,
 })
 
 export const otpLoginSchema = z.object({
