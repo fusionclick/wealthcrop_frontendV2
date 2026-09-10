@@ -131,8 +131,22 @@ const isKycDone = isKycVerified(userData?.kyc?.kyc_status)
   const handleChangeDetails = async (type, value) => {
 
     const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_UPDATE_MOB_EMAIL}`
+    // `type` sirf modal ka UI switch hai ("maritalStatus", "father'sName"…), API ka field
+    // naam nahi. Pehle wahi naam jaise ka waisa POST ho jata tha, aur backend un mein se
+    // kisi ko nahi jaanta tha — har update "No changes detected" par khatam hoti thi.
+    // Ye map user_profiles ke asli column names par le jata hai.
+    const API_FIELD = {
+      email: "email",
+      maritalStatus: "marital_status",
+      "father'sName": "fname",
+      income: "income",
+      occupation: "occupation",
+    }
+    const field = API_FIELD[type]
+    if (!field) return toastError("This field cannot be updated yet.")
+
     try {
-      const response = await postApiWithToken(url, {[type]: value} )
+      const response = await postApiWithToken(url, {[field]: value} )
       console.log("Verify otp", response);
       
       if(response?.status === 200 || response?.status){

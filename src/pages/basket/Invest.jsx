@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { calculateDistribution } from "../../utils/distribution";
 import { getApiWithToken } from "../../api/api";
+import { MF_EXPLORE_PATH } from "../../utils/nodeApi";
 import { FaArrowLeft } from 'react-icons/fa';
 
 export default function Invest({ baskets }) {
@@ -66,9 +67,26 @@ export default function Invest({ baskets }) {
           ))}
         </ul>
 
-        <button className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700">
-          Confirm {mode === "sip" ? "SIP" : "Investment"}
+        {/* Is button par koi onClick tha hi nahi, aur post karne ko koi endpoint bhi
+            nahi: baskets ke liye sirf create/fetch/get hain (Laravel), aur Node/BSE
+            backend basket orders jaanta hi nahi. Ek basket SIP ka matlab hai har fund
+            par alag asli order — wo abhi bana nahi. Chalta hua dikhne wala button jo
+            paison ka kaam na kare, na dikhaana behtar hai. */}
+        <button
+          type="button"
+          disabled
+          className="w-full py-3 bg-gray-300 text-gray-600 rounded-xl font-medium cursor-not-allowed
+                     dark:bg-white/10 dark:text-[var(--text-secondary)]"
+        >
+          Basket investing isn’t available yet
         </button>
+        <p className="mt-2 text-center text-xs text-gray-500 dark:text-[var(--text-secondary)]">
+          You can still start a SIP on any individual fund from{" "}
+          <Link to={MF_EXPLORE_PATH} className="text-blue-600 hover:underline dark:text-blue-400">
+            Mutual Funds
+          </Link>
+          .
+        </p>
       </div>
     </div>
   );

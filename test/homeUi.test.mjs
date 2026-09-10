@@ -480,3 +480,67 @@ test("frontend ki key names backend ke validator se milti hain", () => {
     assert.ok(sent.includes(key), `${key} backend mangta hai magar frontend bhejta hi nahi`);
   }
 });
+
+// ─────────────── 10 Sep: chhata batch ───────────────
+
+test("profile update UI keys ko DB column names par map karta hai", () => {
+  const src = readCode("../src/pages/profile/BasicDetails.jsx");
+  // `type` modal ka UI switch hai ("maritalStatus", "father'sName"), API field naam nahi.
+  // Pehle wahi jaise ka waisa POST hota tha aur backend kisi ko nahi jaanta tha.
+  assert.equal(/postApiWithToken\(url, \{\[type\]: value\}/.test(src), false);
+  assert.match(src, /postApiWithToken\(url, \{\[field\]: value\}/);
+  for (const col of ["marital_status", "fname", "income", "occupation"]) {
+    assert.ok(src.includes(`"${col}"`) || src.includes(`${col}:`), `${col} map mein nahi`);
+  }
+});
+
+test("backend wahi profile fields leta hai jo frontend bhejta hai", () => {
+  const controller = fs.readFileSync(
+    new URL("../../admin_php/app/Http/Controllers/Api/InvestorController.php", import.meta.url),
+    "utf8"
+  );
+  // Pehle sirf `email` dekha jata tha, is liye baqi har update "No changes detected" deti thi.
+  assert.match(controller, /PROFILE_FIELDS = \['marital_status', 'fname', 'income', 'occupation'\]/);
+  assert.match(controller, /updateOrCreate\(\['user_id' => \$user->id\]/);
+  // income column decimal hai — numeric validate hona chahiye.
+  assert.match(controller, /'income'\s*=> 'nullable\|numeric\|min:0'/);
+
+  const page = read("../src/pages/profile/BasicDetails.jsx");
+  const sent = [...page.matchAll(/"(marital_status|fname|income|occupation|email)"/g)].map((m) => m[1]);
+  for (const f of ["marital_status", "fname", "income"]) {
+    assert.ok(sent.includes(f), `${f} frontend bhejta hi nahi`);
+  }
+});
+
+test("basket ka Confirm button jhoota wada nahi karta", () => {
+  const src = readCode("../src/pages/basket/Invest.jsx");
+  // Basket order ka koi endpoint hai hi nahi (Laravel par sirf create/fetch/get,
+  // Node/BSE backend basket jaanta hi nahi) — chalta hua dikhne wala button galat tha.
+  assert.match(src, /disabled/);
+  assert.match(src, /Basket investing isn’t available yet/);
+  // Koi bhi enabled button bina onClick ke nahi bacha.
+  const dead = (src.match(/<button(?![^>]*(onClick|disabled))[^>]*>/g) || []);
+  assert.deepEqual(dead, []);
+});
+
+test("profile menu kisi stub page par nahi bhejta", () => {
+  const src = readCode("../src/pages/Profile.jsx");
+  // Dono page sirf `<div>ReportActivity</div>` / `<div>AccountForm</div>` hain.
+  assert.equal(src.includes("report-activity"), false);
+  assert.equal(src.includes("account-forms"), false);
+  // Jo bacha hai wo asli page hai.
+  assert.match(src, /path: "nominee_details"/);
+  // Mere hatane se bacha hua import na reh jaye.
+  assert.equal(/^\s+Activity,$/m.test(src), false);
+});
+
+test("stub pages abhi bhi sirf placeholder hain (yaad-dihani)", () => {
+  // Ye test tab girega jab koi inhe waqai bana dega — us waqt menu wapas jodna hai.
+  for (const f of ["ReportActivity", "AccountForm"]) {
+    const src = read(`../src/pages/profile/${f}.jsx`);
+    assert.ok(
+      src.includes(`<div>${f}</div>`),
+      `${f} ab bana hua lagta hai — Profile.jsx ke menu mein wapas jodne ka waqt hai`
+    );
+  }
+});

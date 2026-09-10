@@ -14,7 +14,6 @@ import {
   AlertTriangle,
   User,
   KeyRound,
-  Activity,
   Users,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -38,13 +37,16 @@ const Profile = () => {
   };
   
 
+  // "Report suspicious activity" aur "Account Related Forms" yahan se nikal diye gaye.
+  // Dono page sirf placeholder stub thay — `<div>ReportActivity</div>` aur
+  // `<div>AccountForm</div>` — aur kisi bhi backend mein inke liye kuch nahi hai. Menu
+  // mein rakhne ka matlab sirf itna tha ke user click kar ke khali page par pohanche.
+  // Route App.jsx mein maujood hai; jab ye waqai ban jayen, sirf ye do line wapas.
   const options = [
     { name: "Basic Details", path: "basic" },
     { name: "Change Password", path: "change-password" },
     { name: "Change PIN", path: "change-pin" },
-    { name: "Report suspicious activity", path: "report-activity" },
     { name: "Nominee Details", path: "nominee_details" },
-    { name: "Account Related Forms", path: "account-forms" },
   ];
 
     const [showAll, setShowAll] = useState(false)
@@ -355,20 +357,12 @@ const email = current?.email
     icon: <ShieldCheck size={18} />,
     label: "Change Pin",
   },
-  {
-    to: "/profile/report-activity",
-    icon: <Activity size={18} />,
-    label: "Report Activity",
-  },
+  // Report Activity aur Account Form yahan se bhi nikal diye — dono page abhi
+  // placeholder stub hain (upar options list par bhi yehi kiya hai).
   {
     to: "/profile/nominee_details",
     icon: <Users size={18} />,
     label: "Nominee Details",
-  },
-  {
-    to: "/profile/account-forms",
-    icon: <FileText size={18} />,
-    label: "Account Form",
   },
             ].map((item, i) => (
               <Link
