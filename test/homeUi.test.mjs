@@ -590,3 +590,38 @@ test("baskets API har basket ki categories deti hai", () => {
   assert.match(ctrl, /'holdings\.\*\.category'\s*=> 'nullable\|string\|max:100'/);
   assert.match(ctrl, /\$attributes\['category'\] = \$holding\['category'\]/);
 });
+
+// ─────────────── 10 Sep: aathwan batch ───────────────
+
+test("NAV chart: chhoti range par Weekly/Monthly be-matlab nuqte dete hain", async () => {
+  const { bucketSeries } = await import("../src/components/chart/navSeries.js");
+  const now = Math.floor(Date.now() / 1000);
+  const series = Array.from({ length: 800 }, (_, i) => ({
+    timestamp: now - (799 - i) * 86400,
+    nav: 70 + Math.sin(i / 20) * 5,
+  }));
+
+  // Yehi wo ginti hai jo screenshot mein dikhi: 1W par Weekly ki seedhi tirchi lakeer
+  // (2 nuqte) aur Monthly ka tanha dot (1 nuqta).
+  assert.equal(bucketSeries(series, "1W", "W").length, 2);
+  assert.equal(bucketSeries(series, "1W", "M").length, 1);
+  assert.equal(bucketSeries(series, "1M", "M").length, 2);
+
+  // Aur ye wo hain jo waqai shakl dikhate hain.
+  assert.ok(bucketSeries(series, "1W", "D").length >= 3);
+  assert.ok(bucketSeries(series, "1M", "W").length >= 3);
+  assert.ok(bucketSeries(series, "3M", "M").length >= 3);
+});
+
+test("NAV chart un intervals ko chalne hi nahi deta", () => {
+  const src = readCode("../src/components/chart/MFChart.jsx");
+  // Faisla data se hota hai (custom date range par bhi chalta hai), hardcoded
+  // "1W matlab sirf daily" se nahi.
+  assert.match(src, /const MIN_POINTS = 3;/);
+  assert.match(src, /pointsPerInterval\[k\] = |out\[k\] = bucketSeries\(series, range, k/);
+  assert.match(src, /disabled=\{!ok\}/);
+  // Mojooda interval be-matlab ho jaye to khud sabse baareek chalne wale par aa jao.
+  assert.match(src, /const next = Object\.keys\(INTERVALS\)\.find\(usable\)/);
+  // Data itna kam ho ke koi bhi interval 3 nuqte na de to kisi ko disable mat karo.
+  assert.match(src, /!anyUsable \|\|/);
+});
