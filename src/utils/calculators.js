@@ -29,6 +29,40 @@ const surchargeRate = (taxable, regime) => {
   return regime === "new" ? 0.25 : 0.37;
 };
 
+/**
+ * Goal SIP — kitna monthly chahiye taake `years` baad goal poora ho.
+ * Goal aaj ki qeemat mein diya jata hai, is liye pehle use inflation par aage le jate hain;
+ * warna inflation slider hilta hai aur natija wahi rehta hai.
+ */
+export const sipForGoal = ({ goal, years, cagr, inflation = 0 }) => {
+  const yrs = Math.max(1, Math.round(Number(years) || 0));
+  const target = Math.max(0, Number(goal) || 0) * Math.pow(1 + (Number(inflation) || 0) / 100, yrs);
+  const n = yrs * 12;
+  const r = (Number(cagr) || 0) / 100 / 12;
+  // r = 0 par annuity formula 0/0 hai — us case mein goal barabar hisson mein bat jata hai.
+  const monthlySIP = r === 0 ? target / n : (target * r) / (Math.pow(1 + r, n) - 1);
+
+  const series = [];
+  for (let i = 1; i <= yrs; i++) {
+    const months = i * 12;
+    const corpus = r === 0 ? monthlySIP * months : monthlySIP * ((Math.pow(1 + r, months) - 1) / r);
+    series.push({
+      year: `Y${i}`,
+      total: Math.round(corpus),
+      principal: Math.round(monthlySIP * months),
+    });
+  }
+
+  return {
+    target: Math.round(target),
+    monthlySIP: Math.round(monthlySIP),
+    totalInvested: Math.round(monthlySIP * n),
+    estimatedGrowth: Math.round(target - monthlySIP * n),
+    futureValue: Math.round(target),
+    series,
+  };
+};
+
 export const computeTax = ({ gross, regime = "new", deductions = 0, salaried = true }) => {
   const g = Math.max(0, Number(gross) || 0);
   const isNew = regime === "new";

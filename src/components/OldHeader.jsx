@@ -197,10 +197,16 @@ const email = current?.email
 
     {/* Search (Desktop) */}
     <div className="hidden md:flex flex-1 mx-8 max-w-md relative">
+      {/* ponytail: ye box sirf popup ka trigger hai — readOnly is liye ke pehle log isme
+          type karte the aur popup (jo login ke peeche band tha) kabhi khulta hi nahi tha.
+          Stock aur fund search dono bina token ke chalti hain, aur dono result pages public
+          routes hain, so gate ki koi wajah nahi thi. */}
       <input
         type="text"
+        readOnly
         placeholder="Search for stocks, mutual funds..."
-        onFocus={() => token && setIsSearchOpen(true)}
+        onFocus={() => setIsSearchOpen(true)}
+        onClick={() => setIsSearchOpen(true)}
         className="
           w-full border border-[var(--border-color)]
           bg-[var(--glass-bg)]
@@ -580,8 +586,10 @@ const email = current?.email
   <div className="mt-3">
     <input
       type="text"
+      readOnly
       placeholder="Search..."
-      onFocus={() => token && setIsSearchOpen(true)}
+      onFocus={() => setIsSearchOpen(true)}
+      onClick={() => setIsSearchOpen(true)}
       className="
         w-full border border-gray-200 dark:border-white/10
         bg-white dark:bg-white/5

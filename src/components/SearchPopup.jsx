@@ -3,7 +3,10 @@ import { Search, ArrowLeft, Bookmark } from "lucide-react";
 import { postApi } from "../api/api";
 import { searchStocks } from "../api/marketApi";
 import { useNavigate } from "react-router-dom";
-import { nodeUrl, fundPath } from "../utils/nodeApi";
+import { nodeUrl, fundPath, loadMfWatchlist, toggleMfWatchlist } from "../utils/nodeApi";
+import { toastSuccess } from "../utils/notifyCustom";
+
+const savedKeysNow = () => new Set(loadMfWatchlist().map((f) => `${f.isin}|${f.code}`));
 
 export default function SearchPopup({ onClose }) {
   const containerRef = useRef(null);
@@ -13,6 +16,7 @@ export default function SearchPopup({ onClose }) {
     const [results, setResults] = useState([]);
     const [stockResults, setStockResults] = useState([]);
     const [loading, setLoading] = useState(false)
+    const [savedKeys, setSavedKeys] = useState(savedKeysNow)
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -28,7 +32,9 @@ export default function SearchPopup({ onClose }) {
     };
   }, [onClose]);
 
-  const searchAssets = async (text) => {
+  // ponytail: tag argument is liye ke tag badalte hi dobara search chalani hoti hai aur
+  // usi render mein `filterTag` abhi purana hota hai.
+  const searchAssets = async (text, tag = filterTag) => {
 
     setLoading(true)
 
@@ -42,13 +48,13 @@ export default function SearchPopup({ onClose }) {
     }
 
     const searchStocksNow =
-      filterTag === "All" || filterTag === "Stocks"
+      tag === "All" || tag === "Stocks"
         ? searchStocks(text)
             .then((r) => setStockResults(r?.data ?? []))
             .catch(() => setStockResults([]))
         : Promise.resolve().then(() => setStockResults([]));
 
-    if (filterTag === "Stocks") {
+    if (tag === "Stocks") {
       await searchStocksNow;
       setResults([]);
       setLoading(false);
@@ -59,7 +65,7 @@ export default function SearchPopup({ onClose }) {
 
     const payload = {
       data:{
-        fields: [filterTag?.toUpperCase()],
+        fields: [tag?.toUpperCase()],
         count_only: false,
         start: 0,
         length: 100,
@@ -85,8 +91,6 @@ export default function SearchPopup({ onClose }) {
     try {
       const res = await postApi(url, payload);
 
-      console.log("search assests ", res);
-
       if (res?.status === 200 || res?.status === true || res?.status === "success") {
         setResults(res?.data?.lists || []);
       }
@@ -110,13 +114,19 @@ export default function SearchPopup({ onClose }) {
 
  const showFundPage = (isin,code) => {
   // const cleanName = fundName.replace(/\s+/g, "");
+  onClose();
   navigate(fundPath(isin, code));
 };
 
-  useEffect(() => {
-    console.log("assests results");
-    
-  },[results])
+  // ponytail: pehle yahan `toggleBookmark` call hota tha jo kahin define hi nahi tha —
+  // har bookmark click ReferenceError deta tha. Watchlist ka helper pehle se maujood hai.
+  const toggleSaved = (asset) => {
+    const isin = asset?.scheme_isin || "";
+    const code = asset?.scheme_bse_code || "";
+    const nowSaved = toggleMfWatchlist({ isin, code, name: asset?.name || "Fund" });
+    setSavedKeys(savedKeysNow());
+    toastSuccess(nowSaved ? "Saved to watchlist" : "Removed from watchlist");
+  };
 
   return (
   <div
@@ -178,6 +188,7 @@ export default function SearchPopup({ onClose }) {
           <Search className="w-4 h-4 mr-2 text-gray-400" />
 
           <input
+            autoFocus
             value={query}
             onChange={(e) => searchAssets(e.target.value)}
             placeholder="Search Wealthcrop..."
@@ -204,7 +215,10 @@ export default function SearchPopup({ onClose }) {
         ].map((tag) => (
           <button
             key={tag}
-            onClick={() => setFilterTag(tag)}
+            onClick={() => {
+              setFilterTag(tag);
+              if (query.length >= 2) searchAssets(query, tag);
+            }}
             className={`
               px-4 py-1.5
               rounded-full
@@ -269,11 +283,8 @@ export default function SearchPopup({ onClose }) {
         <div className="h-full overflow-y-auto">
           {results.map((asset) => (
             <div
-              key={asset.id}
-              onClick={() => {
-                setSelectedAsset(asset);
-                setQuery(asset.name);
-              }}
+              key={`${asset.scheme_isin || ""}-${asset.scheme_bse_code || asset.name}`}
+              onClick={() => showFundPage(asset?.scheme_isin, asset?.scheme_bse_code)}
               className="
                 px-5 py-4
                 border-b border-gray-100
@@ -287,11 +298,7 @@ export default function SearchPopup({ onClose }) {
                 dark:hover:bg-[var(--gray-800)]
               "
             >
-              <div
-              onClick={() =>
-                      showFundPage(asset?.scheme_isin, asset?.scheme_bse_code)
-                    }
-              >
+              <div>
                 <div className=" text-sm dark:text-[var(--text-primary)]">
                   {asset.name}
                 </div>
@@ -306,7 +313,7 @@ export default function SearchPopup({ onClose }) {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  toggleBookmark(asset);
+                  toggleSaved(asset);
                 }}
                 className="
                   p-2 rounded-full
@@ -315,7 +322,13 @@ export default function SearchPopup({ onClose }) {
                   dark:hover:bg-[var(--gray-700)]
                 "
               >
-                <Bookmark className="w-5 h-5 text-gray-500" />
+                <Bookmark
+                  className={
+                    savedKeys.has(`${asset.scheme_isin || ""}|${asset.scheme_bse_code || ""}`)
+                      ? "w-5 h-5 text-green-600 fill-green-600"
+                      : "w-5 h-5 text-gray-500"
+                  }
+                />
               </button>
             </div>
           ))}
@@ -329,16 +342,19 @@ export default function SearchPopup({ onClose }) {
             </h3>
 
             <div className="grid grid-cols-2 gap-3 mb-6">
+              {/* ponytail: pehle poore legal naam ("Vodafone Idea Ltd.") thay jin par backend
+                  ka substring match fail hota hai — ye wahi naam hain jo waqai hit karte hain. */}
               {[
-                "Vodafone Idea Ltd.",
-                "Suzlon Energy Ltd.",
-                "Reliance Power Ltd.",
-                "SBI Gold Fund",
-                "EPack Prefab Technologies Ltd.",
-                "Banco Products (India) Ltd.",
+                "Vodafone",
+                "Suzlon",
+                "Reliance Power",
+                "Tata Motors",
+                "HDFC Bank",
+                "SBI Gold",
               ].map((item) => (
                 <button
                   key={item}
+                  onClick={() => searchAssets(item)}
                   className="
                     border border-gray-200
                     rounded-xl
@@ -369,16 +385,19 @@ export default function SearchPopup({ onClose }) {
             </h3>
 
             <div className="space-y-3">
+              {/* ponytail: pehle yahan "Stocks Under 100" jaisi screener-lines thin jo search
+                  se match hi nahi karti — ab wohi terms jin par catalogue waqai jawab deta hai. */}
               {[
-                "Stocks Under 100",
-                "Large Cap stocks",
-                "Mid Cap stocks",
-                "Finance Stocks",
-                "Nifty Next 50 Stocks",
-                "Nifty 50 Stocks",
+                "Large Cap",
+                "Small Cap",
+                "Flexi Cap",
+                "Index Fund",
+                "ELSS",
+                "Liquid Fund",
               ].map((item) => (
                 <button
                   key={item}
+                  onClick={() => searchAssets(item)}
                   className="
                     flex items-center gap-2
                     text-sm text-gray-700

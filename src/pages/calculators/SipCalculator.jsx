@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import {
   FaChartLine,
   FaBullseye,
@@ -7,6 +7,8 @@ import {
   FaMoneyBillWave,
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
+import { sipForGoal } from "../../utils/calculators";
+import { MF_EXPLORE_PATH } from "../../utils/nodeApi";
 import {
   BarChart,
   Bar,
@@ -23,8 +25,6 @@ const SipCalculator = () => {
   const [years, setYears] = useState(10);
   const [cagr, setCagr] = useState(9);
   const [inflation, setInflation] = useState(3);
-  const [result, setResult] = useState({});
-  const [data, setData] = useState([]);
 
   const [openFAQ, setOpenFAQ] = useState(null);
 
@@ -33,40 +33,11 @@ const SipCalculator = () => {
     navigate(url);
   };
 
-  // 🔷 SIP Calculation Formula
-  const calculateSIP = () => {
-    const n = years * 12;
-    const r = cagr / 100 / 12;
-    const monthlySIP = (goalAmount * r) / (Math.pow(1 + r, n) - 1);
-
-    let corpus = 0;
-    let principal = 0;
-    const yearlyData = [];
-    for (let i = 1; i <= years; i++) {
-      const months = i * 12;
-      const val = monthlySIP * ((Math.pow(1 + r, months) - 1) / r);
-      corpus = val;
-      principal = monthlySIP * months;
-      yearlyData.push({
-        year: `Y${i}`,
-        total: Math.round(corpus),
-        principal: Math.round(principal),
-      });
-    }
-
-    setData(yearlyData);
-
-    setResult({
-      monthlySIP: Math.round(monthlySIP),
-      totalInvested: Math.round(monthlySIP * n),
-      estimatedGrowth: Math.round(corpus - monthlySIP * n),
-      futureValue: Math.round(corpus),
-    });
-  };
-
-  useEffect(() => {
-    calculateSIP();
-  }, [goalAmount, years, cagr, inflation]);
+  const result = useMemo(
+    () => sipForGoal({ goal: goalAmount, years, cagr, inflation }),
+    [goalAmount, years, cagr, inflation]
+  );
+  const data = result.series;
 
   // 🔶 FAQs Data
   const faqs = [
@@ -166,7 +137,15 @@ const SipCalculator = () => {
       >
         <p>
           To reach <strong>₹{result.futureValue?.toLocaleString()}</strong> in{" "}
-          <strong>{years} years</strong>,
+          <strong>{years} years</strong>
+          {inflation > 0 && (
+            <>
+              {" "}
+              — that is ₹{goalAmount.toLocaleString()} of today&apos;s money at{" "}
+              {inflation}% inflation
+            </>
+          )}
+          ,
         </p>
         <p>
           Invest <strong>₹{result.monthlySIP?.toLocaleString()}</strong> monthly.
@@ -182,7 +161,7 @@ const SipCalculator = () => {
       </div>
 
       <button
-        onClick={() => handleRedirect("/sip_cal")}
+        onClick={() => handleRedirect(MF_EXPLORE_PATH)}
         className="
           bg-red-600 hover:bg-red-700
           dark:bg-red-500 dark:hover:bg-red-600
@@ -197,17 +176,27 @@ const SipCalculator = () => {
     {/* RIGHT SIDE */}
     <div className="space-y-4">
       {[
-        ["Goal Amount (₹)", goalAmount, setGoalAmount],
-        ["Time Horizon (Years)", years, setYears],
-        ["Expected CAGR (%)", cagr, setCagr],
-        ["Inflation Rate (%)", inflation, setInflation],
-      ].map(([label], i) => (
-        <div key={i}>
-          <label className="text-sm font-medium text-blue-950 dark:text-gray-200">
-            {label}
-          </label>
+        ["Goal Amount (₹)", goalAmount, setGoalAmount, 100000, 50000000, 50000],
+        ["Time Horizon (Years)", years, setYears, 1, 40, 1],
+        ["Expected CAGR (%)", cagr, setCagr, 1, 30, 0.5],
+        ["Inflation Rate (%)", inflation, setInflation, 0, 15, 0.5],
+      ].map(([label, value, setValue, min, max, step]) => (
+        <div key={label}>
+          <div className="flex justify-between">
+            <label className="text-sm font-medium text-blue-950 dark:text-gray-200">
+              {label}
+            </label>
+            <span className="text-sm font-semibold text-blue-950 dark:text-gray-200">
+              {value.toLocaleString()}
+            </span>
+          </div>
           <input
             type="range"
+            min={min}
+            max={max}
+            step={step}
+            value={value}
+            onChange={(e) => setValue(Number(e.target.value))}
             className="w-full accent-blue-700 dark:accent-blue-400"
           />
         </div>
@@ -286,18 +275,18 @@ const SipCalculator = () => {
     </h2>
 
     <div className="flex gap-4 flex-wrap">
+      {/* ponytail: rang static rakhe hain — Tailwind template-literal se bani class build mein
+          generate hi nahi karta, is liye ye buttons live par be-rang aur be-amal thay. */}
       {[
-        ["Retirement", "blue"],
-        ["Lumpsum", "green"],
-        ["FD", "purple"],
-        ["NPS", "orange"],
-      ].map(([label, color], i) => (
+        ["Retirement", "retirement-calculator", "bg-blue-500 hover:bg-blue-600"],
+        ["Lumpsum", "lumpsum-calculator", "bg-green-500 hover:bg-green-600"],
+        ["FD", "fd-calculator", "bg-purple-500 hover:bg-purple-600"],
+        ["NPS", "nps-calculator", "bg-orange-500 hover:bg-orange-600"],
+      ].map(([label, path, color]) => (
         <button
-          key={i}
-          className={`
-            bg-${color}-500 hover:bg-${color}-600
-            text-white px-4 py-2 rounded-lg shadow
-          `}
+          key={path}
+          onClick={() => handleRedirect(`/calculator/${path}`)}
+          className={`${color} text-white px-4 py-2 rounded-lg shadow`}
         >
           {label} Calculator
         </button>

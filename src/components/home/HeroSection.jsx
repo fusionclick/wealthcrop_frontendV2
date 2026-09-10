@@ -2,7 +2,6 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import invest from "../../assets/invest.svg";
-import { MdOutlinePlayCircle } from "react-icons/md";
 
 const HeroSection = () => {
   return (
@@ -101,21 +100,8 @@ const HeroSection = () => {
           Learn More
         </a>
 
-        <a
-          href="https://www.youtube.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="
-            flex items-center gap-2 
-            bg-red-500 dark:bg-red-500
-            hover:bg-red-600 dark:hover:bg-red-600
-            text-white px-4 py-2 rounded-lg
-            transition
-          "
-        >
-          <MdOutlinePlayCircle size={24} />
-          Watch Video
-        </a>
+        {/* ponytail: "Watch Video" button site chhod kar YouTube ke homepage par bhejta tha —
+            koi video hai hi nahi. Asli video aane par button wapas. */}
       </div>
     </motion.div>
 
