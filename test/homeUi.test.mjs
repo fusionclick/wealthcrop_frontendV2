@@ -625,3 +625,58 @@ test("NAV chart un intervals ko chalne hi nahi deta", () => {
   // Data itna kam ho ke koi bhi interval 3 nuqte na de to kisi ko disable mat karo.
   assert.match(src, /!anyUsable \|\|/);
 });
+
+// ─────────────── 10 Sep: chart data-source audit ───────────────
+
+test("koi bhi live chart ghadi hui data se nahi banta", () => {
+  // /indices ka chart aur "live" ticker dono Math.random() se bante the — koi source
+  // hi nahi tha. Ab market API (Yahoo) se aate hain.
+  const idx = readCode("../src/pages/IndicesDetails.jsx");
+  assert.equal(/Math\.random/.test(idx), false, "indices page abhi bhi data ghad raha hai");
+  assert.match(idx, /fetchStockChart\(name, "1mo", "1d"\)/);
+  // Feed na mile to kuch mat dikhao, jhoota number mat banao.
+  assert.match(idx, /livePrice != null \?/);
+  assert.match(idx, /Live data unavailable/);
+});
+
+test("AMC ka mock page kahin se reachable nahi", () => {
+  const app = readCode("../src/App.jsx");
+  // Poora page hardcoded tha — AUM series aur invented fund manager naam tak.
+  assert.equal(app.includes("AMCPage"), false);
+  assert.equal(app.includes("/amc/:amcName"), false);
+});
+
+test("NAV history ka source code mein saaf likha hua hai", () => {
+  const src = fs.readFileSync(
+    new URL("../../Backend/src/mf/mfapi.js", import.meta.url),
+    "utf8"
+  );
+  // BSE historical NAV deta hi nahi — ye baat likhi honi chahiye, warna agla banda
+  // yehi samjhega ke charts BSE se aate hain aur "switch kar do" kehta rahega.
+  assert.match(src, /BSE historical NAV publish karta hi nahi/);
+  assert.match(src, /api\.mfapi\.in/);
+});
+
+test("basket NAV apne hi Node proxy se aata hai, mfapi se seedha nahi", () => {
+  const ctrl = fs.readFileSync(
+    new URL("../../admin_php/app/Http/Controllers/Api/BasketController.php", import.meta.url),
+    "utf8"
+  ).replace(/^\s*\/\/.*$/gm, "");
+  // Laravel BSE code store karta hai; mfapi AMFI code mangta hai aur BSE code par
+  // 400 deta hai — is liye har basket ka chart/metrics hamesha khali rehte the.
+  assert.equal(/api\.mfapi\.in/.test(ctrl), false);
+  assert.match(ctrl, /bseNodeUrl\(\) \. '\/scheme-details'/);
+  assert.match(ctrl, /data\.chartData/);
+});
+
+test("index symbols Yahoo ke apne naam par jate hain", () => {
+  const svc = fs.readFileSync(
+    new URL("../../admin_php/app/Services/YahooQuoteService.php", import.meta.url),
+    "utf8"
+  );
+  // "NIFTY" par pehle "NIFTY.NS" bana diya jata tha — Yahoo par aisa kuch hai hi nahi,
+  // is liye har index ka chart khali aata tha.
+  assert.match(svc, /'NIFTY'\s*=> '\^NSEI'/);
+  assert.match(svc, /'BANKNIFTY'\s*=> '\^NSEBANK'/);
+  assert.match(svc, /INDEX_SYMBOLS\[\$sym\] \?\? "\{\$sym\}\.NS"/);
+});

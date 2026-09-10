@@ -89,7 +89,6 @@ import BasketDetails from "./pages/basket/BasketDetails";
 
 import Invest from "./pages/basket/Invest";
 import Performance from "./pages/basket/Performance";
-import AMCPage from "./pages/AMCPage";
 import VideoKYC from "./components/VideoKYC";
 import KYC from "./components/kyc/KYC";
 import RiskProfilingPage from "./pages/riskProfile/RiskProfilingPage";
@@ -573,7 +572,11 @@ useEffect(() => {
             <Route path="/indices/:name" element={<IndicesDetails />} />
             <Route path="/blogs" element={<Blog />} />
             <Route path="/blog/:id" element={<BlogPost />} />
-            <Route path="/amc/:amcName" element={<AMCPage />} />
+            {/* AMC page ka saara content hardcoded mock tha — AUM growth ki ghadi hui
+                series, placeholder logo, aur fund manager ke invented naam
+                ("Ravi Sharma, CFA, MBA"). Investor use asli maloomat samajhta. Koi
+                AMC data source mojood nahi, is liye route hata diya. Component repo
+                mein hai; asli data aane par ek line wapas. */}
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/loader" element={<PageLoader />} />
 

@@ -15,6 +15,7 @@ import { PieChart, Pie, Cell } from "recharts";
 import logo from "../assets/mutualFund/sbi.webp";
 import { useParams } from "react-router-dom";
 import CandleChart from "../components/chart/CandleChart";
+import { fetchStockChart } from "../api/marketApi";
 
 export default function IndicesDetails() {
   const { name } = useParams();
@@ -35,38 +36,59 @@ export default function IndicesDetails() {
   };
 
   // ---------------- TIME SERIES ----------------
-  const timeseries = useMemo(() => {
-    const arr = [];
-    let base = 22000;
-    for (let i = 29; i >= 0; i--) {
-      base += Math.sin(i / 3) * 20 + (Math.random() - 0.5) * 50;
-      arr.push({
-        x: `D-${i}`,
-        price: Math.round(base * 100) / 100,
-      });
-    }
-    return arr;
-  }, []);
+  // Yahan pehle `Math.random()` se ek 30-point random walk banta tha aur usay index ka
+  // chart keh kar dikha diya jata tha — koi source hi nahi tha. Ab wahi market API se
+  // aata hai jo stock charts chalati hai (Yahoo, `/market/chart/:symbol`). BSE index
+  // ka feed nahi deta, is liye yehi sahih source hai.
+  const [candles, setCandles] = useState([]);
+  const [loadFailed, setLoadFailed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    setLoadFailed(false);
+    fetchStockChart(name, "1mo", "1d")
+      .then((res) => {
+        if (!alive) return;
+        const rows = Array.isArray(res?.data) ? res.data : [];
+        setCandles(rows);
+        setLoadFailed(rows.length === 0);
+      })
+      .catch(() => alive && setLoadFailed(true));
+    return () => {
+      alive = false;
+    };
+  }, [name]);
+
+  const timeseries = useMemo(
+    () =>
+      candles
+        .filter((c) => Number(c?.close) > 0)
+        .map((c) => ({
+          x: new Date((c.timestamp ?? c.time) * 1000).toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "short",
+          }),
+          price: Number(c.close),
+        })),
+    [candles]
+  );
 
   // ---------------- UI STATE ----------------
-  const [livePrice, setLivePrice] = useState(baseStock.price);
-  const [isTicking] = useState(true);
+  // Pehle yahan har 1.4 second par `Math.random()` se qeemat hilti thi — ek jhooti
+  // "live" ticker. Ab aakhri asli close dikhta hai; jo maloom nahi wo hilana nahi.
+  const livePrice = timeseries.length ? timeseries[timeseries.length - 1].price : null;
+  const [isTicking] = useState(false);
   const [saved, setSaved] = useState(false);
   const [page, setPage] = useState(1);
   const [selectedTimeframe, setSelectedTimeframe] = useState("30D");
 
-  useEffect(() => {
-    if (!isTicking) return;
-    const id = setInterval(() => {
-      setLivePrice(
-        (p) => Math.round((p + (Math.random() - 0.48) * 20) * 100) / 100
-      );
-    }, 1400);
-    return () => clearInterval(id);
-  }, [isTicking]);
-
-  const pctChange =
-    Math.round(((livePrice - baseStock.price) / baseStock.price) * 10000) / 100;
+  // Tabdeeli asli data se: pehle close se aakhri close tak.
+  const pctChange = useMemo(() => {
+    if (timeseries.length < 2) return null;
+    const first = timeseries[0].price;
+    const last = timeseries[timeseries.length - 1].price;
+    return Math.round(((last - first) / first) * 10000) / 100;
+  }, [timeseries]);
 
   const areaData = timeseries.map((d) => ({ name: d.x, price: d.price }));
 
@@ -278,19 +300,28 @@ export default function IndicesDetails() {
               {/* Price */}
               <div className="flex items-center gap-3 lg:flex-col lg:items-start">
                 <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-[var(--text-primary)]">
-                  ₹{livePrice.toFixed(2)}
+                  {livePrice != null ? `₹${livePrice.toFixed(2)}` : "—"}
                 </h2>
 
-                <span
-                  className={`px-3 py-1 rounded-md text-sm font-semibold ${
-                    pctChange >= 0
-                      ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400"
-                      : "bg-red-100 text-red-600 dark:bg-rose-500/20 dark:text-rose-400"
-                  }`}
-                >
-                  {pctChange >= 0 ? "+" : ""}
-                  {pctChange}%
-                </span>
+                {/* Qeemat aur tabdeeli dono asli close se aati hain. Feed na mile to
+                    kuch mat dikhao — pehle yahan ek ghadi hui hilti hui qeemat thi. */}
+                {pctChange != null && (
+                  <span
+                    className={`px-3 py-1 rounded-md text-sm font-semibold ${
+                      pctChange >= 0
+                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400"
+                        : "bg-red-100 text-red-600 dark:bg-rose-500/20 dark:text-rose-400"
+                    }`}
+                  >
+                    {pctChange >= 0 ? "+" : ""}
+                    {pctChange}%
+                  </span>
+                )}
+                {loadFailed && (
+                  <span className="text-xs text-slate-500 dark:text-[var(--text-secondary)]">
+                    Live data unavailable for this index right now.
+                  </span>
+                )}
               </div>
             </div>
 
