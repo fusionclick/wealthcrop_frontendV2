@@ -58,14 +58,21 @@ function ResetPassword() {
         toastSuccess(res?.message || "Password reset successful");
 
         navigate("/login");
-      }else{
-        toastError(res?.message || "Password reset successful");
-        
-        // setError("");
-        // navigate("/login");
+      } else {
+        // Yahan fallback text "Password reset successful" tha — yaani nakami par surkh
+        // error toast mein likha aata tha ke password reset ho gaya. Screenshot mein
+        // "Something went wrong" aur "Password reset successful" dono ek sath surkh
+        // toast ban kar aaye the, aur user ke paas jaanne ka koi zariya nahi tha ke
+        // asal mein hua kya.
+        const message = res?.message || "Reset link is invalid or has expired. Please request a new one.";
+        setError(message);
+        toastError(message);
       }
     } catch (err) {
-      toastError(err?.message || "Something went wrong");
+      const message =
+        err?.response?.data?.message || err?.message || "Something went wrong";
+      setError(message);
+      toastError(message);
     }
   };
 

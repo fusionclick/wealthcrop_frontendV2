@@ -348,3 +348,59 @@ test("IPO khali hone aur API girne mein farq hai", () => {
   assert.match(src, /setLoadState\("error"\)/);
   assert.equal(/\.catch\(\(\) => setIpos\(\[\]\)\)/.test(src), false);
 });
+
+// ─────────────── 10 Sep: chautha batch ───────────────
+
+test("Google button unconfigured hone par kuch render nahi karta", () => {
+  const src = readCode("../src/components/GoogleSignInButton.jsx");
+  // Ek disabled "(not configured)" button dikhana visitor ko hamari adhoori setup
+  // dikhane ke siwa kuch nahi karta tha.
+  assert.equal(src.includes("not configured"), false);
+  assert.match(src, /if \(!CLIENT_ID\) return null;/);
+  // Client ID milne par asli Google button abhi bhi aana chahiye.
+  assert.match(src, /google\.accounts\.id\.renderButton/);
+});
+
+test("reset password ki nakami success ka daawa nahi karti", () => {
+  const src = readCode("../src/pages/ResetPassword.jsx");
+  // Error branch ka fallback text hi "Password reset successful" tha — surkh error
+  // toast mein likha aata tha ke password reset ho gaya.
+  assert.equal(/toastError\([^)]*"Password reset successful"/.test(src), false);
+  assert.match(src, /Reset link is invalid or has expired/);
+  // Success sirf success branch mein.
+  assert.equal((src.match(/toastSuccess\(/g) || []).length, 1);
+});
+
+test("forgot-password screen se wapas aane ka rasta hai", () => {
+  const login = read("../src/auth/Login.jsx");
+  // Header ka "Login / Signup" /login par hi bhejta hai; route na badalne se component
+  // remount nahi hota tha aur button mara hua lagta tha.
+  assert.match(login, /useLocation/);
+  assert.match(login, /setForgotPassword\(false\);\s*\n\s*\}, \[location\.key\]\)/);
+  assert.match(login, /<ForgotPassword onBack=\{\(\) => setForgotPassword\(false\)\} \/>/);
+
+  const fp = read("../src/components/ForgotPassword.jsx");
+  assert.match(fp, /function ForgotPassword\(\{ onBack \}\)/);
+  assert.match(fp, /onClick=\{onBack\}/);
+});
+
+test("blog page khali hone aur API girne mein farq karta hai", () => {
+  const src = readCode("../src/pages/Blog.jsx");
+  // `error` set to hota tha magar render kabhi nahi — dono halat mein wahi
+  // "No matching articles" aata tha.
+  assert.match(src, /No articles have been published yet/);
+  assert.match(src, /error\s*\n?\s*\?\s*error/);
+  // null title poore page ko white screen kar deta tha.
+  assert.match(src, /p\.title && p\.title\.toLowerCase\(\)/);
+});
+
+test("reset email ab netlify preview par nahi bhejti", () => {
+  const ctrl = fs.readFileSync(
+    new URL("../../admin_php/app/Http/Controllers/Auth/ForgotPasswordController.php", import.meta.url),
+    "utf8"
+  ).replace(/^\s*\/\/.*$/gm, "");
+  assert.equal(ctrl.includes("netlify"), false, "netlify URL abhi tak hardcoded hai");
+  assert.match(ctrl, /config\('app\.frontend_url'\)/);
+  // Email mein '+' hota hai to raw query string toot jati hai.
+  assert.match(ctrl, /urlencode\(\$email\)/);
+});

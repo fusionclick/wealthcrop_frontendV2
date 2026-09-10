@@ -85,9 +85,11 @@ const Blog = () => {
       const catMatch =
         activeCategory === "All" ? true : p.category === activeCategory;
 
+      // title DB se null aa sakta hai — bina guard ke .toLowerCase() poore page ko
+      // white screen kar deta. IPO page par ye guard pehle se laga hua hai.
       const searchMatch =
         !q ||
-        p.title.toLowerCase().includes(q) ||
+        (p.title && p.title.toLowerCase().includes(q)) ||
         (p.description && p.description.toLowerCase().includes(q)) ||
         (p.content && p.content.toLowerCase().includes(q));
 
@@ -212,8 +214,15 @@ const Blog = () => {
         ) : (
           <>
             {filtered.length === 0 ? (
+              /* `error` set to hota tha magar render kahin nahi hota tha — API girne par
+                 bhi wahi "No matching articles" aata tha, jaise sab theek ho aur bas
+                 filter match na kiya ho. Teen halat ab alag alag dikhti hain. */
               <div className="py-20 text-center text-gray-500 dark:text-[var(--text-secondary)]">
-                No matching articles.
+                {error
+                  ? error
+                  : allPosts.length === 0
+                  ? "No articles have been published yet. Check back soon."
+                  : "No matching articles."}
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">

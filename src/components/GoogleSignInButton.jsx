@@ -56,21 +56,12 @@ export default function GoogleSignInButton({ onCredential, text = "signup_with" 
     return () => script.removeEventListener("load", render);
   }, [text]);
 
-  // Until the client ID is set, keep the button visible but inert rather than leaving a hole
-  // where users expect it — the tooltip says exactly what is missing.
-  if (!CLIENT_ID) {
-    return (
-      <button
-        type="button"
-        disabled
-        title="Set VITE_GOOGLE_CLIENT_ID in your frontend .env to enable Google sign-in"
-        className="w-full cursor-not-allowed rounded-lg border border-gray-300 py-2 font-medium text-gray-400
-                   dark:border-white/10 dark:text-gray-500"
-      >
-        Sign up with Google (not configured)
-      </button>
-    );
-  }
+  // Client ID set nahi hai to kuch bhi render mat karo — jaisa ooper docstring pehle se
+  // kehti hai. Beech mein yahan ek disabled "Sign up with Google (not configured)" button
+  // aa gaya tha: visitor ko hamari adhoori configuration dikhane ka koi faida nahi, wo
+  // sirf ek mara hua button dekhta hai. Client ID milte hi asli Google button wapas aa
+  // jayega, is component mein aur kuch badalne ki zarurat nahi.
+  if (!CLIENT_ID) return null;
 
   return <div ref={slot} className="flex justify-center [color-scheme:light]" />;
 }

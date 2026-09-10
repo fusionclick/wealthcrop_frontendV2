@@ -11,7 +11,7 @@ import { postApi } from "../api/api";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import LoginPinModal from "../utils/LoginPinModal";
 
-function ForgotPassword() {
+function ForgotPassword({ onBack }) {
 
     const [loading, setLoading] = useState(false)
 
@@ -93,6 +93,17 @@ function ForgotPassword() {
         { loading ? "Sending" : "Send Link" }
       </button>
     </form>
+
+    {/* Is screen se wapas jane ka koi rasta hi nahi tha: forgot-password ek route nahi
+        balke Login ki state hai, is liye header ka "Login / Signup" bhi yahan phansa
+        chhod deta tha. */}
+    <button
+      type="button"
+      onClick={onBack}
+      className="mt-5 w-full text-center text-sm text-blue-800 dark:text-blue-400 hover:text-blue-950 dark:hover:text-blue-300 font-medium"
+    >
+      ← Back to login
+    </button>
 
   </div>
 </div>

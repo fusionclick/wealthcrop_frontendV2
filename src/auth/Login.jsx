@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -24,6 +24,17 @@ function LoginPage() {
 
   const dispatch = useDispatch()
   const navigate = useNavigate()
+  const location = useLocation()
+
+  // "Forgot password" ek alag route nahi, sirf is component ki state hai. Header ka
+  // "Login / Signup" button /login par hi le jata hai — yaani jab user pehle se /login
+  // par ho aur forgot-password wala form khula ho, to route badalta hi nahi, component
+  // dobara mount nahi hota, aur button bilkul mara hua mehsoos hota tha. React Router
+  // har navigation par naya location.key deta hai (chahe path wahi ho), is liye usi par
+  // form ko wapas login par le aate hain.
+  useEffect(() => {
+    setForgotPassword(false);
+  }, [location.key]);
 
   // react-hook-form
   const { register, handleSubmit, formState: { errors }, setValue, reset, trigger } = useForm({
@@ -362,7 +373,7 @@ if (!otpSent) {
       </div>
 </div>
   ) : (
-    <ForgotPassword/>
+    <ForgotPassword onBack={() => setForgotPassword(false)} />
   )
 
   );
