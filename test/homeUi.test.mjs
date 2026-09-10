@@ -371,6 +371,18 @@ test("reset password ki nakami success ka daawa nahi karti", () => {
   assert.equal((src.match(/toastSuccess\(/g) || []).length, 1);
 });
 
+test("reset password ka button waqai submit karta hai", () => {
+  const src = readCode("../src/pages/ResetPassword.jsx");
+  // `{...register("newPassword")}` ke baad apna onChange likhne se register wala
+  // onChange overwrite ho jata tha: RHF ko value milti hi nahi thi, zod hamesha
+  // fail karta tha, aur handleSubmit handler ko kabhi call nahi karta tha —
+  // "Reset Password" dabane par bilkul kuch nahi hota tha.
+  assert.equal(/\{\.\.\.register\("newPassword"\)\}/.test(src), false);
+  assert.match(src, /const passwordField = register\("newPassword"\)/);
+  assert.match(src, /passwordField\.onChange\(e\);/);
+  assert.match(src, /setNewPassword\(e\.target\.value\)/);
+});
+
 test("forgot-password screen se wapas aane ka rasta hai", () => {
   const login = read("../src/auth/Login.jsx");
   // Header ka "Login / Signup" /login par hi bhejta hai; route na badalne se component

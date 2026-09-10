@@ -24,6 +24,14 @@ function ResetPassword() {
     defaultValues: {newPassword: ""}
   })
 
+  // Input par pehle `{...register("newPassword")}` phaila hua tha aur uske BAAD apna
+  // `onChange` — yaani register wala onChange overwrite ho jata tha. react-hook-form ko
+  // value kabhi milti hi nahi thi, zod hamesha khali password dekh kar validation fail
+  // karta tha, aur handleSubmit handler ko kabhi call hi nahi karta tha: "Reset Password"
+  // dabane par bilkul kuch nahi hota tha. Dono handler chalane hain — RHF ko bhi khabar
+  // ho aur local state bhi chale.
+  const passwordField = register("newPassword");
+
   const handleResetPassword = async () => {
     const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_RESET_PASSWORD}`; 
 
@@ -102,10 +110,13 @@ function ResetPassword() {
         </label>
 
         <input
-          {...register("newPassword")}
+          {...passwordField}
           type="password"
           value={newPassword}
-          onChange={(e) => setNewPassword(e.target.value)}
+          onChange={(e) => {
+            passwordField.onChange(e);
+            setNewPassword(e.target.value);
+          }}
           placeholder="Enter new password"
           className="
             w-full mb-4 rounded-lg px-4 py-2 text-sm
