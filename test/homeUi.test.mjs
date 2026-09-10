@@ -416,3 +416,67 @@ test("reset email ab netlify preview par nahi bhejti", () => {
   // Email mein '+' hota hai to raw query string toot jati hai.
   assert.match(ctrl, /urlencode\(\$email\)/);
 });
+
+// ─────────────── 10 Sep: paanchwan batch ───────────────
+
+test("profile ka KYC badge shared helper se aata hai", () => {
+  const src = readCode("../src/pages/profile/BasicDetails.jsx");
+  // Do ghalatiyan ek line mein: top-level kyc_status (jo hota hi nahi, kyc nested
+  // relation hai) aur string "true" se comparison.
+  assert.equal(/kyc_status === "true"/.test(src), false);
+  assert.equal(/userData\?\.kyc_status/.test(src), false);
+  assert.match(src, /isKycVerified\(userData\?\.kyc\?\.kyc_status\)/);
+  assert.match(src, /import \{ isKycVerified \} from "\.\.\/\.\.\/utils\/kycVerdict"/);
+});
+
+test("balance page verified user ko dobara KYC par nahi bhejta", () => {
+  const src = readCode("../src/pages/Balance.jsx");
+  assert.match(src, /isKycVerified\(investor\?\.kyc\?\.kyc_status\)/);
+  // "Complete KYC" ab shart ke peeche hai, har haal mein nahi.
+  assert.match(src, /kycDone \?/);
+  assert.match(src, /Your KYC is verified/);
+  // Verified user ke liye KYC par navigate karne wala button nahi hona chahiye.
+  const verifiedBranch = src.split("kycDone ? (")[2] || "";
+  assert.equal(/navigate\("\/kyc"\)/.test(verifiedBranch.split(") : (")[0] || ""), false);
+});
+
+test("risk profile ke jawab top level par jate hain, answers ke andar nahi", () => {
+  const src = readCode("../src/pages/riskProfile/RiskProfilingPage.jsx");
+  // Backend (RiskProfileRequest) nau keys TOP LEVEL par mangta hai. `{ answers: {...} }`
+  // bhejne se validator ko ek bhi field nahi milti thi aur nauon "required" ho jate the.
+  assert.equal(/\{ answers: formattedAnswers \}/.test(src), false);
+  assert.match(src, /const payload = formattedAnswers;/);
+});
+
+test("keyMap riskQuestions ke har id ko cover karta hai", () => {
+  const page = read("../src/pages/riskProfile/RiskProfilingPage.jsx");
+  const questions = read("../src/pages/riskProfile/riskQuestions.js");
+
+  // Sirf active (non-commented) ids.
+  const ids = questions
+    .split("\n")
+    .filter((l) => !l.trim().startsWith("//"))
+    .map((l) => l.match(/^\s*id:\s*(\d+),/))
+    .filter(Boolean)
+    .map((m) => Number(m[1]));
+  assert.equal(ids.length, 9);
+
+  const mapped = [...page.matchAll(/^\s*(\d+):\s*"(q\d+_[a-z_]+)"/gm)].map((m) => Number(m[1]));
+  for (const id of ids) {
+    assert.ok(mapped.includes(id), `question id ${id} keyMap mein nahi hai — uska jawab chup chaap gir jayega`);
+  }
+});
+
+test("frontend ki key names backend ke validator se milti hain", () => {
+  const page = read("../src/pages/riskProfile/RiskProfilingPage.jsx");
+  const request = fs.readFileSync(
+    new URL("../../admin_php/app/Http/Requests/RiskProfileRequest.php", import.meta.url),
+    "utf8"
+  );
+  const sent = [...page.matchAll(/"(q\d+_[a-z_]+)"/g)].map((m) => m[1]);
+  const required = [...request.matchAll(/^\s*'(q\d+_[a-z_]+)'\s*=>\s*\[/gm)].map((m) => m[1]);
+  assert.equal(required.length, 9);
+  for (const key of required) {
+    assert.ok(sent.includes(key), `${key} backend mangta hai magar frontend bhejta hi nahi`);
+  }
+});

@@ -56,7 +56,12 @@ const RiskProfilingPage = () => {
       return acc;
     }, {});
 
-    const payload = { answers: formattedAnswers };
+    // Backend nau jawab TOP LEVEL par mangta hai (RiskProfileRequest ke rules aur uska
+    // apna GET risk/questions dono `q1_income_stability` waghera flat dete hain). Yahan
+    // se wo `{ answers: {...} }` ke andar lipte hue jate the, is liye validator ko top
+    // level par ek bhi field nahi milti thi aur nauon "required" ho jate the —
+    // "Q1 (Income Stability) is required. (and 8 more errors)", chahe sab bhar diye hon.
+    const payload = formattedAnswers;
 
     try {
       const res = await postApiWithToken(`${import.meta.env.VITE_URL}/risk/calculate`, payload);

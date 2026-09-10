@@ -22,6 +22,7 @@ import {
 import { getApiWithToken, postApiWithToken } from "../../api/api";
 import { toastError, toastSuccess, toastWarn } from "../../utils/notifyCustom";
 import { formatDate } from "../../utils/format";
+import { isKycVerified } from "../../utils/kycVerdict";
 
 
 const BasicDetails = () => {
@@ -75,8 +76,16 @@ const current = JSON.parse(localStorage.getItem("currentAccount"))
 const userName = current?.name
 const email = current?.email
 
-const isKycDone = userData?.kyc_status === "true"
-// const isKycDone = true
+// Ye line do tarah se ghalat thi:
+//   1. `userData?.kyc_status` — investor-data `User::with([... 'kyc' ...])` deta hai,
+//      yaani kyc ek nested relation hai. Top level par `kyc_status` hota hi nahi, to
+//      ye hamesha undefined tha. KYC.jsx theek `userData.kyc.kyc_status` parhta hai.
+//   2. `=== "true"` — string "true" se comparison, jab ke value "verified" /
+//      "approved" / "complete" / "pending" hoti hai.
+// Nateeja: BSE se verified investor ko bhi peela "Complete KYC" dikhta raha. Ab wahi
+// shared isKycVerified jo KYC.jsx use karta hai — kycVerdict.js ka apna comment kehta
+// hai ke do jagah do definitions rakhna hi ye bug paida karta hai.
+const isKycDone = isKycVerified(userData?.kyc?.kyc_status)
 
   const handleVerify = async (type) => {
 
