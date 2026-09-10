@@ -680,3 +680,25 @@ test("index symbols Yahoo ke apne naam par jate hain", () => {
   assert.match(svc, /'BANKNIFTY'\s*=> '\^NSEBANK'/);
   assert.match(svc, /INDEX_SYMBOLS\[\$sym\] \?\? "\{\$sym\}\.NS"/);
 });
+
+test("index page ghadi hui candles nahi dikhata", () => {
+  const idx = readCode("../src/pages/IndicesDetails.jsx");
+  const app = readCode("../src/App.jsx");
+  // CandleChart bina symbol ke chalta tha aur uska fallback chartData.js hai, jo khud
+  // kehta hai "random but realistic candle data".
+  assert.equal(idx.includes("<CandleChart"), false);
+  assert.match(idx, /<Area type="monotone" dataKey="price"/);
+  assert.match(idx, /Chart data unavailable for this index/);
+  // /chart kahin se link nahi tha aur wahi ghadi hui candles dikhata tha.
+  assert.equal(app.includes('path="/chart"'), false);
+});
+
+test("chartData.js sirf ghadi hui candles hai — koi live page ise na chhue", () => {
+  const gen = read("../src/components/chart/chartData.js");
+  assert.match(gen, /Math\.random/);
+  // Jo bhi file ise import kare, wo kisi routed page tak na pohanche.
+  const app = readCode("../src/App.jsx");
+  for (const dead of ["ChartPage", "AMCPage"]) {
+    assert.equal(app.includes(dead), false, `${dead} abhi bhi routed hai`);
+  }
+});

@@ -63,7 +63,6 @@ import IndicesDetails from "./pages/IndicesDetails";
 import InvestmentOptions from "./pages/InvestmentOptions";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
-import ChartPage from "./components/chart/ChartPage";
 import TerminalChart from "./components/chart/TerminalChart";
 import TradingViewWidget from "./components/chart/TradingViewWidget";
 import GrowChart from "./components/chart/GrowChart";
@@ -612,7 +611,10 @@ useEffect(() => {
               element={<TaxPlanningLearning />}
             />
 
-            <Route path="/chart" element={<ChartPage />} />
+            {/* /chart kahin se link nahi tha aur uska fetch bhi comment out para tha,
+                is liye CandleChart apne `chartData.js` fallback par chalta tha — wo file
+                khud kehti hai "random but realistic candle data". Ek dev leftover jo
+                ghadi hui candles dikhata tha. Route hata diya. */}
             {/* <Route path="/terminal" element={<TerminalChart/>} /> */}
             <Route path="/terminal" element={<TradingViewWidget />} />
             {/* <Route path="/terminal" element={<GrowChart/>} /> */}

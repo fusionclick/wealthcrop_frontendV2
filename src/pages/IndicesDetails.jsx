@@ -14,7 +14,6 @@ import { AiOutlineStar } from "react-icons/ai";
 import { PieChart, Pie, Cell } from "recharts";
 import logo from "../assets/mutualFund/sbi.webp";
 import { useParams } from "react-router-dom";
-import CandleChart from "../components/chart/CandleChart";
 import { fetchStockChart } from "../api/marketApi";
 
 export default function IndicesDetails() {
@@ -494,7 +493,27 @@ export default function IndicesDetails() {
             </div>
           </div>
 
-          <CandleChart height={350} />
+          {/* Yahan `<CandleChart height={350} />` tha — bina symbol ke. Us component ka
+              fallback `chartData.js` hai, jo apne comment ke mutabiq "random but
+              realistic candle data" generate karta hai. Yaani index ka chart har baar
+              ghadi hui candles dikhata tha. Ab wahi asli series jo ooper fetch hui. */}
+          <div style={{ height: 350 }} className="w-full">
+            {areaData.length ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={areaData} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" strokeOpacity={0.4} vertical={false} />
+                  <XAxis dataKey="name" minTickGap={40} tick={{ fontSize: 11 }} />
+                  <YAxis domain={["auto", "auto"]} tick={{ fontSize: 11 }} width={70} />
+                  <ReTooltip formatter={(v) => [Number(v).toLocaleString("en-IN"), name]} />
+                  <Area type="monotone" dataKey="price" stroke="#2563eb" fill="#2563eb22" strokeWidth={2} />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-sm text-slate-400 border border-slate-200 rounded-xl dark:border-[var(--border-color)]">
+                {loadFailed ? "Chart data unavailable for this index" : "Loading chart…"}
+              </div>
+            )}
+          </div>
 
           <div className="grid grid-cols-2 gap-3 mt-4">
             <div
