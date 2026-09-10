@@ -544,3 +544,49 @@ test("stub pages abhi bhi sirf placeholder hain (yaad-dihani)", () => {
     );
   }
 });
+
+// ─────────────── 10 Sep: saatwan batch ───────────────
+
+test("basket filter holdings par chalta hai, khali column par nahi", () => {
+  const src = readCode("../src/pages/basket/BasketList.jsx");
+  // `b.category === filter` kabhi match nahi karta tha: baskets.category kabhi set hi
+  // nahi hoti, is liye har chip par "No baskets found".
+  assert.equal(/b\.category === filter/.test(src), false);
+  assert.match(src, /categoriesOf/);
+  // "Equity • Flexi Cap" ka pehla hissa hi chip se milta hai.
+  assert.match(src, /split\("•"\)\[0\]/);
+  // Filter lagne par empty state ka message alag hona chahiye.
+  assert.match(src, /No \$\{filter\} baskets/);
+});
+
+test("create basket fund ki category bhi bhejta hai", () => {
+  const src = readCode("../src/pages/basket/CreateBasket.jsx");
+  // subType hi category hai; pehle sirf `hint` ke taur par dikhayi jati thi aur
+  // addAsset par phenk di jati thi, is liye assets.category hamesha NULL rehti thi.
+  assert.match(src, /category: f\.subType/);
+  assert.match(src, /category: a\.category/);
+  assert.match(src, /category: selectedAsset\.category \|\| null/);
+  assert.match(src, /category: item\.category \|\| null/);
+});
+
+test("basket card wo cheez nahi chhapta jo maloom nahi", () => {
+  const src = readCode("../src/pages/basket/BasketCard.jsx");
+  // Pehle "Min SIP: ₹", "1Y Returns: %" aur ek khali pill chhapte the — teenon values
+  // NULL hoti hain kyunke createBasket inhe likhta hi nahi.
+  assert.match(src, /basket\.minSip != null &&/);
+  assert.match(src, /basket\.returns1Y != null &&/);
+  assert.match(src, /basket\.risk \? \[basket\.risk\] : basket\.categories \|\| \[\]/);
+});
+
+test("baskets API har basket ki categories deti hai", () => {
+  const ctrl = fs.readFileSync(
+    new URL("../../admin_php/app/Http/Controllers/Api/BasketController.php", import.meta.url),
+    "utf8"
+  );
+  // fetchBaskets ab holdings se categories nikalta hai (holdings.asset pehle se
+  // eager-load thi, is liye koi N+1 nahi).
+  assert.match(ctrl, /'categories'\s*=> \$basket->holdings/);
+  // createBasket asset par category likhta hai.
+  assert.match(ctrl, /'holdings\.\*\.category'\s*=> 'nullable\|string\|max:100'/);
+  assert.match(ctrl, /\$attributes\['category'\] = \$holding\['category'\]/);
+});

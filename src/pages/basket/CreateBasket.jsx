@@ -71,6 +71,10 @@ export default function CreateBasket() {
             code: f.scheme_bse_code || f.scheme_isin,
             name: f.name,
             hint: f.subType,
+            // subType ("Equity • Flexi Cap") hi is fund ki category hai. Pehle ye sirf
+            // dikhane ke liye rakhi jati thi aur addAsset par phenk di jati thi, is liye
+            // backend mein assets.category hamesha NULL rehti thi.
+            category: f.subType,
           }))
         );
       } else {
@@ -83,6 +87,7 @@ export default function CreateBasket() {
             code: a.code || String(a.id),
             name: a.name,
             hint: a.category || a.amc,
+            category: a.category,
           }))
         );
       }
@@ -118,6 +123,7 @@ export default function CreateBasket() {
         code: selectedAsset.code,
         name: selectedAsset.name,
         asset_type: type,
+        category: selectedAsset.category || null,
         weight: w,
       },
     ]);
@@ -156,6 +162,7 @@ export default function CreateBasket() {
         code: item.code,
         name: item.name,
         asset_type: item.asset_type,
+        category: item.category || null,
         weight: item.weight,
       }))
     }

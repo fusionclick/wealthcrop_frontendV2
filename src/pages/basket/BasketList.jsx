@@ -16,10 +16,18 @@ export default function BasketList({ baskets }) {
   const categories = ["All", "Equity", "Hybrid", "Debt", "Commodity"];
   // const allBaskets = [...baskets,...basket]
 
- let filtered = Array.isArray(baskets) ? [...baskets] : [];
-  if (filter !== "All") {
-    filtered = baskets.filter((b) => b.category === filter);
-  }
+  // Pehle ye `b.category === filter` tha. `baskets.category` column kabhi set hi nahi
+  // hoti (createBasket sirf name/description/status likhta hai), is liye har chip par
+  // "No baskets found" aata tha. Sawal waise bhi ye hai ke basket ke ANDAR koi equity
+  // fund hai ya nahi — aur wo holdings se aata hai, jo API ab `categories` mein deti hai.
+  const categoriesOf = (b) =>
+    (Array.isArray(b?.categories) ? b.categories : [b?.category])
+      .filter(Boolean)
+      .map((c) => String(c).split("•")[0].trim().toLowerCase());
+
+  const filtered = (Array.isArray(baskets) ? baskets : []).filter(
+    (b) => filter === "All" || categoriesOf(b).includes(filter.toLowerCase())
+  );
 
   return (
     <div
@@ -126,28 +134,41 @@ export default function BasketList({ baskets }) {
           text-slate-800 dark:text-[var(--text-primary)]
         "
           >
-            No baskets found
+            {filter === "All" ? "No baskets found" : `No ${filter} baskets`}
           </h2>
 
+          {/* Filter lagne par bhi yahi "apna pehla basket banaiye" likha aata tha,
+              halanke baskets mojood hain — bas is category mein nahi. */}
           <p
             className="
           mt-1 text-sm
           text-gray-500 dark:text-[var(--text-secondary)]
         "
           >
-            Start by creating your first custom basket.
+            {filter === "All"
+              ? "Start by creating your first custom basket."
+              : `None of your baskets hold a ${filter.toLowerCase()} fund.`}
           </p>
 
-          <Link to="/create-basket">
-            <button
-              className="
+          {filter === "All" ? (
+            <Link to="/create-basket">
+              <button
+                className="
             mt-5 px-6 py-3 rounded-xl shadow transition
             bg-blue-500 text-white hover:bg-blue-600
           "
+              >
+                + Create Basket
+              </button>
+            </Link>
+          ) : (
+            <button
+              onClick={() => setFilter("All")}
+              className="mt-5 px-6 py-3 rounded-xl shadow transition bg-blue-500 text-white hover:bg-blue-600"
             >
-              + Create Basket
+              Show all baskets
             </button>
-          </Link>
+          )}
         </div>
       )}
 

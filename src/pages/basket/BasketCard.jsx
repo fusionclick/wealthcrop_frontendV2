@@ -30,41 +30,51 @@ export default function BasketCard({ basket }) {
       {basket.name}
     </h2>
 
-    <p
-      className="
-        text-[13px] mt-1
-        text-gray-600 dark:text-[var(--text-secondary)]
-      "
-    >
-      Min SIP:{" "}
-      <span className="font-medium">
-        ₹{basket.minSip}
-      </span>
-    </p>
-
-    <p className="text-[13px] mt-1">
-      1Y Returns:{" "}
-      <span
+    {/* minSip, returns1Y aur risk teenon NULL hote hain — createBasket inhe kabhi likhta
+        hi nahi. Card par "Min SIP: ₹", "1Y Returns: %" aur ek khali neela pill chhapte
+        the. Jo maloom nahi wo likhna hi nahi chahiye. */}
+    {basket.minSip != null && (
+      <p
         className="
-          font-semibold
-          text-green-600 dark:text-emerald-400
+          text-[13px] mt-1
+          text-gray-600 dark:text-[var(--text-secondary)]
         "
       >
-        {basket.returns1Y}%
-      </span>
-    </p>
+        Min SIP: <span className="font-medium">₹{basket.minSip}</span>
+      </p>
+    )}
 
-    <span
-      className="
-        mt-3 inline-block px-3 py-1 text-xs rounded-full
-        bg-blue-100 text-blue-700
+    {basket.returns1Y != null && (
+      <p className="text-[13px] mt-1">
+        1Y Returns:{" "}
+        <span
+          className="
+            font-semibold
+            text-green-600 dark:text-emerald-400
+          "
+        >
+          {basket.returns1Y}%
+        </span>
+      </p>
+    )}
 
-        dark:bg-blue-500/15
-        dark:text-blue-400
-      "
-    >
-      {basket.risk}
-    </span>
+    {/* Khali pill ki jagah wo dikhao jo waqai maloom hai: basket kis cheez se bana hai. */}
+    <div className="mt-3 flex flex-wrap gap-1.5">
+      {(basket.risk ? [basket.risk] : basket.categories || []).map((label) => (
+        <span
+          key={label}
+          className="
+            inline-block px-3 py-1 text-xs rounded-full
+            bg-blue-100 text-blue-700
+
+            dark:bg-blue-500/15
+            dark:text-blue-400
+          "
+        >
+          {label}
+        </span>
+      ))}
+    </div>
   </div>
 </Link>
 
