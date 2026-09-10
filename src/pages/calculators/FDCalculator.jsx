@@ -252,8 +252,10 @@ const FDCalculator = () => {
     </h2>
 
     <div className="flex gap-4 flex-wrap">
+      {/* Route ka naam "retirement-calculator" hai; underscore wala mojood hi nahi,
+          is liye ye button har click par 404 par utaar deta tha. */}
       <button
-        onClick={() => handleRedirect("/calculator/retirement_calculator")}
+        onClick={() => handleRedirect("/calculator/retirement-calculator")}
         className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg shadow"
       >
         Retirement Calculator

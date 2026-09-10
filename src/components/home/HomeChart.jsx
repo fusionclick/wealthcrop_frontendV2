@@ -7,17 +7,21 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
   ResponsiveContainer,
 } from "recharts";
+import { sipSeries } from "../../utils/calculators";
 
-const chartData = [
-  { year: "2019", investment: 10, growth: 14 },
-  { year: "2020", investment: 15, growth: 20 },
-  { year: "2021", investment: 22, growth: 30 },
-  { year: "2022", investment: 30, growth: 42 },
-  { year: "2023", investment: 35, growth: 50 },
-  { year: "2024", investment: 45, growth: 63 },
-];
+// ponytail: pehle yahan chhe hardcoded number thay (investment 10 → growth 63) jinka koi
+// matlab nahi tha: na unit, na koi hisaab jo unhe justify kare. Ab wahi lakeer ek asli
+// SIP se banti hai jiski shartein neeche likhi hain.
+const MONTHLY = 10000;
+const CAGR = 12;
+const YEARS = 10;
+const chartData = sipSeries({ monthly: MONTHLY, years: YEARS, cagr: CAGR });
+
+const inLakh = (n) => `₹${(n / 100000).toFixed(1)}L`;
+const inRupees = (n) => `₹${Number(n).toLocaleString("en-IN")}`;
 
 const HomeChart = () => {
   return (
@@ -53,8 +57,9 @@ const HomeChart = () => {
         transition={{ delay: 0.2 }}
         className="text-gray-600 dark:text-gray-300 mb-10 max-w-2xl mx-auto"
       >
-        Visualize how your investments can grow year over year with
-        consistent planning and expert guidance.
+        A ₹{MONTHLY.toLocaleString("en-IN")} monthly SIP at {CAGR}% a year — what you put
+        in, and what it compounds to over {YEARS} years. An illustration of the maths, not
+        a promise of returns.
       </motion.p>
 
       {/* Chart Container */}
@@ -66,27 +71,33 @@ const HomeChart = () => {
         "
       >
         <ResponsiveContainer width="100%" height={350}>
-          <LineChart data={chartData}>
+          <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-            <XAxis stroke="#9ca3af" />
-            <YAxis stroke="#9ca3af" />
+            {/* dataKey ke baghair recharts row ka index dikhata hai — is liye x-axis par
+                saal ki jagah 0,1,2… chhap raha tha. */}
+            <XAxis dataKey="year" stroke="#9ca3af" />
+            <YAxis stroke="#9ca3af" tickFormatter={inLakh} width={70} />
             <Tooltip
+              formatter={(value, name) => [inRupees(value), name]}
               contentStyle={{
                 backgroundColor: "#020617",
                 border: "1px solid rgba(255,255,255,0.1)",
                 color: "#e5e7eb",
               }}
             />
+            <Legend />
             <Line
               type="monotone"
-              dataKey="growth"
+              dataKey="value"
+              name="Portfolio value"
               stroke="#ef4444" // red-500
               strokeWidth={3}
               activeDot={{ r: 8 }}
             />
             <Line
               type="monotone"
-              dataKey="investment"
+              dataKey="invested"
+              name="Amount invested"
               stroke="#3b82f6" // blue-500
               strokeWidth={3}
             />

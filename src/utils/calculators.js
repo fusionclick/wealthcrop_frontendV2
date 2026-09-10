@@ -30,6 +30,25 @@ const surchargeRate = (taxable, regime) => {
 };
 
 /**
+ * Ek fixed monthly SIP saal-ba-saal kya banti hai: kitna daala (invested) aur kitna
+ * bana (value). Dono jagah — home page ka growth chart aur goal planner — yahi chalta hai.
+ */
+export const sipSeries = ({ monthly, years, cagr }) => {
+  const yrs = Math.max(1, Math.round(Number(years) || 0));
+  const m = Math.max(0, Number(monthly) || 0);
+  const r = (Number(cagr) || 0) / 100 / 12;
+
+  const out = [];
+  for (let i = 1; i <= yrs; i++) {
+    const months = i * 12;
+    // r = 0 par annuity formula 0/0 hai — tab jitna daala utna hi bana.
+    const value = r === 0 ? m * months : m * ((Math.pow(1 + r, months) - 1) / r);
+    out.push({ year: `Y${i}`, invested: Math.round(m * months), value: Math.round(value) });
+  }
+  return out;
+};
+
+/**
  * Goal SIP — kitna monthly chahiye taake `years` baad goal poora ho.
  * Goal aaj ki qeemat mein diya jata hai, is liye pehle use inflation par aage le jate hain;
  * warna inflation slider hilta hai aur natija wahi rehta hai.
@@ -42,16 +61,11 @@ export const sipForGoal = ({ goal, years, cagr, inflation = 0 }) => {
   // r = 0 par annuity formula 0/0 hai — us case mein goal barabar hisson mein bat jata hai.
   const monthlySIP = r === 0 ? target / n : (target * r) / (Math.pow(1 + r, n) - 1);
 
-  const series = [];
-  for (let i = 1; i <= yrs; i++) {
-    const months = i * 12;
-    const corpus = r === 0 ? monthlySIP * months : monthlySIP * ((Math.pow(1 + r, months) - 1) / r);
-    series.push({
-      year: `Y${i}`,
-      total: Math.round(corpus),
-      principal: Math.round(monthlySIP * months),
-    });
-  }
+  const series = sipSeries({ monthly: monthlySIP, years: yrs, cagr }).map((p) => ({
+    year: p.year,
+    total: p.value,
+    principal: p.invested,
+  }));
 
   return {
     target: Math.round(target),

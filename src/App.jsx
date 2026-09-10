@@ -502,7 +502,6 @@ useEffect(() => {
                   />
                 </>
               )}
-              <Route path="/support" element={<Support />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/user/balance" element={<Balance />} />
               <Route path="/user/balance/inr" element={<AddMoney />} />
@@ -537,6 +536,16 @@ useEffect(() => {
             {/* Public routes */}
             <Route path="/" element={<Home />} />
             <Route path="*" element={<ErrorPage notFound />} />
+
+            {/* Landing page ka "Invest Now" pehle yahan bhejta tha aur ye route mojood hi
+                nahi tha — purane links aur bookmarks ko asli calculator par utaar do. */}
+            <Route path="/sip_cal" element={<Navigate to="/calculator/sip-calculator" replace />} />
+
+            {/* Support page mein na koi API call hai na user data, aur landing page ka
+                "Contact Support"/"Live Chat" isi par jata hai — is liye ye login ke peeche
+                nahi ho sakta. Pehle ProtectRoute ke andar tha, yaani har logged-out
+                visitor seedha /login par phenk diya jata tha. */}
+            <Route path="/support" element={<Support />} />
 
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Register />} />

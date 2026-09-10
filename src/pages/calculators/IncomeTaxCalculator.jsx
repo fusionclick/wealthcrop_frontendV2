@@ -4,6 +4,35 @@ import { compareRegimes } from "../../utils/calculators";
 
 const money = (n) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
 
+// ponytail: Row/Input component ke andar define the. Har render par naya component type
+// banta hai, React purana input unmount kar ke naya mount karta hai — is liye ek digit
+// type karte hi field ka focus ud jata tha. Module scope par rakhne se node wahi rehta hai.
+const Row = ({ label, value, strong }) => (
+  <div className={`flex justify-between py-1 ${strong ? "font-bold text-base" : "text-sm opacity-90"}`}>
+    <span>{label}</span>
+    <span>{value}</span>
+  </div>
+);
+
+const Input = ({ label, value, onChange, placeholder, hint }) => (
+  <div>
+    <label className="text-sm font-medium text-gray-700 dark:text-slate-300">{label}</label>
+    <input
+      type="number"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="
+        w-full border p-2 rounded-lg outline-none
+        border-purple-300 bg-white/80
+        focus:ring-2 focus:ring-purple-500
+        dark:bg-slate-800 dark:border-slate-600 dark:text-white
+      "
+    />
+    {hint && <p className="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">{hint}</p>}
+  </div>
+);
+
 const IncomeTaxCalculator = () => {
   const navigate = useNavigate();
 
@@ -37,32 +66,6 @@ const IncomeTaxCalculator = () => {
     { q: "Surcharge kab lagta hai?", a: "₹50 lakh se upar. New Regime mein maximum 25%, Old Regime mein 37% tak. Uske upar 4% health & education cess sab par lagta hai." },
     { q: "Ye figure final hai?", a: "Ye estimate hai. Capital gains, business income, senior citizen slabs aur surcharge ka marginal relief shamil nahi — final filing se pehle CA se confirm kar lein." },
   ];
-
-  const Row = ({ label, value, strong }) => (
-    <div className={`flex justify-between py-1 ${strong ? "font-bold text-base" : "text-sm opacity-90"}`}>
-      <span>{label}</span>
-      <span>{value}</span>
-    </div>
-  );
-
-  const Input = ({ label, value, onChange, placeholder, hint }) => (
-    <div>
-      <label className="text-sm font-medium text-gray-700 dark:text-slate-300">{label}</label>
-      <input
-        type="number"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="
-          w-full border p-2 rounded-lg outline-none
-          border-purple-300 bg-white/80
-          focus:ring-2 focus:ring-purple-500
-          dark:bg-slate-800 dark:border-slate-600 dark:text-white
-        "
-      />
-      {hint && <p className="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">{hint}</p>}
-    </div>
-  );
 
   return (
     <div

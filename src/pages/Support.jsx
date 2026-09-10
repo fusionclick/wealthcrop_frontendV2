@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { MessageCircle, Phone, Mail, ChevronDown } from "lucide-react";
+import { Mail, ChevronDown } from "lucide-react";
 
 const faqs = [
   {
@@ -60,9 +60,12 @@ const Support = () => {
     </p>
   </div>
 
-  {/* 🔹 Contact Options */}
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-    {/* Chat Support */}
+  {/* 🔹 Contact Options
+      Pehle yahan teen card thay — Live Chat, Call Us, Email — aur teeno ke button par
+      koi onClick hi nahi tha. Helpline number aur email dono template ki baqiyat thay:
+      na number hamara tha, na email ka domain. Live chat ke peeche koi backend bhi nahi
+      hai. Jo cheez waqai mojood hai sirf wahi rehne di gayi hai. */}
+  <div className="max-w-md mx-auto mb-10">
     <div
       className="
         bg-white shadow-md rounded-xl p-6
@@ -70,64 +73,6 @@ const Support = () => {
         hover:shadow-lg transition
 
         dark:bg-[var(--card-bg)] dark:border-2 dark:border-[var(--border-color)]
-      "
-    >
-      <div className="bg-blue-100 text-blue-600 p-3 rounded-full mb-3 dark:bg-blue-500/15 dark:text-blue-400">
-        <MessageCircle size={28} />
-      </div>
-
-      <h3 className="text-lg font-semibold text-blue-950 dark:text-[var(--text-primary)]">
-        Live Chat
-      </h3>
-
-      <p className="text-gray-600 text-sm mt-1 dark:text-[var(--text-secondary)]">
-        Chat with our support team instantly.
-      </p>
-
-      <button className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
-        Start Chat
-      </button>
-    </div>
-
-    {/* Call Support */}
-    <div
-      className="
-        bg-white shadow-md rounded-xl p-6
-        flex flex-col items-center text-center
-        hover:shadow-lg transition
-
-        dark:bg-[var(--card-bg)]
-      "
-    >
-      <div className="bg-green-100 text-green-600 p-3 rounded-full mb-3 dark:bg-emerald-500/15 dark:text-emerald-400">
-        <Phone size={28} />
-      </div>
-
-      <h3 className="text-lg font-semibold text-blue-950 dark:text-[var(--text-primary)]">
-        Call Us
-      </h3>
-
-      <p className="text-gray-600 text-sm mt-1 dark:text-[var(--text-secondary)]">
-        Talk directly to our customer care team.
-      </p>
-
-      <p className="font-medium text-blue-950 mt-2 text-sm dark:text-[var(--text-primary)]">
-        +91 1800 123 4567
-      </p>
-
-      <button className="mt-4 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
-        Call Now
-      </button>
-    </div>
-
-    {/* Email Support */}
-    <div
-      className="
-        bg-white shadow-md rounded-xl p-6
-        flex flex-col items-center text-center
-        hover:shadow-lg transition
-
-        dark:bg-[var(--card-bg)]
       "
     >
       <div className="bg-purple-100 text-purple-600 p-3 rounded-full mb-3 dark:bg-purple-500/15 dark:text-purple-400">
@@ -143,12 +88,15 @@ const Support = () => {
       </p>
 
       <p className="font-medium text-blue-950 mt-2 text-sm dark:text-[var(--text-primary)]">
-        support@investify.com
+        support@wealthcrop.co
       </p>
 
-      <button className="mt-4 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+      <a
+        href="mailto:support@wealthcrop.co?subject=Help%20request"
+        className="mt-4 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+      >
         Send Email
-      </button>
+      </a>
     </div>
   </div>
 
@@ -202,9 +150,14 @@ const Support = () => {
       Our team is always ready to assist you with any issue.
     </p>
 
-    <button className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-medium transition">
-      Raise a Ticket
-    </button>
+    {/* Pehle "Raise a Ticket" tha — na iska koi onClick tha, na koi ticketing system
+        mojood hai. Jo cheez waqai chalti hai usi par bhej rahe hain. */}
+    <a
+      href="mailto:support@wealthcrop.co?subject=Help%20request"
+      className="inline-block mt-4 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-medium transition"
+    >
+      Email our team
+    </a>
   </div>
 </div>
 

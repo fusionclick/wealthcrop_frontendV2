@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { sipForGoal } from "../src/utils/calculators.js";
+import { sipForGoal, sipSeries } from "../src/utils/calculators.js";
 import { MF_EXPLORE_PATH } from "../src/utils/nodeApi.js";
 
 const read = (p) => fs.readFileSync(new URL(p, import.meta.url), "utf8");
@@ -116,4 +116,111 @@ test("search results par click crash nahi karta", () => {
   assert.match(popup, /toggleMfWatchlist\(\{ isin, code, name/);
   // Trending aur suggestion buttons ab search chalate hain.
   assert.ok((popup.match(/onClick=\{\(\) => searchAssets\(item\)\}/g) || []).length === 2);
+});
+
+// ─────────────── 10 Sep: dusra batch ───────────────
+
+test("sipSeries: jo daala aur jo bana, dono theek", () => {
+  const s = sipSeries({ monthly: 10000, years: 10, cagr: 12 });
+  assert.equal(s.length, 10);
+  assert.equal(s[0].invested, 120000);
+  assert.equal(s[9].invested, 1200000);
+  // 10k/mah, 12%, 10 saal, ordinary annuity = 23,00,387. Annuity-due 23,23,391 deta, magar
+  // sipForGoal pehle se ordinary use karta hai — dono ek hi formula par rehne chahiye.
+  assert.equal(s[9].value, 2300387);
+  // Value hamesha invested se ooper, aur dono barhte hain.
+  for (let i = 1; i < s.length; i++) {
+    assert.ok(s[i].value > s[i - 1].value);
+    assert.ok(s[i].value > s[i].invested);
+  }
+});
+
+test("sipSeries: 0% par jitna daala utna hi bana (0/0 se bachao)", () => {
+  const s = sipSeries({ monthly: 5000, years: 3, cagr: 0 });
+  assert.deepEqual(s.map((p) => p.value), s.map((p) => p.invested));
+  assert.equal(s[2].value, 180000);
+});
+
+test("sipForGoal ab sipSeries par chalta hai magar natija wahi hai", () => {
+  const r = sipForGoal({ goal: 1000000, years: 10, cagr: 9, inflation: 0 });
+  assert.equal(r.monthlySIP, 5168);
+  assert.equal(r.series.length, 10);
+  assert.equal(r.series[9].total, r.futureValue);
+  assert.ok(r.series[9].principal < r.series[9].total);
+});
+
+test("home chart mein legend hai aur x-axis par saal", () => {
+  const chart = read("../src/components/home/HomeChart.jsx");
+  assert.match(chart, /<Legend \/>/);
+  // dataKey ke baghair recharts index (0,1,2…) chhapta tha.
+  assert.match(chart, /<XAxis dataKey="year"/);
+  // Dono lakeeron ke naam hon warna legend "value"/"invested" dikhati hai.
+  assert.match(chart, /name="Portfolio value"/);
+  assert.match(chart, /name="Amount invested"/);
+  // Hardcoded jhoote number wapas na aayen.
+  assert.equal(chart.includes('year: "2019"'), false);
+});
+
+test("SIP chart ki legend mein 'total' do baar nahi aata", () => {
+  const sip = read("../src/pages/calculators/SipCalculator.jsx");
+  // Line usi dataKey ko dobara draw kar rahi thi jo Bar draw karta hai.
+  assert.equal(/<Line[\s\S]{0,120}dataKey="total"/.test(sip), false);
+  assert.match(sip, /<Bar dataKey="principal" name="Amount invested"/);
+  assert.match(sip, /<Bar dataKey="total" name="Portfolio value"/);
+});
+
+// Input/Row component ke andar define thay: har render par naya component type banta hai,
+// React purana input unmount kar deta hai, aur ek digit type karte hi focus ud jata tha.
+for (const file of ["IncomeTaxCalculator", "RentCalculator"]) {
+  test(`${file}: input field render par remount nahi hota`, () => {
+    const src = read(`../src/pages/calculators/${file}.jsx`);
+    const body = src.slice(src.indexOf(`const ${file} = () =>`));
+    assert.equal(/^\s+const (Input|Row) = \(/m.test(body), false,
+      "Input/Row component ke andar wapas chala gaya — focus phir udega");
+    assert.match(src, /^const Input = \(/m);
+    assert.match(src, /^const Row = \(/m);
+  });
+}
+
+test("/support login ke peeche nahi hai", () => {
+  const app = read("../src/App.jsx");
+  // ProtectRoute block khatam hone ke baad aana chahiye — warna logged-out visitor /login par.
+  const guarded = app.indexOf("<Route path=\"/login\"");
+  const support = app.indexOf("<Route path=\"/support\"");
+  assert.ok(support > 0 && support < guarded, "/support public routes ke sath hona chahiye");
+  assert.equal((app.match(/<Route path="\/support"/g) || []).length, 1);
+});
+
+test("har /calculator/... link ka route mojood hai", () => {
+  const routes = read("../src/utils/CalculatorRoutes.jsx");
+  const known = new Set([...routes.matchAll(/path:\s*"([^"]+)"/g)].map((m) => m[1]));
+  assert.ok(known.size >= 18);
+
+  const dir = new URL("../src/", import.meta.url);
+  const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? walk(new URL(`${e.name}/`, d)) : [new URL(e.name, d)]);
+
+  const dead = [];
+  for (const f of walk(dir)) {
+    if (!/\.jsx?$/.test(f.pathname)) continue;
+    const src = fs.readFileSync(f, "utf8");
+    for (const m of src.matchAll(/\/calculator\/([a-zA-Z0-9_-]+)/g)) {
+      if (!known.has(m[1])) dead.push(`${f.pathname.split("/src/")[1]} → ${m[1]}`);
+    }
+  }
+  assert.deepEqual(dead, [], `in links ka koi route nahi:\n${dead.join("\n")}`);
+});
+
+test("support page par jhoote contact details nahi hain", () => {
+  const s = read("../src/pages/Support.jsx");
+  // Template ki baqiyat: doosre brand ka email aur placeholder helpline.
+  assert.equal(s.includes("investify.com"), false);
+  assert.equal(s.includes("1800 123 4567"), false);
+  // Jo bacha hai wo click par kaam kare.
+  assert.match(s, /href="mailto:support@wealthcrop\.co/);
+  // Bina onClick ke koi button na reh jaye.
+  const buttons = s.match(/<button(?![^>]*onClick)[^>]*>/g) || [];
+  assert.deepEqual(buttons, []);
+  // Mere hatane se bache hue import na reh jayen.
+  assert.equal(/MessageCircle|Phone/.test(s), false);
 });

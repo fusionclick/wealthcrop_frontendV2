@@ -222,15 +222,10 @@ const SipCalculator = () => {
               }}
             />
             <Legend />
-            <Bar dataKey="principal" fill="#3b82f6" />
-            <Bar dataKey="total" fill="#86efac" />
-            <Line
-              type="monotone"
-              dataKey="total"
-              stroke="#22c55e"
-              strokeWidth={2}
-              dot={false}
-            />
+            {/* ponytail: pehle legend "principal, total, total" dikhati thi — Line usi
+                dataKey ko dobara draw kar rahi thi jo Bar pehle se draw karta hai. */}
+            <Bar dataKey="principal" name="Amount invested" fill="#3b82f6" />
+            <Bar dataKey="total" name="Portfolio value" fill="#86efac" />
           </BarChart>
         </ResponsiveContainer>
       </div>

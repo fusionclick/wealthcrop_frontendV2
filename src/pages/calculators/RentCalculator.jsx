@@ -4,6 +4,36 @@ import { rentVsBuy } from "../../utils/calculators";
 
 const money = (n) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 
+// ponytail: Input/Row component ke andar define the — har render par naya component type,
+// yaani React input ko unmount kar ke dobara mount karta tha aur ek digit par focus chala
+// jata tha. Module scope par node wahi rehta hai.
+const Input = ({ label, value, onChange, placeholder, suffix }) => (
+  <div>
+    <label className="text-sm font-medium text-gray-700 dark:text-slate-300">
+      {label} {suffix && <span className="opacity-60">({suffix})</span>}
+    </label>
+    <input
+      type="number"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="
+        w-full border p-2 rounded-lg outline-none
+        border-purple-300 bg-white/80
+        focus:ring-2 focus:ring-purple-500
+        dark:bg-slate-800 dark:border-slate-600 dark:text-white
+      "
+    />
+  </div>
+);
+
+const Row = ({ label, value, strong }) => (
+  <div className={`flex justify-between py-1 ${strong ? "font-bold text-base" : "text-sm opacity-90"}`}>
+    <span>{label}</span>
+    <span>{value}</span>
+  </div>
+);
+
 const RentCalculator = () => {
   const navigate = useNavigate();
 
@@ -33,33 +63,6 @@ const RentCalculator = () => {
     { q: "Home loan ka tax benefit shamil hai?", a: "Nahi. Section 24(b) ka ₹2 lakh interest deduction aur 80C ka principal shamil nahi — inhe milane par kharidna thora aur behtar lagega." },
     { q: "Aur kya shamil nahi?", a: "Registration, stamp duty, brokerage, aur ghar bechne ka capital gains tax. Ye estimate hai, financial advice nahi." },
   ];
-
-  const Input = ({ label, value, onChange, placeholder, suffix }) => (
-    <div>
-      <label className="text-sm font-medium text-gray-700 dark:text-slate-300">
-        {label} {suffix && <span className="opacity-60">({suffix})</span>}
-      </label>
-      <input
-        type="number"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="
-          w-full border p-2 rounded-lg outline-none
-          border-purple-300 bg-white/80
-          focus:ring-2 focus:ring-purple-500
-          dark:bg-slate-800 dark:border-slate-600 dark:text-white
-        "
-      />
-    </div>
-  );
-
-  const Row = ({ label, value, strong }) => (
-    <div className={`flex justify-between py-1 ${strong ? "font-bold text-base" : "text-sm opacity-90"}`}>
-      <span>{label}</span>
-      <span>{value}</span>
-    </div>
-  );
 
   return (
     <div
