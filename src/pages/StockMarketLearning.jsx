@@ -1,4 +1,9 @@
 import React from "react";
+// iconscout ke hotlink kiye hue illustration ke URL ab 404 dete hain — repo ke apne SVG bundle ho rahe hain.
+import stockImg from "../assets/menu/stockMenu.svg";
+import exchangeImg from "../assets/stocks/stockEmptyDashboard.svg";
+import insightImg from "../assets/track/insights.svg";
+import growthImg from "../assets/top investment/topinvest.svg";
 
 export default function StockMarketLearning() {
   return (
@@ -19,7 +24,7 @@ export default function StockMarketLearning() {
           </div>
 
           <img
-            src="https://cdni.iconscout.com/illustration/premium/thumb/share-market-investment-illustration-download-in-svg-png-gif-file-formats--stock-trading-finance-pack-business-illustrations-7985477.png"
+            src={stockImg}
             className="w-80"
           />
         </div>
@@ -70,17 +75,17 @@ export default function StockMarketLearning() {
             {
               title: "Stock Exchanges",
               desc: "NSE, BSE — platforms where buying and selling happen.",
-              img: "https://cdni.iconscout.com/illustration/premium/thumb/stock-exchange-illustration-download-in-svg-png-gif-file-formats--market-finance-pack-business-illustrations-6630402.png"
+              img: exchangeImg
             },
             {
               title: "Investors",
               desc: "Retail, institutional, FIIs — all participate in markets.",
-              img: "https://cdni.iconscout.com/illustration/premium/thumb/user-insight-illustration-download-in-svg-png-gif-file-formats--profile-information-management-pack-communication-illustrations-4978043.png"
+              img: insightImg
             },
             {
               title: "Companies",
               desc: "Businesses raise capital by issuing shares.",
-              img: "https://cdni.iconscout.com/illustration/premium/thumb/company-growth-illustration-download-in-svg-png-gif-file-formats--chart-analytics-graph-pack-business-illustrations-7275157.png"
+              img: growthImg
             },
           ].map((item, i) => (
             <div

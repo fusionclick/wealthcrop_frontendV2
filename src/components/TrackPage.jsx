@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import track from "../assets/track/track.png";
 import insights from "../assets/track/insights.svg";
 import switchh from "../assets/track/switch.svg";
@@ -7,6 +8,15 @@ import Register from "../auth/Register";
 
 export default function TrackPage() {
   const [showLogin, setShowLogin] = useState(true);
+  const navigate = useNavigate();
+
+  // "Track Now" par koi onClick tha hi nahi — button sirf hover karta tha. Track ka wada
+  // "apne mutual fund import karo" hai, aur wo kaam ExternalMF page karta hai (login ke
+  // peeche). Bina login ke wahi Register popup khol do jo is page par pehle se mojood hai.
+  const startTracking = () => {
+    if (localStorage.getItem("token")) navigate("/user/mutual_fund/external");
+    else setShowLogin(true);
+  };
 
   const faqs = [
     { q: "What is Wealthcrop Track?", a: "Wealthcrop Track allows you to import and monitor all your mutual fund investments in one place with real-time insights." },
@@ -60,7 +70,10 @@ export default function TrackPage() {
       <p className="text-gray-700 dark:text-gray-400 text-lg mb-6">
         Import and manage all your mutual fund investments easily on Wealthcrop.
       </p>
-      <button className="px-6 py-3 bg-sky-600 dark:bg-blue-500 text-white rounded-xl font-semibold hover:bg-sky-700 dark:hover:bg-blue-400 shadow-md">
+      <button
+        onClick={startTracking}
+        className="px-6 py-3 bg-sky-600 dark:bg-blue-500 text-white rounded-xl font-semibold hover:bg-sky-700 dark:hover:bg-blue-400 shadow-md"
+      >
         Track Now
       </button>
     </div>

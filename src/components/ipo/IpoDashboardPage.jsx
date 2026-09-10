@@ -15,8 +15,21 @@ const IpoDashboardPage = () => {
 
   const navigate = useNavigate();
 
+  // `.catch(() => setIpos([]))` har error chup chaap nigal jata tha, aur screen par wahi
+  // "No IPOs match your search" aata tha — chahe API girri ho, chahe backend mein sach
+  // much koi IPO na ho. Teen halat ab alag alag hain: load ho raha hai, error, ya khali.
+  const [loadState, setLoadState] = useState("loading");
+
   useEffect(() => {
-    fetchIpos().then((r) => setIpos(r?.data ?? [])).catch(() => setIpos([]));
+    fetchIpos()
+      .then((r) => {
+        setIpos(r?.data ?? []);
+        setLoadState("ready");
+      })
+      .catch(() => {
+        setIpos([]);
+        setLoadState("error");
+      });
   }, []);
 
   // FILTERS
@@ -176,7 +189,13 @@ const IpoDashboardPage = () => {
           {filteredIpos.length === 0 ? (
             <tr>
               <td colSpan="6" className="px-4 py-6 text-center text-slate-500 dark:text-gray-400">
-                No IPOs match your search.
+                {loadState === "loading"
+                  ? "Loading IPOs…"
+                  : loadState === "error"
+                  ? "Could not load IPOs. Please try again shortly."
+                  : ipos.length === 0
+                  ? "No IPOs have been listed yet. Check back soon."
+                  : "No IPOs match your search."}
               </td>
             </tr>
           ) : (

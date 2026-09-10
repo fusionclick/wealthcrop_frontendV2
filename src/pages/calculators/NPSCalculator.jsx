@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { sipSeries } from "../../utils/calculators";
 
 const NPSCalculator = () => {
   const [monthlyContribution, setMonthlyContribution] = useState("");
@@ -13,17 +14,19 @@ const NPSCalculator = () => {
   const calculateNPS = () => {
     if (!monthlyContribution || !expectedReturn || !years) return;
 
-    const monthlyRate = expectedReturn / 100 / 12;
-    const totalMonths = years * 12;
-
-    // NPS returns based on SIP formula
-    const maturity =
-      (monthlyContribution *
-        (Math.pow(1 + monthlyRate, totalMonths) - 1) *
-        (1 + monthlyRate)) /
-      monthlyRate;
-
-    const invested = monthlyContribution * totalMonths;
+    // Pehle yahan apna alag formula tha — annuity-DUE (`… * (1 + monthlyRate)`), jab ke
+    // baqi poori site (SIP calculator, goal planner, home chart, education calculator)
+    // ordinary annuity par chalti hai. 10k/mah, 12%, 10 saal par NPS 23,23,391 dikhata tha
+    // aur SIP calculator 23,00,387 — ek hi sawal ke do jawab. Ab wahi shared helper.
+    // r = 0 ka guard bhi usi ke andar hai; pehle yahan 0% par NaN aata tha.
+    const series = sipSeries({
+      monthly: monthlyContribution,
+      years,
+      cagr: expectedReturn,
+    });
+    const last = series[series.length - 1];
+    const maturity = last.value;
+    const invested = last.invested;
     const wealthGained = maturity - invested;
 
     setResult({

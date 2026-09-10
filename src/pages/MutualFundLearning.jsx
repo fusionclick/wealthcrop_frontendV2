@@ -1,4 +1,9 @@
 import React from "react";
+// iconscout ke hotlink kiye hue illustration ke URL ab 404 dete hain — repo ke apne SVG bundle ho rahe hain.
+import fundImg from "../assets/menu/fundMenu.svg";
+import equityImg from "../assets/top investment/topinvest.svg";
+import debtImg from "../assets/wallet.svg";
+import hybridImg from "../assets/invest.svg";
 
 export default function MutualFundLearning() {
   return (
@@ -19,7 +24,7 @@ export default function MutualFundLearning() {
           </div>
 
           <img
-            src="https://cdni.iconscout.com/illustration/premium/thumb/investment-plan-illustration-download-in-svg-png-gif-file-formats--growth-money-profit-pack-business-illustrations-3153131.png"
+            src={fundImg}
             className="w-72"
           />
         </div>
@@ -65,17 +70,17 @@ export default function MutualFundLearning() {
             {
               title: "Equity Funds",
               desc: "Invest in stocks; suitable for long-term growth.",
-              img: "https://cdni.iconscout.com/illustration/premium/thumb/growth-investment-illustration-download-in-svg-png-gif-file-formats--chart-analytics-graph-pack-business-illustrations-3373028.png"
+              img: equityImg
             },
             {
               title: "Debt Funds",
               desc: "Invest in bonds; suitable for stable returns.",
-              img: "https://cdni.iconscout.com/illustration/premium/thumb/budget-planning-illustration-download-in-svg-png-gif-file-formats--money-finance-portfolio-pack-business-illustrations-8374518.png"
+              img: debtImg
             },
             {
               title: "Hybrid Funds",
               desc: "Mix of equity & debt; balanced risk.",
-              img: "https://cdni.iconscout.com/illustration/premium/thumb/financial-portfolio-illustration-download-in-svg-png-gif-file-formats--investment-money-finance-pack-business-illustrations-2948531.png"
+              img: hybridImg
             },
           ].map((item, i) => (
             <div key={i} className="bg-white p-6 rounded-3xl shadow-md border border-blue-100 hover:shadow-xl transition">

@@ -1,5 +1,29 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+// Pehle har illustration ek bahar wale stock-illustration CDN se hotlink hoti thi, aur wo saare URL ab 404
+// dete hain — is liye page par tooti hui image ke placeholder nazar aate the. Ab repo ke
+// apne SVG bundle hote hain: dobara kabhi na tootein, aur kisi bahar wali service par
+// bharosa na karna pare.
+import learnHero from "../assets/invest.svg";
+import fundImg from "../assets/menu/fundMenu.svg";
+import stockImg from "../assets/menu/stockMenu.svg";
+import sipImg from "../assets/top investment/topinvest.svg";
+import taxImg from "../assets/track/insights.svg";
+
+const TOPICS = [
+  { title: "Mutual Funds", route: "/learning-centre/mutual_fund", img: fundImg },
+  { title: "Stock Market", route: "/learning-centre/stock_market", img: stockImg },
+  { title: "SIP & Wealth Building", route: "/learning-centre/sip_investment", img: sipImg },
+  { title: "Tax Planning", route: "/learning-centre/tax_planning", img: taxImg },
+];
+
+// Teeno "Explore →" button bina onClick ke thay. Har path ko us topic par bhej rahe hain
+// jo uski apni description bayan karti hai.
+const PATHS = [
+  { title: "Beginner Path", desc: "Learn basics of investing, SIP, compounding & more.", route: "/learning-centre/sip_investment" },
+  { title: "Intermediate Path", desc: "Understand funds, risk, market behavior & diversification.", route: "/learning-centre/mutual_fund" },
+  { title: "Advanced Path", desc: "Valuations, stock analysis, strategies, portfolio design.", route: "/learning-centre/stock_market" },
+];
 
 export default function LearningCenterPage() {
   const [open, setOpen] = useState(null);
@@ -9,7 +33,10 @@ export default function LearningCenterPage() {
   const faqs = [
     { q: "Is this free?", a: "Yes, all Wealthcrop learning content is 100% free." },
     { q: "Do I need an account?", a: "No, you can access basic content without login." },
-    { q: "Are video lessons available?", a: "Yes, we provide beginner to advanced investing videos." },
+    // Pehla jawab "haan, videos mojood hain" tha — magar video section sirf do khali
+    // grey box thay jin par "Watch Now" ka koi onClick nahi tha. Section hata diya, is
+    // liye jawab bhi sach kar diya.
+    { q: "Are video lessons available?", a: "Not yet — the guides below are written lessons. Video courses are on the way." },
   ];
 
   return (
@@ -44,6 +71,7 @@ export default function LearningCenterPage() {
         </p>
 
         <button
+          onClick={() => navigate(TOPICS[0].route)}
           className="
             px-7 py-3 rounded-xl font-semibold shadow transition
             bg-white border border-blue-400 text-blue-700 hover:bg-blue-50
@@ -56,7 +84,8 @@ export default function LearningCenterPage() {
 
       {/* Illustration */}
       <img
-        src="https://cdni.iconscout.com/illustration/premium/thumb/online-learning-illustration-download-in-svg-png-gif-file-formats--knowledge-study-college-pack-education-illustrations-3215404.png"
+        src={learnHero}
+        alt="Wealthcrop Learning Centre"
         className="w-80 drop-shadow-xl"
       />
     </div>
@@ -66,26 +95,22 @@ export default function LearningCenterPage() {
       Explore Topics
     </h2>
 
+    {/* Card poora `cursor-pointer` tha magar onClick sirf <h3> par — yaani card ya
+        illustration par click karne se kuch nahi hota tha, sirf theek text par hota tha.
+        Handler card par utha diya. */}
     <div className="grid md:grid-cols-4 gap-6 mb-14">
-      {[
-        { title: "Mutual Funds", route:"/learning-centre/mutual_fund", img: "https://cdni.iconscout.com/illustration/premium/thumb/business-investment-illustration-download-in-svg-png-gif-file-formats--growth-share-profit-pack-money-finance-illustrations-3615378.png" },
-        { title: "Stock Market", route:"/learning-centre/stock_market", img: "https://cdni.iconscout.com/illustration/premium/thumb/stock-market-analysis-illustration-download-in-svg-png-gif-file-formats--graph-chart-growth-pack-business-illustrations-6241023.png" },
-        { title: "SIP & Wealth Building", route:"/learning-centre/sip_investment", img: "https://cdni.iconscout.com/illustration/premium/thumb/wealth-management-illustration-download-in-svg-png-gif-file-formats--invest-money-financial-adviser-pack-finance-illustrations-2602428.png" },
-        { title: "Tax Planning", route:"/learning-centre/tax_planning", img: "https://cdni.iconscout.com/illustration/premium/thumb/tax-calculation-illustration-download-in-svg-png-gif-file-formats--payment-money-finance-pack-business-illustrations-3020813.png" }
-      ].map((item, i) => (
+      {TOPICS.map((item) => (
         <div
-          key={i}
+          key={item.route}
+          onClick={() => navigate(item.route)}
           className="
             bg-white rounded-2xl cursor-pointer shadow-md border p-5 transition hover:shadow-xl
             border-blue-100
             dark:bg-[#020617] dark:border-white/10
           "
         >
-          <img src={item.img} className="w-24 mx-auto mb-4" />
-          <h3
-            onClick={() => navigate(item.route)}
-            className="text-lg font-semibold text-blue-800 text-center hover:underline dark:text-gray-200"
-          >
+          <img src={item.img} alt="" className="w-24 h-24 object-contain mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-blue-800 text-center hover:underline dark:text-gray-200">
             {item.title}
           </h3>
         </div>
@@ -98,13 +123,9 @@ export default function LearningCenterPage() {
     </h2>
 
     <div className="grid md:grid-cols-3 gap-8 mb-16">
-      {[
-        { title: "Beginner Path", desc: "Learn basics of investing, SIP, compounding & more.", color: "blue" },
-        { title: "Intermediate Path", desc: "Understand funds, risk, market behavior & diversification.", color: "purple" },
-        { title: "Advanced Path", desc: "Valuations, stock analysis, strategies, portfolio design.", color: "red" }
-      ].map((p, i) => (
+      {PATHS.map((p) => (
         <div
-          key={i}
+          key={p.route}
           className="
             rounded-2xl p-6 shadow border
             bg-linear-to-br from-white/80 to-white
@@ -119,6 +140,7 @@ export default function LearningCenterPage() {
             {p.desc}
           </p>
           <button
+            onClick={() => navigate(p.route)}
             className="
               mt-4 px-5 py-2 rounded-xl font-semibold transition
               bg-white border border-gray-300 hover:bg-gray-50
@@ -131,72 +153,10 @@ export default function LearningCenterPage() {
       ))}
     </div>
 
-    {/* FEATURED VIDEOS */}
-    <h2 className="text-3xl font-bold text-gray-800 mb-6 dark:text-white">
-      Featured Video Lessons
-    </h2>
-
-    <div className="grid md:grid-cols-2 gap-10 mb-16">
-      {[1, 2].map((v) => (
-        <div
-          key={v}
-          className="
-            rounded-2xl overflow-hidden shadow-md border
-            bg-blue-50 border-blue-200
-            dark:bg-[#020617] dark:border-white/10
-          "
-        >
-          <div className="aspect-video bg-blue-200 flex items-center justify-center text-blue-800 text-xl dark:bg-slate-800 dark:text-gray-300">
-            🎥 Video Lesson {v}
-          </div>
-          <div className="p-5">
-            <h3 className="text-xl font-semibold mb-2 text-blue-900 dark:text-white">
-              Understanding Market Trends
-            </h3>
-            <p className="text-gray-600 text-sm mb-3 dark:text-gray-400">
-              Learn how markets move, what affects stock prices and how to read charts.
-            </p>
-            <button
-              className="
-                px-5 py-2 rounded-xl transition
-                bg-white border border-blue-300 hover:bg-blue-50
-                dark:bg-white/10 dark:border-white/10 dark:text-white dark:hover:bg-white/20
-              "
-            >
-              Watch Now
-            </button>
-          </div>
-        </div>
-      ))}
-    </div>
-
-    {/* FEATURED ARTICLES */}
-    <h2 className="text-3xl font-bold text-gray-800 mb-6 dark:text-white">
-      Popular Guides & Articles
-    </h2>
-
-    <div className="space-y-5 mb-16">
-      {[
-        "5 mistakes every beginner must avoid",
-        "How to pick your first mutual fund",
-        "How SIPs actually create long-term wealth",
-        "Understanding market volatility",
-        "Best ways to reduce investment risk"
-      ].map((g, i) => (
-        <div
-          key={i}
-          className="
-            p-5 rounded-xl border shadow-sm transition hover:shadow-md
-            bg-white border-blue-200
-            dark:bg-[#020617] dark:border-white/10
-          "
-        >
-          <h3 className="text-lg font-semibold text-blue-900 dark:text-gray-200">
-            {g}
-          </h3>
-        </div>
-      ))}
-    </div>
+    {/* "Featured Video Lessons" aur "Popular Guides & Articles" yahan se hata diye gaye.
+        Videos do khali grey box thay jin ka "Watch Now" kahin nahi jata tha, aur paanch
+        article ki sirf sarkhiyan thin — na koi article page, na koi click. Jab asli
+        content aa jaye tab wapas aa sakte hain; tab tak jo dikh raha hai wo chalta bhi hai. */}
 
     {/* FAQ SECTION */}
     <div

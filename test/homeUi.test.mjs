@@ -6,6 +6,20 @@ import { MF_EXPLORE_PATH } from "../src/utils/nodeApi.js";
 
 const read = (p) => fs.readFileSync(new URL(p, import.meta.url), "utf8");
 
+/**
+ * Wahi file, magar comments ke baghair.
+ *
+ * Teen baar ho chuka hai: test kisi string ko "ab file mein nahi hona chahiye" kehta hai,
+ * aur wo string sirf us comment mein bachi hoti hai jo bata raha hai ke kya hataya gaya —
+ * yaani test apni hi wazahat par gir jata hai. Jahan bhi "ye cheez ab mojood nahi" wala
+ * assert ho, `readCode` istemal karo; jahan asli code ka pattern match karna ho, `read`.
+ */
+const readCode = (p) =>
+  read(p)
+    .replace(/\{\/\*[\s\S]*?\*\/\}/g, "") // JSX { /* … */ }
+    .replace(/\/\*[\s\S]*?\*\//g, "")     // /* … */
+    .replace(/^[ \t]*\/\/.*$/gm, "");     // poori line wale //
+
 test("goal SIP: purani (bina inflation) ginti waisi hi rehti hai", () => {
   // 10L, 10 saal, 9% — home page par pehle se yahi number chhapta tha.
   const r = sipForGoal({ goal: 1000000, years: 10, cagr: 9, inflation: 0 });
@@ -223,4 +237,114 @@ test("support page par jhoote contact details nahi hain", () => {
   assert.deepEqual(buttons, []);
   // Mere hatane se bache hue import na reh jayen.
   assert.equal(/MessageCircle|Phone/.test(s), false);
+});
+
+// ─────────────── 10 Sep: teesra batch ───────────────
+
+test("Track Now button ab kuch karta hai", () => {
+  const src = read("../src/components/TrackPage.jsx");
+  const btn = (src.match(/<button[\s\S]*?>\s*Track Now/) || [""])[0];
+  assert.match(btn, /onClick=\{startTracking\}/, "Track Now par onClick nahi hai");
+  // Login hai to import page, warna wahi Register popup jo page par pehle se hai.
+  assert.match(src, /navigate\("\/user\/mutual_fund\/external"\)/);
+  assert.match(src, /setShowLogin\(true\)/);
+});
+
+test("F&O menu: sirf wahi item hain jinka page mojood hai", () => {
+  const src = readCode("../src/components/hovercomp/FOMenu.jsx");
+  // Ye chaar feature app mein bane hi nahi — menu inhe advertise na kare.
+  for (const gone of ["Options Trading", "Option Chain", "Margin Calculator", "Brokerage Estimator"]) {
+    assert.equal(src.includes(gone), false, `${gone} abhi tak menu mein hai magar iska koi page nahi`);
+  }
+  // MenuItem ab click leta hai, aur dono bache hue item wired hain.
+  assert.match(src, /const MenuItem = \(\{ icon: Icon, title, desc, onClick \}\)/);
+  assert.match(src, /<div\s+onClick=\{onClick\}/);
+  // 3 = do MenuItem + pehle se mojood "Explore Future & Options" button.
+  assert.equal((src.match(/onClick=\{\(\) => navigate\("\/user\/future_and_options\/explore"\)\}/g) || []).length, 3);
+  // Logged-out par "F&O" label chup chaap mar nahi jata.
+  assert.equal(/if \(token\) navigate/.test(src), false);
+  // Hataye gaye icon ke import bhi sath jayen.
+  for (const icon of ["CandlestickChart", "LineChart", "Calculator", "BarChart2"]) {
+    assert.equal(src.includes(icon), false, `${icon} ka import ab bekaar hai`);
+  }
+});
+
+test("NPS ab wahi SIP formula use karta hai jo baqi site", () => {
+  // 10k/mah, 12%, 10 saal. Pehle NPS annuity-due se 23,23,391 deta tha aur SIP
+  // calculator ordinary se 23,00,387 — ek hi sawal ke do jawab.
+  const s = sipSeries({ monthly: 10000, years: 10, cagr: 12 });
+  assert.equal(s.at(-1).value, 2300387);
+
+  const src = readCode("../src/pages/calculators/NPSCalculator.jsx");
+  assert.match(src, /import \{ sipSeries \} from "\.\.\/\.\.\/utils\/calculators"/);
+  // Apna alag annuity-due formula wapas na aaye.
+  assert.equal(/\(1 \+ monthlyRate\)\) \/\s*monthlyRate/.test(src), false);
+  assert.equal(src.includes("Math.pow"), false, "NPS ko khud pow karne ki zarurat nahi rahi");
+});
+
+test("NPS 0% return par NaN nahi deta", () => {
+  // NPS ka apna check `!expectedReturn` hai — string "0" isse guzar jati hai, is liye
+  // ye rasta waqai pohanch mein tha aur pehle NaN chhapta tha.
+  assert.equal(!"0", false);
+  const s = sipSeries({ monthly: 10000, years: 10, cagr: 0 });
+  assert.ok(Number.isFinite(s.at(-1).value));
+  assert.equal(s.at(-1).value, s.at(-1).invested);
+});
+
+test("learning centre: koi bhi image bahar wale CDN se hotlink nahi", () => {
+  const files = [
+    "../src/pages/LearningCenterPage.jsx",
+    "../src/pages/MutualFundLearning.jsx",
+    "../src/pages/StockMarketLearning.jsx",
+    "../src/pages/SIPWealthLearning.jsx",
+    "../src/pages/TaxPlanningLearning.jsx",
+  ];
+  for (const f of files) {
+    const src = read(f);
+    assert.equal(/src="https?:\/\//.test(src), false, `${f} mein abhi bhi remote image hai`);
+    assert.equal(/img:\s*"https?:\/\//.test(src), false, `${f} mein abhi bhi remote image hai`);
+  }
+});
+
+test("learning centre: poora topic card click hota hai, sirf heading nahi", () => {
+  const src = read("../src/pages/LearningCenterPage.jsx");
+  // Pehle onClick <h3> par tha — card aur illustration par click bekar jata tha.
+  assert.match(src, /key=\{item\.route\}\s+onClick=\{\(\) => navigate\(item\.route\)\}/);
+  assert.equal(/<h3\s+onClick=/.test(src), false);
+  // TOPICS mein chaar, PATHS mein teen — saaton asli learning-centre route hain.
+  const routes = [...src.matchAll(/route: "(\/learning-centre\/[a-z_]+)"/g)].map((m) => m[1]);
+  assert.equal(routes.length, 7);
+  const app = read("../src/App.jsx");
+  for (const r of new Set(routes)) {
+    assert.ok(app.includes(`path="${r}"`), `${r} ka App.jsx mein koi route nahi`);
+  }
+});
+
+test("learning centre: jis cheez ka content nahi wo page par nahi", () => {
+  const src = readCode("../src/pages/LearningCenterPage.jsx");
+  assert.equal(src.includes("Featured Video Lessons"), false);
+  assert.equal(src.includes("Watch Now"), false);
+  assert.equal(src.includes("Popular Guides & Articles"), false);
+  // FAQ ab videos ka jhoota wada nahi karti.
+  assert.equal(/we provide beginner to advanced investing videos/.test(src), false);
+  // Har baqi button ka apna route hai.
+  assert.match(src, /onClick=\{\(\) => navigate\(TOPICS\[0\]\.route\)\}/);
+  assert.match(src, /onClick=\{\(\) => navigate\(p\.route\)\}/);
+});
+
+test("learning sub-pages ke hero buttons dead nahi", () => {
+  for (const f of ["SIPWealthLearning", "TaxPlanningLearning"]) {
+    const src = read(`../src/pages/${f}.jsx`);
+    const dead = src.match(/<button(?![^>]*onClick)[^>]*>/g) || [];
+    assert.deepEqual(dead, [], `${f} mein ab bhi bina onClick ka button hai`);
+  }
+});
+
+test("IPO khali hone aur API girne mein farq hai", () => {
+  const src = readCode("../src/components/ipo/IpoDashboardPage.jsx");
+  // Pehle dono halat mein "No IPOs match your search" aata tha.
+  assert.match(src, /Could not load IPOs/);
+  assert.match(src, /No IPOs have been listed yet/);
+  assert.match(src, /setLoadState\("error"\)/);
+  assert.equal(/\.catch\(\(\) => setIpos\(\[\]\)\)/.test(src), false);
 });

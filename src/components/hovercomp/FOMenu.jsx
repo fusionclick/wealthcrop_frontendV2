@@ -1,13 +1,5 @@
 import React, { useEffect, useState } from "react";
-import {
-  ArrowRight,
-  TrendingUp,
-  Layers,
-  CandlestickChart,
-  LineChart,
-  Calculator,
-  BarChart2,
-} from "lucide-react";
+import { ArrowRight, TrendingUp, Layers } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import foMenu from "../../assets/menu/foMenu.svg";
 
@@ -20,9 +12,11 @@ const FOMenu = ({ token }) => {
     setOpenMenu(false);
   }, [location.pathname]);
 
-  const redirect = () => {
-    if (token) navigate("/user/future_and_options/explore");
-  };
+  // `if (token)` ki wajah se logged-out user ke liye "F&O" label ka click bilkul be-asar
+  // tha. Neeche wala "Explore Future & Options" button hamesha navigate karta hai, aur
+  // route khud ProtectRoute ke peeche hai — login par bhejna route ka kaam hai, yahan
+  // chup chaap kuch na karna theek nahi.
+  const redirect = () => navigate("/user/future_and_options/explore");
 
 const isStocksActive = location.pathname.startsWith("/user/future_and_options");
 
@@ -96,11 +90,15 @@ const isStocksActive = location.pathname.startsWith("/user/future_and_options");
                 </button>
               </div>
 
-              {/* ========= RIGHT GRID ========= */}
-              <div className="grid grid-cols-3 gap-10 text-sm">
-
-                {/* Futures */}
-                <div className="space-y-4 pr-8 border-r border-slate-300 dark:border-white/10">
+              {/* ========= RIGHT GRID =========
+                  Pehle yahan chhe item thay aur `MenuItem` koi onClick leta hi nahi tha —
+                  chhe ke chhe sirf cursor-pointer wale div thay. Options Trading, Option
+                  Chain, Margin Calculator aur Brokerage Estimator ke liye is app mein koi
+                  page hi mojood nahi hai, is liye unhe menu se hata diya: menu wo cheez
+                  advertise na kare jo bani hi nahi. Jo do sach mein chalte hain wo
+                  ExploreFO par jate hain, jahan index aur stock futures ka data aata hai. */}
+              <div className="text-sm">
+                <div className="space-y-4">
                   <h3 className="font-semibold text-blue-950 dark:text-gray-100">
                     Futures
                   </h3>
@@ -109,47 +107,13 @@ const isStocksActive = location.pathname.startsWith("/user/future_and_options");
                     icon={TrendingUp}
                     title="Index Futures"
                     desc="NIFTY & BANKNIFTY."
+                    onClick={() => navigate("/user/future_and_options/explore")}
                   />
                   <MenuItem
                     icon={Layers}
                     title="Stock Futures"
                     desc="Leading stocks futures."
-                  />
-                </div>
-
-                {/* Options */}
-                <div className="space-y-4 pr-8 border-r border-slate-300 dark:border-white/10">
-                  <h3 className="font-semibold text-blue-950 dark:text-gray-100">
-                    Options
-                  </h3>
-
-                  <MenuItem
-                    icon={CandlestickChart}
-                    title="Options Trading"
-                    desc="Calls & Puts."
-                  />
-                  <MenuItem
-                    icon={LineChart}
-                    title="Option Chain"
-                    desc="OI, IV & Greeks."
-                  />
-                </div>
-
-                {/* Tools */}
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-blue-950 dark:text-gray-100">
-                    Tools
-                  </h3>
-
-                  <MenuItem
-                    icon={Calculator}
-                    title="Margin Calculator"
-                    desc="Required margin."
-                  />
-                  <MenuItem
-                    icon={BarChart2}
-                    title="Brokerage Estimator"
-                    desc="Charges estimate."
+                    onClick={() => navigate("/user/future_and_options/explore")}
                   />
                 </div>
               </div>
@@ -162,8 +126,9 @@ const isStocksActive = location.pathname.startsWith("/user/future_and_options");
 };
 
 /* ================= MENU ITEM ================= */
-const MenuItem = ({ icon: Icon, title, desc }) => (
+const MenuItem = ({ icon: Icon, title, desc, onClick }) => (
   <div
+    onClick={onClick}
     className="
       flex gap-3 p-2 rounded-lg cursor-pointer transition
       hover:bg-blue-50/70 dark:hover:bg-white/5

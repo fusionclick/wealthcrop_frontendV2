@@ -1,7 +1,12 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+// iconscout ke hotlink kiye hue illustration ke URL ab 404 dete hain — repo ke apne SVG bundle ho rahe hain.
+import sipHero from "../assets/top investment/topinvest.svg";
+import { MF_EXPLORE_PATH } from "../utils/nodeApi";
 
 export default function SIPWealthLearning() {
   const [open, setOpen] = useState(null);
+  const navigate = useNavigate();
 
   const faqs = [
     { q: "What is SIP?", a: "SIP (Systematic Investment Plan) is a way to invest a fixed amount at regular intervals into mutual funds. It encourages discipline and uses rupee-cost averaging." },
@@ -24,13 +29,25 @@ export default function SIPWealthLearning() {
             </p>
 
             <div className="flex gap-3">
-              <button className="px-6 py-3 rounded-xl bg-white border border-blue-300 text-blue-700 font-semibold hover:bg-blue-50">Explore SIP Strategies</button>
-              <button className="px-6 py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700">Start SIP</button>
+              {/* Dono button bina onClick ke thay. "Strategies" plan karne ka kaam hai —
+                  goal planner par; "Start SIP" asal mein paisa lagana hai — fund explore par. */}
+              <button
+                onClick={() => navigate("/calculator/sip-calculator")}
+                className="px-6 py-3 rounded-xl bg-white border border-blue-300 text-blue-700 font-semibold hover:bg-blue-50"
+              >
+                Explore SIP Strategies
+              </button>
+              <button
+                onClick={() => navigate(MF_EXPLORE_PATH)}
+                className="px-6 py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700"
+              >
+                Start SIP
+              </button>
             </div>
           </div>
 
           <img
-            src="https://cdni.iconscout.com/illustration/premium/thumb/wealth-growth-illustration-download-in-svg-png-gif-file-formats--investment-money-finance-pack-business-illustrations-4600428.png"
+            src={sipHero}
             alt="SIP Illustration"
             className="w-80"
           />

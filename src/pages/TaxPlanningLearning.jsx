@@ -1,5 +1,8 @@
 import React, { useState } from "react";
+// iconscout ke hotlink kiye hue illustration ke URL ab 404 dete hain — repo ke apne SVG bundle ho rahe hain.
+import taxHero from "../assets/track/insights.svg";
 import { useNavigate } from "react-router-dom";
+import { MF_EXPLORE_PATH } from "../utils/nodeApi";
 
 export default function TaxPlanningLearning() {
   const [open, setOpen] = useState(null);
@@ -27,18 +30,26 @@ export default function TaxPlanningLearning() {
               Reduce your tax liability legally while building wealth. Learn about ELSS, 80C, capital gains tax, and tax-efficient investment strategies.
             </p>
 
+            {/* Neeche calculator cards par navigate pehle se laga hua tha; hero ke ye do
+                button reh gaye the — dono bilkul be-amal thay. */}
             <div className="flex gap-3">
-              <button className="px-6 py-3 rounded-xl bg-white border border-blue-300 text-blue-700 font-semibold hover:bg-blue-50 transition">
+              <button
+                onClick={() => navigate("/calculator/elss-calculator")}
+                className="px-6 py-3 rounded-xl bg-white border border-blue-300 text-blue-700 font-semibold hover:bg-blue-50 transition"
+              >
                 Explore Tax Saving
               </button>
-              <button className="px-6 py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition">
+              <button
+                onClick={() => navigate(MF_EXPLORE_PATH)}
+                className="px-6 py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition"
+              >
                 Start Saving
               </button>
             </div>
           </div>
 
           <img
-            src="https://cdni.iconscout.com/illustration/premium/thumb/tax-saving-illustration-download-in-svg-png-gif-file-formats--money-finance-tax-pack-business-illustrations-3020811.png"
+            src={taxHero}
             alt="Tax Illustration"
             className="w-72"
           />
