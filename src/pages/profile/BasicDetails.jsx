@@ -193,7 +193,7 @@ const isKycDone = isKycVerified(userData?.kyc?.kyc_status)
                       Personal Details
                     </h2>
                     <span className="text-sm text-gray-600 dark:text-[var(--text-secondary)] font-semibold">
-                      PAN - {userData?.pan || "EMUZX1234G" }
+                      PAN - {userData?.profile?.pan_number || "Not added"}
                     </span>
                    </div>
 
@@ -420,7 +420,7 @@ const isKycDone = isKycVerified(userData?.kyc?.kyc_status)
             dark:text-[var(--text-secondary)]
           "
         >
-          PAN - {userData?.pan || "EMUZX1234G"} 
+          PAN - {userData?.profile?.pan_number || "Not added"} 
         </span>
       </div>
 

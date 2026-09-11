@@ -23,6 +23,7 @@ import { useDispatch } from "react-redux";
 import { logout } from "../../redux/authenticationSlice";
 import { nodeUrl, laravelUrl } from "../../utils/nodeApi";
 import { validateKycStep } from "../../utils/FormSchema";
+import { PAN_REGEX, bankFromIfsc, lookupPincode, panNameMismatch, readPan } from "../../utils/kycAutofill";
 import { KYC_DEMO } from "../../utils/kycDemoData";
 import { verdictFrom, verdictFromAddUcc, isKycVerified, reviewCopy, BSE_UNREACHABLE, VERIFIED_VERDICT } from "../../utils/kycVerdict";
 
@@ -150,7 +151,72 @@ const [docUploaded, setDocUploaded] = useState({
   // fathers name
 
   const update = (key, value) =>
-    setKycData((prev) => ({ ...prev, [key]: value }));
+    setKycData((prev) => {
+      const next = { ...prev, [key]: value };
+      // An IFSC's first four characters ARE the bank code, so picking the bank out of a
+      // 30-item dropdown is work the investor should never have to do. Offline table, no
+      // API — see bankFromIfsc.
+      if (key === "ifsc") {
+        const bank = bankFromIfsc(value);
+        if (bank) next.bankName = bank;
+      }
+      return next;
+    });
+
+  // Pincode → city + state, from India Post's free keyless endpoint. Fires once per
+  // pincode; a failed lookup leaves both fields editable and never blocks the step.
+  const pinLookedUp = useRef("");
+  useEffect(() => {
+    const pin = String(kycData.pin || "").trim();
+    if (pin.length !== 6 || pinLookedUp.current === pin) return;
+    pinLookedUp.current = pin;
+    let cancelled = false;
+    lookupPincode(pin).then((found) => {
+      if (cancelled || !found) return;
+      setKycData((prev) => (prev.pin === pin ? { ...prev, city: found.city, state: found.state } : prev));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [kycData.pin]);
+
+  // PAN → name / DOB / address, via the server-side lookup proxy. The provider key lives
+  // in Laravel's .env and never reaches the browser; when no provider is configured the
+  // route answers `data: null` and this quietly does nothing. Everything else on this
+  // page autofills without it.
+  const panLookedUp = useRef("");
+  const [panLookupBusy, setPanLookupBusy] = useState(false);
+  useEffect(() => {
+    const pan = String(kycData.pan || "").trim().toUpperCase();
+    if (!PAN_REGEX.test(pan) || panLookedUp.current === pan) return;
+    panLookedUp.current = pan;
+    let cancelled = false;
+    setPanLookupBusy(true);
+    postApiWithToken(`${import.meta.env.VITE_URL}/kyc/pan-lookup`, { pan }, { silent: true })
+      .then((res) => {
+        const found = res?.data;
+        if (cancelled || !found) return;
+        // Only fill what is still blank — never overwrite something the investor typed.
+        setKycData((prev) => ({
+          ...prev,
+          name: prev.name || found.name || "",
+          dob: prev.dob || found.dob || "",
+          fName: prev.fName || found.father_name || "",
+          addrss1: prev.addrss1 || found.address_line1 || "",
+          addrss2: prev.addrss2 || found.address_line2 || "",
+          city: prev.city || found.city || "",
+          state: prev.state || found.state || "",
+          pin: prev.pin || found.pincode || "",
+        }));
+        toastSuccess("Details fetched from your PAN");
+      })
+      .finally(() => {
+        if (!cancelled) setPanLookupBusy(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [kycData.pan]);
 
 //   const handlePrimaryAction = () => {
 //   const error = validateStep(step, kycData);
@@ -264,13 +330,12 @@ const stepApiConfig = {
       ifsc_code: data.ifsc,
     }),
   },
-  2: {
-     url: `${import.meta.env.VITE_URL}/kyc/document`,
-    getPayload: (data) => ({
-      type: "aadhaar",
-      file: data.document,
-    }),
-  },
+  // 2 (Docs) has no step API on purpose. Each file is uploaded as soon as it is picked,
+  // by uploadDocument() as multipart. This entry used to POST /kyc/document with type
+  // "aadhaar" and a file read from `kycData.document` — a key that does not exist (the
+  // real ones are documentA/documentP), so Continue sent a null file. It was unreachable
+  // while both uploads were mandatory (the step auto-advanced); now that they are
+  // optional, Continue is the normal path and must not fire that request.
   3: {
      url: `${import.meta.env.VITE_URL}/kyc/nominee`,
     getPayload: (data) => ({
@@ -290,7 +355,9 @@ const stepApiConfig = {
 
 const callStepApi = async (step, data) => {
   const config = stepApiConfig[step];
-  if (!config) return true;
+  // handlePrimaryAction reads `res?.status`, and a bare `true` has none — a step with no
+  // API of its own (Docs) would have been reported as "Something went wrong".
+  if (!config) return { status: true };
 
   const payload = config.getPayload(data);
 
@@ -482,6 +549,29 @@ useEffect(() => {
         return;
       }
 
+      // PAN is optional on the FORM — the investor can fill in a profile and come back —
+      // but a UCC cannot exist without one, and Node's add_ucc used to substitute a literal
+      // "NYTPA0008A" when it was missing (the same class of bug as the bank fallback
+      // below: a stranger's identifier registered at BSE against a real investor). Ask for
+      // it here, with a way back to the step that holds it.
+      const pan = String(userData?.profile?.pan_number || "").trim().toUpperCase();
+      if (!PAN_REGEX.test(pan)) {
+        stop(
+          "person.pan",
+          "PAN is required to register your account with BSE.",
+          "Go back to Personal details and enter your 10-character PAN (e.g. ABCDE1234F)"
+        );
+        return;
+      }
+      if (!readPan(pan).isIndividual) {
+        stop(
+          "person.pan",
+          "Only an individual PAN can open this account.",
+          "The 4th letter of your PAN must be P — company, HUF and trust PANs are not eligible"
+        );
+        return;
+      }
+
       // The Bank step writes this, so it is normally present. When it is not, the payload
       // used to fall back to a literal "123456789012" — a made-up account number registered
       // at BSE against a real investor, which redemptions would later pay into. Refuse
@@ -503,7 +593,7 @@ useEffect(() => {
         last_name: "",
         dob: userData?.profile?.dob,
         email: email,
-        pan: userData?.profile?.pan_number,
+        pan,
         dp_id: String(dp_id),
         client_id: String(client_id),
         place_of_birth: userData?.profile?.city || "India",
@@ -900,7 +990,7 @@ useEffect(() => {
               transition={{ duration: 0.2 }}
             >
               {/* {step === 0 && <PANStep data={kycData} onChange={update} />} */}
-              {step === 0 && <PersonalStep data={kycData} onChange={update} errors={fieldErrors} />}
+              {step === 0 && <PersonalStep data={kycData} onChange={update} errors={fieldErrors} panLookupBusy={panLookupBusy} />}
               {step === 1 && <BankStep data={kycData} onChange={update} errors={fieldErrors} customBank={customBank} setCustomBank={setCustomBank} setKycData={setKycData} />}
               {step === 2 && <DocsStep data={kycData} onChange={update} errors={fieldErrors} uploadDocument={uploadDocument} />}
               {step === 3 && <NomineeStep data={kycData} onChange={update} errors={fieldErrors} />}
@@ -1013,7 +1103,7 @@ function FieldLabel({ label, required, htmlFor }) {
 // "202222222" jaisa kachra type hi nahi hone deta. digitsOnly/upper sirf wahan
 // jahan native type kaafi nahi (PAN, IFSC, Aadhaar).
 function Field({
-  label, value, onChange, placeholder, required, error,
+  label, value, onChange, placeholder, required, error, hint,
   type = "text", maxLength, inputMode, digitsOnly, upper, ...rest
 }) {
   const id = `kyc-${label.replace(/\W+/g, "-").toLowerCase()}`;
@@ -1051,6 +1141,11 @@ function Field({
   `}
       />
       <FieldError id={`${id}-err`} message={error} />
+      {/* A hint is guidance, not a failure — it never blocks Continue, and an actual
+          validation error takes the space instead. */}
+      {!error && hint && (
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{hint}</p>
+      )}
     </div>
   );
 }
@@ -1272,34 +1367,46 @@ function NomineeStep({ data, onChange, errors = {} }) {
   );
 }
 
-function PersonalStep({ data, onChange, errors = {} }) {
+function PersonalStep({ data, onChange, errors = {}, panLookupBusy }) {
+  const pan = readPan(data.pan);
+  const nameWarning = panNameMismatch(data.pan, data.name);
   return (
     <div className="space-y-3 p-1">
       <h2 className="text-lg font-semibold dark:text-white">
         Personal Details
       </h2>
+      <p className="text-xs text-gray-500 dark:text-gray-400">
+        Enter your PAN and pincode first — we fill in whatever we can from them.
+        PAN and Aadhaar are optional here; PAN is only needed when you submit for BSE verification.
+      </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3">
         <Field
           label="Full Name"
           required
           value={data.name}
           error={errors.name}
+          hint={nameWarning}
           onChange={(v) => onChange("name", v)}
           placeholder="As per PAN"
         />
          <Field
         label="PAN Number"
-        required
         value={data.pan}
         error={errors.pan}
         upper
         maxLength={10}
+        hint={
+          panLookupBusy
+            ? "Looking up your details…"
+            : pan
+              ? `${pan.holderType || "Unrecognised holder type"} · surname starts with "${pan.surnameInitial}"`
+              : ""
+        }
         onChange={(v) => onChange("pan", v.toUpperCase())}
         placeholder="ABCDE1234F"
       />
          <Field
         label="Aadhar Number"
-          required
         value={data.aadhar}
           error={errors.aadhar}
           digitsOnly
@@ -1422,6 +1529,7 @@ function PersonalStep({ data, onChange, errors = {} }) {
             digitsOnly
             maxLength={6}
             inputMode="numeric"
+          hint="City and state fill in from this"
           onChange={(v) => onChange("pin", v)}
           placeholder="123654"
         />
@@ -1495,6 +1603,11 @@ function BankStep({ data, onChange, errors = {}, customBank, setCustomBank, setK
           error={errors.ifsc}
             upper
             maxLength={11}
+          hint={
+            bankFromIfsc(data.ifsc)
+              ? `Bank set to ${bankFromIfsc(data.ifsc)}`
+              : "Type the IFSC and the bank name fills in"
+          }
           onChange={(v) => onChange("ifsc", v)}
           placeholder="SBIN0000"
         />
@@ -1507,6 +1620,9 @@ function DocsStep({ data, onChange, errors = {}, uploadDocument }) {
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold dark:text-white">Documents</h2>
+      <p className="text-xs text-gray-500 dark:text-gray-400">
+        Both uploads are optional — you can continue without them and add them later from your profile.
+      </p>
       <label
         className="
       flex items-center justify-between gap-3 border border-dashed rounded-xl p-4 cursor-pointer border-gray-300
@@ -1516,7 +1632,7 @@ function DocsStep({ data, onChange, errors = {}, uploadDocument }) {
         <div className="flex items-center gap-3 dark:text-white">
           <FileText size={20} />
           <div>
-            <p className="text-sm font-medium ">Upload PAN <span className="text-red-500" aria-hidden="true">*</span></p>
+            <p className="text-sm font-medium ">Upload PAN <span className="font-normal text-gray-400 dark:text-gray-500">(optional)</span></p>
             {data.documentP && (
               <p className="text-xs text-green-600">{data.documentP.name}</p>
             )}
@@ -1548,7 +1664,7 @@ function DocsStep({ data, onChange, errors = {}, uploadDocument }) {
         <div className="flex items-center gap-3 dark:text-white">
           <FileText size={20} />
           <div>
-            <p className="text-sm font-medium ">Upload Aadhaar <span className="text-red-500" aria-hidden="true">*</span></p>
+            <p className="text-sm font-medium ">Upload Aadhaar <span className="font-normal text-gray-400 dark:text-gray-500">(optional)</span></p>
             {data.documentA && (
               <p className="text-xs text-green-600">{data.documentA.name}</p>
             )}

@@ -1,4 +1,6 @@
 import z from "zod";
+// Extension is required: test/ imports this file straight into node, with no Vite resolver.
+import { PAN_REGEX, readPan } from "./kycAutofill.js";
 
 /**
  * One password rule, shared by signup and reset.
@@ -92,8 +94,25 @@ export const kycStepSchemas = {
       .min(2, "Full name is required")
       .max(70, "Full name is too long")
       .regex(/^[A-Za-z][A-Za-z .']*$/, "Use letters only — no digits or symbols, as printed on your PAN"),
-    pan: z.string().trim().regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, "PAN must look like ABCDE1234F"),
-    aadhar: z.string().trim().regex(/^[0-9]{12}$/, "Aadhaar must be 12 digits"),
+    // PAN and Aadhaar are optional on the form: the investor can fill the profile, save
+    // progress and come back. Shape is still enforced when something IS typed, and PAN is
+    // demanded again — with a link back to this step — at the BSE add_ucc submit, which
+    // legally cannot be registered without one. See the PAN guard in KYC.jsx.
+    pan: z
+      .string()
+      .trim()
+      .refine((v) => !v || PAN_REGEX.test(v.toUpperCase()), "PAN must look like ABCDE1234F")
+      // 4th letter is the holder type; only "P" (individual) can hold a retail folio.
+      .refine(
+        (v) => !v || !PAN_REGEX.test(v.toUpperCase()) || readPan(v).isIndividual,
+        "Enter your personal PAN — company, HUF and trust PANs cannot open this account"
+      )
+      .optional(),
+    aadhar: z
+      .string()
+      .trim()
+      .refine((v) => !v || /^[0-9]{12}$/.test(v), "Aadhaar must be 12 digits")
+      .optional(),
     // <input type="date"> hamesha YYYY-MM-DD deta hai; range check phir bhi chahiye
     dob: z.string().min(1, "Date of birth is required")
       .refine((v) => !Number.isNaN(Date.parse(v)), "Enter a valid date")
@@ -133,12 +152,10 @@ export const kycStepSchemas = {
 
 /** Step ke saare errors ek saath: { field: "message" }. Khali object = valid. */
 export const validateKycStep = (step, data) => {
-  if (step === 2) {
-    return {
-      ...(data.documentP ? {} : { documentP: "Upload your PAN" }),
-      ...(data.documentA ? {} : { documentA: "Upload your Aadhaar" }),
-    };
-  }
+  // Step 2 (Docs) has no schema and no required upload: PAN and Aadhaar scans are both
+  // optional, so the step is always passable. The files are uploaded the moment they are
+  // picked (uploadDocument), not on Continue.
+  if (step === 2) return {};
   const schema = kycStepSchemas[step];
   if (!schema) return {};
   const res = schema.safeParse(data);
