@@ -8,6 +8,7 @@ import FundDashboardSkeleton from "../../components/ui/skeleton/main/FundDashboa
 import { useSelector } from "react-redux";
 import { laravelUrl, nodeUrl, mergePortfolio, calcXirr, fundBuyPath } from "../../utils/nodeApi";
 import HoldingSheet from "../../components/mutual_fund/HoldingSheet";
+import { History } from "lucide-react";
 
 const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#6366f1"];
 const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
@@ -162,11 +163,21 @@ const DashBoardMF = () => {
           </div>
 
           {/* Portfolio-level actions. Count ab summary card me hai, yahan dohrana
-              bekaar tha. */}
+              bekaar tha.
+
+              Manage SIPs / Redeem / Switch all lived here and none of them belonged:
+              Manage SIPs repeats the SIPs tab in the nav above, and Redeem and Switch act
+              on ONE fund, so sending the investor to a blank picker when they are already
+              looking at the list is a step backwards — both now sit on the fund's own row
+              and in its detail sheet. The one thing this page had no route to at all was
+              the order history, so that is what the button is. */}
           <div className="flex flex-wrap gap-2 mb-5">
-            <button onClick={() => navigate("/mutual_fund/manage-sip")} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-md text-xs font-medium">Manage SIPs</button>
-            <button onClick={() => navigate("/mutual_fund/redeem")} className="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded-md text-xs font-medium">Redeem</button>
-            <button onClick={() => navigate("/mutual_fund/switch")} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-md text-xs font-medium">Switch</button>
+            <button
+              onClick={() => navigate("/user/mutual_fund/orders")}
+              className="inline-flex items-center gap-1.5 bg-slate-700 hover:bg-slate-800 text-white px-4 py-1.5 rounded-md text-xs font-medium"
+            >
+              <History size={14} /> Order history
+            </button>
           </div>
 
           <div className="flex justify-between items-center mb-2">
@@ -201,8 +212,12 @@ const DashBoardMF = () => {
                     <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mt-0.5">
                       {fund.scheme_category || "—"}
                     </p>
-                    {/* Mutual fund par sirf do actions hote hain — Invest more aur Redeem. */}
-                    <div className="mt-2 flex gap-2">
+                    {/* Invest more, Redeem and Switch — all three act on THIS fund, which
+                        is why the portfolio-level Redeem/Switch buttons above were dropped:
+                        they opened an empty picker for a fund the investor had already
+                        chosen. Each carries the scheme and folio, so the target page opens
+                        filled in. */}
+                    <div className="mt-2 flex flex-wrap gap-2">
                       <button
                         type="button"
                         className="text-[11px] px-3 py-1 rounded-md border border-emerald-600 text-emerald-700 dark:text-emerald-400 font-medium hover:bg-emerald-50 dark:hover:bg-emerald-500/10"
@@ -224,6 +239,22 @@ const DashBoardMF = () => {
                         }}
                       >
                         Redeem
+                      </button>
+                      <button
+                        type="button"
+                        className="text-[11px] px-3 py-1 rounded-md border border-indigo-600 text-indigo-600 dark:text-indigo-400 font-medium hover:bg-indigo-50 dark:hover:bg-indigo-500/10"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate("/mutual_fund/switch", {
+                            state: {
+                              scheme_bse_code: fund.scheme_bse_code,
+                              scheme_name: fund.scheme_name,
+                              folio: fund.folio,
+                            },
+                          });
+                        }}
+                      >
+                        Switch
                       </button>
                     </div>
                   </div>

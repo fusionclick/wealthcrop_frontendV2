@@ -256,9 +256,12 @@ test("F&O menu: sirf wahi item hain jinka page mojood hai", () => {
   for (const gone of ["Options Trading", "Option Chain", "Margin Calculator", "Brokerage Estimator"]) {
     assert.equal(src.includes(gone), false, `${gone} abhi tak menu mein hai magar iska koi page nahi`);
   }
-  // MenuItem ab click leta hai, aur dono bache hue item wired hain.
-  assert.match(src, /const MenuItem = \(\{ icon: Icon, title, desc, onClick \}\)/);
-  assert.match(src, /<div\s+onClick=\{onClick\}/);
+  // MenuItem ab click leta hai, aur dono bache hue item wired hain. Ye component pehle
+  // chaaron menu files mein byte-for-byte copy tha; ab sirf ek jagah rehta hai.
+  assert.match(src, /import MenuItem from "\.\/MenuItem"/);
+  const item = readCode("../src/components/hovercomp/MenuItem.jsx");
+  assert.match(item, /function MenuItem\(\{ icon: Icon, title, desc, onClick \}\)/);
+  assert.match(item, /<div\s+onClick=\{onClick\}/);
   // 3 = do MenuItem + pehle se mojood "Explore Future & Options" button.
   assert.equal((src.match(/onClick=\{\(\) => navigate\("\/user\/future_and_options\/explore"\)\}/g) || []).length, 3);
   // Logged-out par "F&O" label chup chaap mar nahi jata.
@@ -693,12 +696,20 @@ test("index page ghadi hui candles nahi dikhata", () => {
   assert.equal(app.includes('path="/chart"'), false);
 });
 
-test("chartData.js sirf ghadi hui candles hai — koi live page ise na chhue", () => {
-  const gen = read("../src/components/chart/chartData.js");
-  assert.match(gen, /Math\.random/);
-  // Jo bhi file ise import kare, wo kisi routed page tak na pohanche.
+test("ghadi hui candles ka koi source hi nahi bacha", () => {
+  // Pehle ye test sirf itna dekhta tha ke `chartData.js` (Math.random se candles banata
+  // tha) kisi routed page tak na pohanche. Ab wo file, aur wo teen component jo usay
+  // import karte the, dono ja chuke hain — to guard file ke *na hone* par hai.
+  for (const gone of [
+    "../src/components/chart/chartData.js",
+    "../src/components/chart/CandleChart.jsx",
+    "../src/components/chart/ChartPage.jsx",
+    "../src/pages/AMCPage.jsx",
+  ]) {
+    assert.equal(fs.existsSync(new URL(gone, import.meta.url)), false, `${gone} wapas aa gayi`);
+  }
   const app = readCode("../src/App.jsx");
-  for (const dead of ["ChartPage", "AMCPage"]) {
+  for (const dead of ["ChartPage", "AMCPage", "CandleChart"]) {
     assert.equal(app.includes(dead), false, `${dead} abhi bhi routed hai`);
   }
 });

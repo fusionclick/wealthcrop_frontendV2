@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { postApi, postApiWithToken } from "../../api/api";
 import { toastError, toastSuccess } from "../../utils/notifyCustom";
@@ -16,6 +16,9 @@ const SwitchMF = () => {
   const queryClient = useQueryClient();
   const { data: investorData } = useSelector((state) => state.investorData);
   const ucc = investorData?.kyc?.ucc_code;
+  // Arrived from a fund's own row or detail sheet, the way RedeemMF already works. Without
+  // this the investor picks the fund, lands here, and has to pick it again.
+  const pre = useLocation().state || {};
 
   const [srcText, setSrcText] = useState("");
   const [destText, setDestText] = useState("");
@@ -31,6 +34,21 @@ const SwitchMF = () => {
     select: (res) => (Array.isArray(res?.data?.holdings) ? res.data.holdings : []),
     enabled: !!ucc,
   });
+
+  // Holdings load after the first render, so the preselect has to wait for them. Match on
+  // BSE's scheme code (unique) and, when the same scheme sits in more than one folio, the
+  // folio too. Only ever sets the field while it is still untouched.
+  useEffect(() => {
+    if (srcText || !holdings.length) return;
+    const code = String(pre.scheme_bse_code || pre.code || "").trim();
+    if (!code) return;
+    const match = holdings.find(
+      (h) =>
+        String(h.scheme_bse_code || "").trim() === code &&
+        (!pre.folio || String(h.folio || "") === String(pre.folio))
+    );
+    if (match) setSrcText(holdingLabel(match));
+  }, [holdings, pre.scheme_bse_code, pre.code, pre.folio, srcText]);
 
   useEffect(() => {
     const t = setTimeout(() => setDestQuery(destText.trim()), 250);

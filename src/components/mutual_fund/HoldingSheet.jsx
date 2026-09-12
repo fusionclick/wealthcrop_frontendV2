@@ -102,7 +102,7 @@ export default function HoldingSheet({ holding, source = "internal", onClose, on
         <Row label="Scheme code" value={code || null} />
         <Row label="Purchased on" value={asDate(holding.purchased_at)} />
 
-        <div className="flex gap-3 mt-5">
+        <div className="flex flex-wrap gap-3 mt-5">
           <button
             type="button"
             onClick={() => navigate(fundBuyPath(isin, code))}
@@ -132,6 +132,28 @@ export default function HoldingSheet({ holding, source = "internal", onClose, on
             )
           )}
         </div>
+        {/* Switch used to be a portfolio-level button on the investments page, which meant
+            picking a fund, then picking it again in an empty dropdown. It belongs on the
+            fund. Full width because it is the less common action of the three. */}
+        {isInternal && (
+          <button
+            type="button"
+            onClick={() =>
+              navigate("/mutual_fund/switch", {
+                state: {
+                  scheme_bse_code: code,
+                  code,
+                  isin,
+                  folio: holding.folio || "",
+                  scheme_name: holding.name || holding.scheme_name || "",
+                },
+              })
+            }
+            className="w-full mt-3 py-2.5 rounded-xl border border-indigo-500 text-indigo-600 dark:text-indigo-400 text-sm font-medium hover:bg-indigo-50 dark:hover:bg-indigo-500/10"
+          >
+            Switch to another fund
+          </button>
+        )}
         {!isInternal && (
           <p className="text-[11px] text-slate-500 mt-3">
             This holding was bought elsewhere, so it cannot be redeemed here — redeem it with the

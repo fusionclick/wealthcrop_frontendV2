@@ -212,7 +212,11 @@ const fundamentals = [
 const rf = ratios?.riskFreeRate;
 const advancedDefinitions = {
   "Volatility": "Annualised standard deviation of the fund's daily NAV moves over the last year. Higher means the NAV swings more.",
-  "Sharpe": `Return above the risk-free rate${rf != null ? ` (${rf}%)` : ""} per unit of total volatility, over the last year. Higher is better risk-adjusted performance.`,
+  // The return inside Sharpe and Sortino is the annualised ARITHMETIC mean of the daily
+  // moves, which is what the ratio is defined on — not the compounded figure shown on the
+  // "1Y" card above. The two differ by roughly half the variance, so on a volatile fund
+  // they can even carry opposite signs. Say so, rather than let it read as a bug.
+  "Sharpe": `Return above the risk-free rate${rf != null ? ` (${rf}%)` : ""} per unit of total volatility, over the last year. Higher is better risk-adjusted performance. It uses the average of the daily moves, so it will not match the compounded 1Y return exactly.`,
   "Sortino": `Same idea as Sharpe, but only falls below the risk-free rate${rf != null ? ` (${rf}%)` : ""} count as risk. It ignores upside swings.`,
   "Max Drawdown": "The worst peak-to-trough fall in NAV over the last year — how far the fund dropped before recovering.",
   "P/E Ratio": "Price-to-Earnings Ratio shows how much investors are willing to pay for each unit of earnings. A higher P/E may indicate growth expectations.",

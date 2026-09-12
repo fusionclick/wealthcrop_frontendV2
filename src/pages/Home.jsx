@@ -7,7 +7,6 @@ import CTASection from "../components/home/CTASection";
 import HomeChart from "../components/home/HomeChart";
 import InvestmentHighlights from "../components/home/InvestmentHighlights";
 import SipCalculator from "./calculators/SipCalculator";
-import Dashboard from "../components/DashBoard";
 
 const Home = () => {
   // const [token, setToken] = useState(() => localStorage.getItem("token"));

@@ -5,7 +5,6 @@ import {
   Navigate,
   useLocation,
 } from "react-router-dom";
-import Header from "./components/Header";
 import Footer from "./components/Footer";
 import Home from "./pages/Home";
 import Portfolio from "./pages/Portfolio";
@@ -13,16 +12,13 @@ import Profile from "./pages/Profile";
 import Login from "./auth/Login";
 import Register from "./auth/Register";
 import VerifyOtp from "./auth/VerifyOtp";
-import SipCalculator from "./pages/calculators/SipCalculator";
 import { Toaster } from "react-hot-toast";
 import { lazy, Suspense, useEffect, useState } from "react";
 import Dashboard from "./components/DashBoard";
-import HoverSection from "./components/hovercomp/HoverSection";
 import OldHeader from "./components/OldHeader";
 import ProtectRoute from "./components/ProtectRoute";
 import FODashboard from "./components/F&ODashboard";
 import MFDashboard from "./components/MFDashboard";
-import Header2 from "./components/Header2";
 import { useDispatch, useSelector } from "react-redux";
 import BasicDetails from "./pages/profile/BasicDetails";
 import ChangePassword from "./pages/profile/ChangePassword";
@@ -50,12 +46,10 @@ import DashBoardMF from "./pages/mutual_fund/DashBoardMF";
 import ExternalMF from "./pages/mutual_fund/ExternalMF";
 import CombinedMF from "./pages/mutual_fund/CombinedMF";
 import SIPs from "./pages/mutual_fund/SIPs";
+import OrdersMF from "./pages/mutual_fund/OrdersMF";
 import FundDetails from "./pages/mutual_fund/FundDetails";
 // import StockDetails from "./components/StockDetails";
-import MutualFundCarousel from "./carousel/MutualFundCarousel";
 import NFO from "./pages/NFO";
-import FDCalculator from "./pages/calculators/FDCalculator";
-import RetirementCalculator from "./pages/calculators/RetirementCalculator";
 import CalculatorsPage from "./pages/calculators/CalculatorsPage";
 import { calculatorRoutes } from "./utils/CalculatorRoutes";
 import ScrollToTopButton from "./utils/ScrollToTopButton";
@@ -63,9 +57,7 @@ import IndicesDetails from "./pages/IndicesDetails";
 import InvestmentOptions from "./pages/InvestmentOptions";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
-import TerminalChart from "./components/chart/TerminalChart";
 import TradingViewWidget from "./components/chart/TradingViewWidget";
-import GrowChart from "./components/chart/GrowChart";
 import FundCategorySection from "./pages/mutual_fund/FundCategorySection";
 import IpoDashboardPage from "./components/ipo/IpoDashboardPage";
 import ManageSipPage from "./components/sip/ManageSipPage";
@@ -88,7 +80,6 @@ import BasketDetails from "./pages/basket/BasketDetails";
 
 import Invest from "./pages/basket/Invest";
 import Performance from "./pages/basket/Performance";
-import VideoKYC from "./components/VideoKYC";
 import KYC from "./components/kyc/KYC";
 import RiskProfilingPage from "./pages/riskProfile/RiskProfilingPage";
 import MutualFundInvestPage from "./pages/mutual_fund/MutualFundInvestPage";
@@ -112,7 +103,6 @@ import KotakGate from "./components/stocks/KotakGate";
 import ModuleGate from "./components/ModuleGate";
 import LoginPinModal from "./utils/LoginPinModal";
 import ResetPassword from "./pages/ResetPassword";
-import StockHandler from "./utils/socketHandler";
 import SocketHandler from "./utils/socketHandler";
 import ResetPin from "./pages/ResetPin";
 import Notifications from "./pages/Notifications";
@@ -315,8 +305,6 @@ const StockDetails = lazy(() => import("./components/StockDetails"));
     clearToasts();
   }, [pathname]);
 
-  const [activeCategory, setActiveCategory] = useState("stocks");
-
   const [isLg, setIsLg] = useState(window.innerWidth >= 1024);
 
   useEffect(() => {
@@ -382,10 +370,6 @@ useEffect(() => {
       {/* Top spacer */}
       {(!token || isLg) && <div className="h-[96px]" />}
 
-      {/* Mobile screens */}
-      {/* <div className="block lg:hidden fixed top-0 left-0 w-full z-50 bg-white dark:bg-[var(--app-bg)]">
-        {token ? <Header2 activeCategory={activeCategory} /> : <OldHeader />}
-      </div> */}
 
       {/*  Page Content */}
       <main className="min-h-screen bg-white dark:bg-[var(--app-bg)]">
@@ -418,6 +402,7 @@ useEffect(() => {
                 <Route path="external" element={<ExternalMF />} />
                 <Route path="combined" element={<CombinedMF />} />
                 <Route path="sip" element={<SIPs />} />
+                <Route path="orders" element={<OrdersMF />} />
                 <Route path="watchlist" element={<WatchlistMF />} />
               </Route>
 

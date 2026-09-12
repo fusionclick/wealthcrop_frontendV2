@@ -1,12 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
-import { FaAngleRight } from "react-icons/fa6";
-import topInvest from "../assets/top investment/topinvest.svg"
-import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, ChevronUp } from "lucide-react";
-import { CandlestickChart, Bookmark } from "lucide-react";
-import { FaBookmark, FaRegBookmark } from "react-icons/fa";
-import axios from "axios";
 import { FaBasketballBall } from 'react-icons/fa'; // Import the basket icon
 import MobileSearchBox from "./MobileSearchBox";
 
@@ -45,6 +38,7 @@ const MFDashboard = () => {
   { name: "External Portfolio", link: "external" },
   { name: "Combined Portfolio", link: "combined" },
   { name: "SIPs", link: "sip" },
+  { name: "Orders", link: "orders" },
   { name: "Watchlist", link: "watchlist" },
 ];
 

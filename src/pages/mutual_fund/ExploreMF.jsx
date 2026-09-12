@@ -25,11 +25,27 @@ const collections = [
 // Server-side filters — BSE ke apne per-scheme flags. Yahan filter karna is liye zaroori
 // hai ke page sirf 20 rows ka hai; client par chhaanne se poore catalogue ka "Direct only"
 // kabhi 20 se zyada nahi nikalta.
+// "Regular (business)" and "Direct (normal)" said nothing true: both are retail plans, and
+// the only difference is the distributor commission built into the expense ratio. Name them
+// the way SEBI, the AMCs and the scheme names themselves do.
 const FILTERS = [
-  { key: "plan", label: "Plan", options: [["", "All plans"], ["regular", "Regular (business)"], ["direct", "Direct (normal)"]] },
+  {
+    key: "plan",
+    label: "Plan",
+    options: [["", "All plans"], ["regular", "Regular plan"], ["direct", "Direct plan"]],
+  },
   { key: "sip", label: "SIP", options: [["", "SIP: Any"], ["yes", "SIP: Yes"], ["no", "SIP: No"]] },
-  { key: "mode", label: "Held as", options: [["", "Demat & physical"], ["demat", "Demat"], ["physical", "Physical"]] },
+  {
+    key: "mode",
+    label: "Held as",
+    options: [["physical", "Physical"], ["demat", "Demat"], ["", "Demat & physical"]],
+  },
 ];
+
+// Physical is the default: units sit with the RTA and no demat account is needed, which is
+// what most investors here have. 49 of the 50 physical schemes also allow demat, so this
+// hides almost nothing — demat-only funds are one dropdown click away.
+const DEFAULT_FILTERS = { plan: "", sip: "", mode: "physical" };
 
 /** Section heading + optional "View all" — Kotak har row par yehi rakhta hai. */
 const SectionHead = ({ title, accent, subtitle, to }) => (
@@ -60,7 +76,7 @@ const ExploreMF = () => {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
   const [sort, setSort] = useState("");
-  const [filters, setFilters] = useState({ plan: "", sip: "", mode: "" });
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const navs = useNavMap();
   const url = nodeUrl(import.meta.env.VITE_GET_ALL_FUNDS || "/master-scheme-list");
 
@@ -264,8 +280,10 @@ const ExploreMF = () => {
               aria-label={f.label}
               value={filters[f.key]}
               onChange={(e) => setFilter(f.key, e.target.value)}
+              // Green means "you narrowed this", so compare against the default rather
+              // than against empty — otherwise Held-as is green before anyone touches it.
               className={`border rounded-xl px-3 py-2 text-sm shadow-sm dark:bg-[var(--white-10)] dark:border-[var(--border-color)] ${
-                filters[f.key]
+                filters[f.key] !== DEFAULT_FILTERS[f.key]
                   ? "border-emerald-500 bg-emerald-50 text-emerald-800 dark:text-emerald-300"
                   : "border-slate-200 bg-white"
               }`}
@@ -333,9 +351,9 @@ const ExploreMF = () => {
 
       {!isLoading && !funds.length && (
         <p className="text-center text-gray-500 py-10">
-          {Object.values(filters).some(Boolean)
+          {Object.entries(filters).some(([k, v]) => v !== DEFAULT_FILTERS[k])
             ? "No funds on this page match these filters. Clear one, or try the next page."
-            : "No funds matched this collection."}
+            : "No funds matched this collection. Try “Demat & physical” under Held as."}
         </p>
       )}
 

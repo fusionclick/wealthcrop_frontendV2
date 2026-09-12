@@ -1,12 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
-import { FaAngleRight } from "react-icons/fa6";
-import topInvest from "../assets/top investment/topinvest.svg"
-import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, ChevronUp } from "lucide-react";
-import { CandlestickChart, Bookmark } from "lucide-react";
-import { FaBookmark, FaRegBookmark } from "react-icons/fa";
-import axios from "axios";
 import MobileSearchBox from "./MobileSearchBox";
 import { fetchMarketIndices } from "../api/marketApi";
 

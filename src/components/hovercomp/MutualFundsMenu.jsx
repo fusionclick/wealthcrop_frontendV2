@@ -12,6 +12,7 @@ import {
 import { useLocation, useNavigate } from "react-router-dom";
 import mfMenuImg from "../../assets/menu/fundMenu.svg";
 
+import MenuItem from "./MenuItem";
 const MutualFundsMenu = ({ token }) => {
   const [openMenu, setOpenMenu] = useState(false);
   const navigate = useNavigate();
@@ -60,22 +61,24 @@ const isStocksActive = location.pathname.startsWith("/user/mutual_fund");
             bg-white dark:bg-gray-900 shadow-lg
           "
         >
+          {/* Every other description in the header is English; these three were the only
+              Hinglish ones on the page. */}
           <MenuItem
             icon={BarChart2}
             title="Internal Portfolio"
-            desc="Isi platform se khareede hue funds."
+            desc="Funds bought on this platform."
             onClick={() => navigate("/user/mutual_fund/investments")}
           />
           <MenuItem
             icon={Layers}
             title="External Portfolio"
-            desc="Doosri jagah se liye funds — sirf tracking."
+            desc="Funds bought elsewhere — tracked, not transactable."
             onClick={() => navigate("/user/mutual_fund/external")}
           />
           <MenuItem
             icon={PieChart}
             title="Combined Portfolio"
-            desc="Internal aur external, dono ek jagah."
+            desc="Internal and external, in one view."
             onClick={() => navigate("/user/mutual_fund/combined")}
           />
         </div>
@@ -159,25 +162,12 @@ const isStocksActive = location.pathname.startsWith("/user/mutual_fund");
                     onClick={() => navigate("/track")}
                   />
 
-                  <MenuItem
-                    icon={BarChart2}
-                    title="Internal Portfolio"
-                    desc="Isi platform se khareede hue funds."
-                    onClick={() => navigate("/user/mutual_fund/investments")}
-                  />
-
-                  <MenuItem
-                    icon={Layers}
-                    title="External Portfolio"
-                    desc="Doosri jagah se liye funds — sirf tracking."
-                    onClick={() => navigate("/user/mutual_fund/external")}
-                  />
-                  <MenuItem
-                    icon={PieChart}
-                    title="Combined Portfolio"
-                    desc="Internal aur external, dono ek jagah."
-                    onClick={() => navigate("/user/mutual_fund/combined")}
-                  />
+                  {/* Internal / External / Combined Portfolio used to be listed here too.
+                      This whole block only renders when there is NO token, and all three
+                      are /user/* routes behind ProtectRoute — so for the only person who
+                      could see them they bounced straight to the login screen. They are
+                      also the exact three items in the signed-in dropdown above, which is
+                      where they belong. */}
                 </div>
 
                 {/* Tools */}
@@ -193,18 +183,15 @@ const isStocksActive = location.pathname.startsWith("/user/mutual_fund");
                     onClick={() => navigate("/nfo")}
                   />
 
+                  {/* SIP Calculator was in this menu AND in More → Calculators, on the
+                      same route, with two different descriptions. Calculators live under
+                      More, which is the tools hub; one link here reaches all 18 instead of
+                      repeating two of them. */}
                   <MenuItem
                     icon={Calculator}
-                    title="SIP Calculator"
-                    desc="Forecast long-term wealth."
-                    onClick={() => navigate("/calculator/sip-calculator")}
-                  />
-
-                  <MenuItem
-                    icon={Calculator}
-                    title="Lumpsum Calculator"
-                    desc="Estimate future returns."
-                    onClick={() => navigate("/calculator/lumpsum-calculator")}
+                    title="All calculators"
+                    desc="SIP, lumpsum, SWP and 15 more."
+                    onClick={() => navigate("/calculators")}
                   />
                 </div>
 
@@ -243,25 +230,5 @@ const isStocksActive = location.pathname.startsWith("/user/mutual_fund");
   );
 };
 
-/* ================= MENU ITEM ================= */
-const MenuItem = ({ icon: Icon, title, desc, onClick }) => (
-  <div
-    onClick={onClick}
-    className="
-      flex gap-3 p-2 rounded-lg cursor-pointer transition
-      hover:bg-blue-50/70 dark:hover:bg-white/5
-    "
-  >
-    <Icon size={18} className="mt-1 text-blue-700 dark:text-blue-400" />
-    <div>
-      <p className="font-medium text-blue-950 dark:text-gray-100">
-        {title}
-      </p>
-      <p className="text-xs text-slate-500 dark:text-gray-400">
-        {desc}
-      </p>
-    </div>
-  </div>
-);
 
 export default MutualFundsMenu;

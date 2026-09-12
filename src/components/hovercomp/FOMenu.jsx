@@ -3,6 +3,7 @@ import { ArrowRight, TrendingUp, Layers } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import foMenu from "../../assets/menu/foMenu.svg";
 
+import MenuItem from "./MenuItem";
 const FOMenu = ({ token }) => {
   const [openMenu, setOpenMenu] = useState(false);
   const navigate = useNavigate();
@@ -125,25 +126,5 @@ const isStocksActive = location.pathname.startsWith("/user/future_and_options");
   );
 };
 
-/* ================= MENU ITEM ================= */
-const MenuItem = ({ icon: Icon, title, desc, onClick }) => (
-  <div
-    onClick={onClick}
-    className="
-      flex gap-3 p-2 rounded-lg cursor-pointer transition
-      hover:bg-blue-50/70 dark:hover:bg-white/5
-    "
-  >
-    <Icon size={18} className="mt-1 text-blue-700 dark:text-blue-400" />
-    <div>
-      <p className="font-medium text-blue-950 dark:text-gray-100">
-        {title}
-      </p>
-      <p className="text-xs text-slate-500 dark:text-gray-400">
-        {desc}
-      </p>
-    </div>
-  </div>
-);
 
 export default FOMenu;

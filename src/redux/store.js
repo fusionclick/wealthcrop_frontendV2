@@ -1,6 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit'
 import authReducer from './authenticationSlice';
-import hoverMenuReducer from './hoverMenuSlice'
+// hoverMenu is gone: it drove Header.jsx / HoverSection.jsx, an older header that was
+// never rendered — OldHeader is the live one, and each menu owns its own open state.
 import stockReducer from './stockSlice'
 import fundReducer from './mutualFundSlice'
 import investorDataReducer from './investorDataSlice'
@@ -8,7 +9,6 @@ import investorDataReducer from './investorDataSlice'
 export const store = configureStore({
     reducer:{
         auth: authReducer,
-        hoverMenu: hoverMenuReducer,
         stocks: stockReducer,
         funds: fundReducer,
         investorData: investorDataReducer

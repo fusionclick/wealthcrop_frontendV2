@@ -1,14 +1,13 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { HiMenu, HiX, HiBell, HiUserCircle } from "react-icons/hi";
-import { IoArrowBack } from "react-icons/io5";
 import logo from "../assets/logo.png";
 import { useDispatch, useSelector } from "react-redux";
 import SearchPopup from "./SearchPopup";
 import { login, logout } from "../redux/authenticationSlice";
-import StockImage from "../assets/mutualFund/stock.jpg";
-import StockImage2 from "../assets/mutualFund/stock1.jpg";
-import StockImage3 from "../assets/mutualFund/stock2.jpg";
+// stock.jpg / stock1.jpg / stock2.jpg were imported here and never rendered - 18.6 MB
+// of JPEG that Vite emitted into dist/assets on every build because the import alone is
+// enough to pull an asset into the graph. The files are still in src/assets/mutualFund.
 import {
   User,
   Mail,
