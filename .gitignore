@@ -26,8 +26,6 @@ dist-ssr
 config.bat
 
 # Local env — never commit (Vite bakes these into the bundle)
-.env
-.env.*
 !.env.example
 
 # Windows artifact of a `> /dev/null` redirect
