@@ -164,7 +164,9 @@ const isStocksActive = location.pathname.startsWith("/user/stocks");
                       Top Gainers   -> /user/stocks/explore, the same page as "ETF
                                        Investing" one column over AND the same page as the
                                        "Explore Stocks" button on the left. Three routes to
-                                       one screen, and no gainers view exists to land on.
+                                       one screen. Explore does carry a Top Gainers
+                                       section, so the link was not broken — just the third
+                                       way to reach a page already linked twice here.
                       Market Trends -> /market-news, which More already lists as "Market
                                        News". Same page, different name, different promise
                                        ("analyst insights" vs "daily market updates"). */}
