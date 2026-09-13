@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/assets/favicon-DEbscb1h.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>wealthcrop</title>
+
+
+    <script>
+      (function() {
+        try {
+          var stored = localStorage.getItem('theme');
+          if (stored === 'dark') {
+            document.documentElement.classList.add('dark');
+            return;
+          }
+          if (stored === 'light') {
+            document.documentElement.classList.remove('dark');
+            return;
+          }
+          // No stored preference — follow the OS, which is what the original
+          // (commented-out) boot script in this file did. Dark-first was a
+          // Kotak-Neo decision and the palette has been reverted, so it goes too.
+          if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {
+          // no localStorage — leave the light default in place
+        }
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-HucGhWnt.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-Bnw8r8SO.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
