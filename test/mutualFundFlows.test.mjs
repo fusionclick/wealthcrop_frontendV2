@@ -184,14 +184,17 @@ test("SIP date and start date can never be sent out of step", () => {
   // the two together (invalid_txn_date, msgid 3809) and there is no minimum notice
   // period, so the fix is to keep them in step rather than to push the start date out.
   const sip = fs.readFileSync("src/pages/mutual_fund/SIPSetupPage.jsx", "utf8");
-  assert.match(sip, /const nextOccurrence = \(day, from = new Date\(\)\) =>/);
+  // nextOccurrence lives in utils/sipDates.js now, where it is unit-tested directly
+  // (test/sipDates.test.mjs); the page must still be the thing calling it.
+  assert.match(sip, /nextOccurrence[\s\S]*?from "\.\.\/\.\.\/utils\/sipDates"/);
   // Both directions: picking a SIP day moves the start date, and vice versa.
   assert.match(sip, /const pickSipDay = \(day\) => \{[\s\S]*?setStartDate\(nextOccurrence\(day\)\)/);
   assert.match(sip, /const pickStartDate = \(value\) => \{[\s\S]*?setSipDay\(day\)/);
   // Neither control may still write its own state directly, or they drift apart again.
   assert.doesNotMatch(sip, /onChange=\{\(e\) => setSipDay\(/);
   assert.doesNotMatch(sip, /onChange=\{\(e\) => setStartDate\(/);
-  // A 29th-31st start has no monthly equivalent and BSE's SIP dates stop at 28.
-  assert.match(sip, /startDayTooLate/);
-  assert.match(sip, /disabled=\{[^}]*startDayTooLate\}/);
+  // A 29th-31st start has no monthly equivalent, and nor does any day this scheme does
+  // not accept — one block now covers both.
+  assert.match(sip, /startDayInvalid/);
+  assert.match(sip, /disabled=\{[^}]*startDayInvalid\}/);
 });
