@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { X } from "lucide-react";
 import { fundBuyPath } from "../../utils/nodeApi";
+import { titleCase } from "../../utils/schemeName";
 
 // ponytail: native <dialog> — Esc se band hona, focus trap aur backdrop browser deta hai.
 // Koi modal library, koi focus-trap hook nahi.
@@ -62,7 +63,7 @@ export default function HoldingSheet({ holding, source = "internal", onClose, on
     >
       <div className="flex items-start justify-between gap-3 p-5 border-b border-slate-100 dark:border-[var(--border-color)]">
         <div className="min-w-0">
-          <p className="font-semibold text-sm leading-snug">{holding.name || holding.scheme_name || "—"}</p>
+          <p className="font-semibold text-sm leading-snug">{titleCase(holding.name || holding.scheme_name) || "—"}</p>
           <p className="text-[11px] text-slate-500 mt-1">
             <span
               className={`inline-block px-1.5 py-0.5 rounded mr-1.5 ${
@@ -99,7 +100,8 @@ export default function HoldingSheet({ holding, source = "internal", onClose, on
         <Row label="Units" value={holding.units ? Number(holding.units).toLocaleString("en-IN") : null} />
         <Row label="NAV" value={holding.nav ? money(holding.nav) : null} />
         <Row label="Folio" value={holding.folio || null} />
-        <Row label="Scheme code" value={code || null} />
+        {/* ISIN, not the BSE scheme code — `code` still drives the buy/redeem links below. */}
+        <Row label="ISIN" value={isin || null} />
         <Row label="Purchased on" value={asDate(holding.purchased_at)} />
 
         <div className="flex flex-wrap gap-3 mt-5">

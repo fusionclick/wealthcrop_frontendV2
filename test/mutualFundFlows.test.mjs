@@ -96,10 +96,25 @@ test("no mutual-fund chart renders invented data", () => {
     );
   }
 
-  // Alpha was (return - 0.12) against an invented benchmark, Beta was volatility / 0.16,
-  // and Top 5 / Top 20 summed the fabricated holdings. None may come back as a tile.
-  for (const gone of ["ratios?.alpha", "ratios?.beta", "ratios?.top5", "ratios?.top20"]) {
+  // Top 5 / Top 20 summed the fabricated holdings and are still derivable from nothing.
+  for (const gone of ["ratios?.top5", "ratios?.top20"]) {
     assert.equal(fd.includes(gone), false, `${gone} is not measurable — it must stay out`);
+  }
+
+  // Alpha and Beta are back, but only because they are now MEASURED: the backend resolves
+  // BSE's own `scheme_benchmark` to a real index price series and takes beta as the
+  // covariance with it. What must never return is the old arithmetic — alpha as
+  // (annualised return - 0.12) and beta as volatility / 0.16, two constants with no
+  // benchmark anywhere behind them. That guarantee lives in the backend, so assert it there.
+  const backend = fs.readFileSync("../Backend/src/mf/scheme.js", "utf8");
+  const backendCode = backend.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
+  assert.equal(/0\.12/.test(backendCode), false, "the invented 0.12 benchmark return is back");
+  assert.equal(/0\.16/.test(backendCode), false, "the invented 0.16 market volatility is back");
+  assert.match(backendCode, /function alphaBeta\(/, "alphaBeta must exist for these tiles to be legitimate");
+  // Too little overlap with the benchmark => no numbers at all, not a fallback constant.
+  assert.match(backendCode, /if \(pairs\.length < 60\) return null;/);
+  for (const measured of ["ratios?.alpha", "ratios?.beta"]) {
+    assert.ok(fd.includes(measured), `${measured} should render now that it is measured`);
   }
 
   // What replaced them is computed from the published NAV series.

@@ -1,7 +1,48 @@
 // Mutual fund NAV is published once per business day, so "hourly" has no source
 // data. These are the real resolutions BSE/AMFI NAV supports.
-export const RANGES = { "1W": 7, "1M": 30, "3M": 90, "6M": 180, "1Y": 365, "3Y": 1095, "5Y": 1825, ALL: Infinity };
+export const RANGES = { "1W": 7, "1M": 30, "3M": 90, "6M": 180, "1Y": 365, "3Y": 1095, "5Y": 1825, "10Y": 3650, ALL: Infinity };
 export const INTERVALS = { D: "Daily", W: "Weekly", M: "Monthly" };
+
+/**
+ * How many days of NAV this fund actually has.
+ *
+ * A "10Y" button on a fund that listed in 2021 would quietly draw four years and label them
+ * a decade. Ranges wider than the history are disabled instead, which is the same rule the
+ * interval buttons already follow.
+ */
+export function spanDays(series = []) {
+  const rows = series.filter((d) => d?.timestamp && Number(d.nav) > 0);
+  if (rows.length < 2) return 0;
+  return (rows[rows.length - 1].timestamp - rows[0].timestamp) / 86400;
+}
+
+/**
+ * Rebase a window to its first point.
+ *
+ * "absolute" = cumulative % change since the start of the window — the line starts at 0%.
+ * "cagr"     = that same growth annualised. It only starts once a full year has elapsed
+ *              inside the window, because annualising three weeks turns a 3% move into
+ *              several hundred percent "p.a." and that number is noise wearing a suit.
+ */
+export function toReturnSeries(rows = [], mode = "absolute") {
+  if (rows.length < 2) return [];
+  const base = Number(rows[0].nav);
+  if (!(base > 0)) return [];
+  const t0 = rows[0].timestamp;
+  const out = [];
+  for (const p of rows) {
+    const ratio = Number(p.nav) / base;
+    if (!(ratio > 0)) continue;
+    if (mode === "cagr") {
+      const years = (p.timestamp - t0) / (86400 * 365);
+      if (years < 1) continue;
+      out.push({ ...p, value: (Math.pow(ratio, 1 / years) - 1) * 100 });
+    } else {
+      out.push({ ...p, value: (ratio - 1) * 100 });
+    }
+  }
+  return out;
+}
 
 const startOfWeek = (d) => {
   const x = new Date(d);

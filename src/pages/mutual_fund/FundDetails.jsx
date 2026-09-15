@@ -15,6 +15,7 @@ import { useSelector } from "react-redux";
 import FundDetailsPageSkeleton from "../../components/ui/skeleton/main/FundDetailsPageSkeleton";
 import { fundSipPath, holdingMatchesScheme, isMfSaved, nodeUrl, toggleMfWatchlist } from "../../utils/nodeApi";
 import { toastSuccess } from "../../utils/notifyCustom";
+import { titleCase, fmtAge, fmtDate } from "../../utils/schemeName";
 
 const fmtPct = (v) => (v == null || Number.isNaN(Number(v)) ? "—" : `${Number(v).toFixed(2)}%`);
 const inr = (v) => (v == null || Number.isNaN(Number(v)) ? "—" : `₹${Number(v).toLocaleString("en-IN")}`);
@@ -78,6 +79,21 @@ const FundDetails = () => {
       categoryAvg: extra.categoryAvg || {},
       rank: extra.rank || {},
       advancedRatios: schemeInfo?.advancedRatios || extra.advancedRatios,
+      // Everything BSE does not publish, filled in by the backend's enrichment layer, plus
+      // the per-transaction rulebook BSE DOES publish (lumpsum[] / systematic[]).
+      transactions: extra.transactions || schemeInfo?.transactions || null,
+      periodReturns: extra.periodReturns || null,
+      rolling: extra.rollingReturns || null,
+      riskMetrics: extra.riskMetrics || null,
+      fundManagers: schemeInfo?.fundManagers || [],
+      objective: schemeInfo?.objective || null,
+      factsheetUrl: schemeInfo?.factsheetUrl || null,
+      inceptionDate: schemeInfo?.inceptionDate || null,
+      ageYears: schemeInfo?.ageYears ?? null,
+      lockIn: schemeInfo?.lockIn || base.lockIn || null,
+      benchmark: schemeInfo?.benchmark || base.benchmark || null,
+      payout: schemeInfo?.payout || base.payout || null,
+      txn: schemeInfo?.txn || base.txn || null,
     };
   }, [details, schemeInfo]);
 
@@ -205,6 +221,12 @@ const fundamentals = [
   { label: "Sharpe", value: ratios?.sharpe },
   { label: "Sortino", value: ratios?.sortino },
   { label: "Max Drawdown", value: ratios?.maxDrawdown, suffix: "%" },
+  // Back, and this time measured: the backend computes both against the scheme's OWN
+  // benchmark (BSE's scheme_benchmark -> a real index price series). If that benchmark
+  // cannot be resolved, the backend sends nothing and these two tiles stay gone rather
+  // than reappearing as the constants they used to be.
+  { label: "Alpha", value: ratios?.alpha, suffix: "%" },
+  { label: "Beta", value: ratios?.beta },
   { label: "P/E Ratio", value: ratios?.peRatio },
   { label: "P/B Ratio", value: ratios?.pbRatio },
 ].filter((m) => m.value != null);
@@ -219,11 +241,34 @@ const advancedDefinitions = {
   "Sharpe": `Return above the risk-free rate${rf != null ? ` (${rf}%)` : ""} per unit of total volatility, over the last year. Higher is better risk-adjusted performance. It uses the average of the daily moves, so it will not match the compounded 1Y return exactly.`,
   "Sortino": `Same idea as Sharpe, but only falls below the risk-free rate${rf != null ? ` (${rf}%)` : ""} count as risk. It ignores upside swings.`,
   "Max Drawdown": "The worst peak-to-trough fall in NAV over the last year — how far the fund dropped before recovering.",
+  Alpha: `Return earned beyond what this fund's market exposure alone would explain, measured against ${
+    fundsList?.riskMetrics?.benchmark || "its benchmark"
+  }${fundsList?.riskMetrics?.benchmarkIsPriceIndex ? " (price index, so a TRI-based alpha would read slightly lower)" : ""}. Positive means the manager added value.`,
+  Beta: `How much the fund moves for each 1% move in ${
+    fundsList?.riskMetrics?.benchmark || "its benchmark"
+  }. Above 1 is more volatile than the index, below 1 is less.`,
   "P/E Ratio": "Price-to-Earnings Ratio shows how much investors are willing to pay for each unit of earnings. A higher P/E may indicate growth expectations.",
   "P/B Ratio": "Price-to-Book Ratio compares a company's market price to its book value. A lower P/B can indicate undervaluation or financial stability.",
 };
 
-const [activeInfo, setActiveInfo] = useState(null); 
+const [activeInfo, setActiveInfo] = useState(null);
+
+// Absolute vs CAGR. The chart owns the visible toggle and calls back here, so the numbers
+// in the returns table and the headline always agree with the line being drawn — one
+// control, not two that can disagree.
+const [returnMode, setReturnMode] = useState("cagr");
+const periodReturns = fundsList?.periodReturns;
+const shownReturns = periodReturns?.[returnMode] || null;
+const annualised = returnMode === "cagr";
+const pctOf = (key) => {
+  if (!shownReturns) {
+    // No periodReturns (an older cached response) — fall back to the legacy mixed set
+    // rather than blanking the table.
+    return fmtPct(fundsList?.returns?.[key]);
+  }
+  const v = shownReturns[key];
+  return v == null ? "—" : `${Number(v).toFixed(2)}%${annualised ? " p.a." : ""}`;
+};
 
   if (isLoading) return <FundDetailsPageSkeleton />;  
 
@@ -253,25 +298,24 @@ const [activeInfo, setActiveInfo] = useState(null);
 
       <div className="flex-1 min-w-0">
 
-        {/* FUND NAME */}
-        <h1 className="text-2xl font-bold text-[var(--text-primary)] capitalize break-words whitespace-normal">
-          {fundsList?.name}
+        {/* FUND NAME — BSE shouts it; titleCase() is the one place that fixes the casing,
+            and every other surface calls the same helper so they cannot drift.
+            `capitalize` was removed with it: the CSS class lower-cases nothing, so it left
+            "SBI ESG EXCLUSIONARY" exactly as it was. */}
+        <h1 className="text-2xl font-bold text-[var(--text-primary)] break-words whitespace-normal">
+          {titleCase(fundsList?.name)}
         </h1>
 
-        {/* CATEGORY + RISK */}
+        {/* CATEGORY + ISIN. The BSE scheme code is our routing detail and stays off screen;
+            ISIN is what the investor sees on their own CAS. */}
         <div className="flex flex-wrap items-center gap-3 mt-1">
           <span className="text-sm text-[var(--text-secondary)]">
             {fundsList?.category || fund.category || "Mutual Fund"}
           </span>
-
-          {fundsList?.risk ? (
-          <span className="
-            px-2 py-1 rounded-full text-xs
-            bg-amber-500/10 text-amber-400
-            border border-amber-500/20
-          ">
-            {fundsList.risk}
-          </span>
+          {fundsList?.scheme_isin ? (
+            <span className="text-xs font-mono text-[var(--text-secondary)]" title="ISIN">
+              {fundsList.scheme_isin}
+            </span>
           ) : null}
         </div>
 
@@ -351,10 +395,12 @@ const [activeInfo, setActiveInfo] = useState(null);
     {/* PERFORMANCE */}
     <div>
       <div className="flex items-end gap-3">
+        {/* Follows the same Absolute / CAGR toggle as the chart and the table below, and
+            says "p.a." only when the figure really is annualised. */}
         <h2 className="text-4xl font-extrabold text-emerald-500">
-          {fundsList?.returns?.["3Y"] != null ? `${fundsList.returns["3Y"]}%` : "—"}
+          {pctOf("3Y")}
           <span className="text-[var(--text-secondary)] text-sm font-medium ml-1">
-            3Y annualized
+            3Y {annualised ? "annualised" : "absolute"}
           </span>
         </h2>
     </div>
@@ -466,27 +512,30 @@ const [activeInfo, setActiveInfo] = useState(null);
     </div>
     ) : null}
 
-    {fundsList?.rating ? (
-    <div className="bg-[var(--white-5)] p-3 rounded-lg dark:border border-[var(--border-color)]">
-      <p className="text-xs text-[var(--text-secondary)]">
-        Rating
-      </p>
-      <div className="flex items-center gap-2">
-        <div className="
-          w-10 h-10 rounded-full
-          bg-emerald-500 text-white
-          flex items-center justify-center font-bold
-        ">
-          {fundsList.rating}
+    {/* CORE SCHEME PARAMETERS — each one drawn only when it is actually known. A tile that
+        says "—" is the "incorrect or hardcoded placeholder" the brief rules out; an absent
+        tile is the honest form of "not published".
+
+        Fund size / AUM is deliberately NOT here. The figure is available but its unit could
+        not be verified against any source, and a fund size wrong by 100x is worse than a
+        missing one. See the note at the top of Backend/src/mf/kuvera.js. */}
+    {[
+      ["ISIN", fundsList?.scheme_isin, "The public identifier printed on your CAS"],
+      ["Plan inception", fmtDate(fundsList?.inceptionDate), "When this plan started — not necessarily when the scheme launched"],
+      ["Fund age", fmtAge(fundsList?.ageYears), null],
+      ["Lock-in", fundsList?.lockIn?.label, "Units cannot be redeemed during this period"],
+      ["Benchmark", fundsList?.benchmark, "The index this scheme measures itself against"],
+      ["Rating", fundsList?.fundRating ? `${fundsList.fundRating} / 5` : null, null],
+    ]
+      .filter(([, v]) => v)
+      .map(([label, value, hint]) => (
+        <div key={label} className="bg-[var(--white-5)] p-3 rounded-lg dark:border border-[var(--border-color)]" title={hint || undefined}>
+          <p className="text-xs text-[var(--text-secondary)]">{label}</p>
+          <p className={`font-semibold text-[var(--text-primary)] ${label === "ISIN" ? "text-xs font-mono break-all" : "text-sm"}`}>
+            {value}
+          </p>
         </div>
-      </div>
-    </div>
-    ) : (
-    <div className="bg-[var(--white-5)] p-3 rounded-lg dark:border border-[var(--border-color)]">
-      <p className="text-xs text-[var(--text-secondary)]">Scheme code</p>
-      <p className="text-sm font-semibold text-[var(--text-primary)]">{code}</p>
-    </div>
-    )}
+      ))}
 
   </div>
 </aside>
@@ -518,6 +567,7 @@ const [activeInfo, setActiveInfo] = useState(null);
     series={details?.data?.chartData || []}
     synthetic={!!details?.data?.synthetic}
     height={320}
+    onModeChange={setReturnMode}
   />
 
   <div className="mt-4 grid grid-cols-2 gap-3">
@@ -805,6 +855,164 @@ const [activeInfo, setActiveInfo] = useState(null);
       </div>
 
 
+      {/* HOW YOU CAN TRANSACT — BSE publishes a separate rulebook per transaction type and
+          per frequency (lumpsum[] / systematic[]), including the ONLY dates it will accept.
+          Nothing on this card is a default: a type BSE did not send simply is not listed,
+          and the 500 / 5000 minimums that used to be pinned on in the backend are gone. */}
+      {fundsList?.transactions && Object.keys(fundsList.transactions).length ? (
+        <div className="bg-[var(--white-10)] border border-[var(--border-color)] shadow-lg rounded-2xl p-6">
+          <h2 className="text-2xl font-semibold mb-1 text-[var(--text-primary)]">How you can invest</h2>
+          <p className="text-xs text-[var(--text-secondary)] mb-4">
+            Published by BSE for this scheme. Anything not listed here is not offered on it.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {[
+              ["lumpsum", "Lumpsum"],
+              ["sip", "SIP"],
+              ["swp", "SWP"],
+              ["stpIn", "STP (in)"],
+              ["stpOut", "STP (out)"],
+              ["redemption", "Redemption"],
+              ["switchIn", "Switch in"],
+              ["switchOut", "Switch out"],
+            ]
+              .map(([key, label]) => [key, label, fundsList.transactions[key]])
+              .filter(([, , t]) => t && t.allowed)
+              .map(([key, label, t]) => (
+                <div key={key} className="bg-[var(--white-5)] p-4 rounded-xl dark:border border-[var(--border-color)]">
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold text-[var(--text-primary)]">{label}</p>
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">
+                      AVAILABLE
+                    </span>
+                  </div>
+                  <dl className="mt-2 space-y-1 text-sm">
+                    {t.minAmount != null && (
+                      <div className="flex justify-between gap-3">
+                        <dt className="text-[var(--text-secondary)]">Minimum</dt>
+                        <dd className="text-[var(--text-primary)] font-medium">{inr(t.minAmount)}</dd>
+                      </div>
+                    )}
+                    {t.minAdditional != null && t.minAdditional > 0 && t.minAdditional !== t.minAmount && (
+                      <div className="flex justify-between gap-3">
+                        <dt className="text-[var(--text-secondary)]">Additional</dt>
+                        <dd className="text-[var(--text-primary)] font-medium">{inr(t.minAdditional)}</dd>
+                      </div>
+                    )}
+                    {t.cutoff && (
+                      <div className="flex justify-between gap-3">
+                        <dt className="text-[var(--text-secondary)]">Cut-off</dt>
+                        <dd className="text-[var(--text-primary)] font-medium">{t.cutoff}</dd>
+                      </div>
+                    )}
+                    {(t.frequencies || []).filter((f) => f.registrationAllowed).length > 0 && (
+                      <div className="pt-1">
+                        <dt className="text-[var(--text-secondary)] text-xs">Frequencies</dt>
+                        <dd className="mt-1 space-y-1">
+                          {t.frequencies
+                            .filter((f) => f.registrationAllowed)
+                            .map((f) => (
+                              <div key={f.frequency} className="text-xs text-[var(--text-primary)]">
+                                <span className="font-medium">{f.frequency}</span>
+                                {f.minAmount != null && <span className="text-[var(--text-secondary)]"> · min {inr(f.minAmount)}</span>}
+                                {f.minInstallments != null && (
+                                  <span className="text-[var(--text-secondary)]"> · from {f.minInstallments} instalments</span>
+                                )}
+                                {f.dates?.length > 0 && f.dates.length < 28 && (
+                                  <span className="text-[var(--text-secondary)]"> · dates {f.dates.join(", ")}</span>
+                                )}
+                              </div>
+                            ))}
+                        </dd>
+                      </div>
+                    )}
+                  </dl>
+                </div>
+              ))}
+          </div>
+        </div>
+      ) : null}
+
+      {/* FUND MANAGER + OBJECTIVE — neither exists in BSE's master; both come from the
+          enrichment source, and the section disappears when it has nothing real to show. */}
+      {(fundsList?.fundManagers?.length || fundsList?.objective) ? (
+        <div className="bg-[var(--white-10)] border border-[var(--border-color)] shadow-lg rounded-2xl p-6">
+          <h2 className="text-2xl font-semibold mb-4 text-[var(--text-primary)]">About this fund</h2>
+          {fundsList.fundManagers?.length ? (
+            <div className="mb-4">
+              <p className="text-xs text-[var(--text-secondary)] mb-1">
+                Fund manager{fundsList.fundManagers.length > 1 ? "s" : ""}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {fundsList.fundManagers.map((m) => (
+                  <span key={m} className="px-3 py-1 rounded-full text-sm bg-[var(--white-5)] text-[var(--text-primary)] dark:border border-[var(--border-color)]">
+                    {m}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {fundsList.objective ? (
+            <div>
+              <p className="text-xs text-[var(--text-secondary)] mb-1">Investment objective</p>
+              <p className="text-sm text-[var(--text-primary)] leading-relaxed">{fundsList.objective}</p>
+            </div>
+          ) : null}
+          {fundsList.factsheetUrl ? (
+            <a
+              href={fundsList.factsheetUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block mt-4 text-sm font-medium text-blue-600 hover:underline"
+            >
+              Scheme documents from the AMC →
+            </a>
+          ) : null}
+        </div>
+      ) : null}
+
+      {/* ROLLING RETURNS — what EVERY window in this fund's history returned, not the one
+          window that happens to end today. Computed from the same NAV series as the chart;
+          a period the fund is too young for is simply absent. */}
+      {fundsList?.rolling && Object.values(fundsList.rolling).some(Boolean) ? (
+        <div className="bg-[var(--white-10)] border border-[var(--border-color)] shadow-lg rounded-2xl p-6">
+          <h2 className="text-2xl font-semibold mb-1 text-[var(--text-primary)]">Rolling returns</h2>
+          <p className="text-xs text-[var(--text-secondary)] mb-4">
+            Every historical window of this length, annualised — the spread matters more than any single number.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-[var(--text-secondary)] text-xs">
+                  <th className="py-2 pr-4">Period</th>
+                  <th className="py-2 pr-4">Average</th>
+                  <th className="py-2 pr-4">Median</th>
+                  <th className="py-2 pr-4">Worst</th>
+                  <th className="py-2 pr-4">Best</th>
+                  <th className="py-2 pr-4">Positive</th>
+                  <th className="py-2">Windows</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(fundsList.rolling)
+                  .filter(([, v]) => v)
+                  .map(([period, v]) => (
+                    <tr key={period} className="border-t border-[var(--border-color)]">
+                      <td className="py-2 pr-4 font-medium text-[var(--text-primary)]">{period}</td>
+                      <td className="py-2 pr-4 text-[var(--text-primary)]">{fmtPct(v.average)}{v.annualised ? " p.a." : ""}</td>
+                      <td className="py-2 pr-4 text-[var(--text-primary)]">{fmtPct(v.median)}{v.annualised ? " p.a." : ""}</td>
+                      <td className="py-2 pr-4 text-red-500">{fmtPct(v.min)}</td>
+                      <td className="py-2 pr-4 text-emerald-600">{fmtPct(v.max)}</td>
+                      <td className="py-2 pr-4 text-[var(--text-primary)]">{fmtPct(v.positivePct)}</td>
+                      <td className="py-2 text-[var(--text-secondary)]">{v.windows}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
+
       {/* Holdings come from the AMC's monthly portfolio disclosure, which none of our
           feeds carry, so the backend returns []. The card used to render a header over an
           empty table; hide it entirely, the way the two donuts below already do. */}
@@ -879,39 +1087,59 @@ const [activeInfo, setActiveInfo] = useState(null);
   <h2 className="text-2xl font-bold mb-5 text-[var(--text-primary)]">📊 Returns & Rankings</h2>
   <table className="min-w-full table-auto border-collapse text-sm sm:text-base">
     <thead>
+      {/* The old header labelled 1Y "Annualised" and 5Y "Absolute" across a colSpan that did
+          not line up — and the underlying numbers really were mixed (1Y absolute, 3Y/5Y
+          compounded) under one row called "Fund returns". One mode now governs the whole
+          row, and it says which one. */}
       <tr className="border-y border-[var(--border-color)] bg-[var(--white-5)]">
         <th className="py-3 px-4 font-semibold text-left text-[var(--text-secondary)]">
           Category: <span className="text-sky-400 font-bold">{fundsList?.category || "Mutual Fund"}</span>
         </th>
-        <th className="py-3 px-4 font-semibold text-left text-emerald-400">Annualised Returns</th>
-        <th className="py-3 px-4 font-semibold text-left text-[var(--text-secondary)]" colSpan={2}>Absolute Returns</th>
+        <th className="py-3 px-4 font-semibold text-left text-emerald-400" colSpan={5}>
+          {annualised ? "Annualised (CAGR)" : "Absolute"} returns
+          <span className="ml-2 text-xs font-normal text-[var(--text-secondary)]">
+            — switch with the Absolute / CAGR toggle on the chart
+          </span>
+        </th>
       </tr>
       <tr className="text-xs sm:text-sm bg-[var(--white-5)] border-b border-[var(--border-color)]">
         <th className="py-2 px-4"></th>
-        <th className="py-2 px-4 text-[var(--text-secondary)]">1Y</th>
-        <th className="py-2 px-4 text-[var(--text-secondary)]">3Y</th>
-        <th className="py-2 px-4 text-[var(--text-secondary)]">5Y</th>
-        <th className="py-2 px-4 text-[var(--text-secondary)]">All</th>
+        {["1Y", "3Y", "5Y", "10Y"].map((k) => (
+          <th key={k} className="py-2 px-4 text-[var(--text-secondary)]">{k}</th>
+        ))}
+        <th className="py-2 px-4 text-[var(--text-secondary)]">Since inception</th>
       </tr>
     </thead>
     <tbody>
       <tr className="hover:bg-[var(--white-5)]">
         <td className="py-3 px-4 font-medium text-[var(--text-primary)]">Fund returns</td>
-        <td className="py-3 px-4 font-semibold text-emerald-400">{fmtPct(fundsList?.returns?.["1Y"])}</td>
-        <td className="py-3 px-4 font-semibold text-sky-400">{fmtPct(fundsList?.returns?.["3Y"])}</td>
-        <td className="py-3 px-4 font-semibold text-indigo-400">{fmtPct(fundsList?.returns?.["5Y"])}</td>
-        <td className="py-3 px-4 font-semibold text-[var(--text-secondary)]">{fmtPct(fundsList?.returns?.ALL)}</td>
+        <td className="py-3 px-4 font-semibold text-emerald-400">{pctOf("1Y")}</td>
+        <td className="py-3 px-4 font-semibold text-sky-400">{pctOf("3Y")}</td>
+        <td className="py-3 px-4 font-semibold text-indigo-400">{pctOf("5Y")}</td>
+        <td className="py-3 px-4 font-semibold text-violet-400">{pctOf("10Y")}</td>
+        <td className="py-3 px-4 font-semibold text-[var(--text-secondary)]">
+          {periodReturns
+            ? annualised
+              ? periodReturns.inceptionCagr != null
+                ? `${periodReturns.inceptionCagr.toFixed(2)}% p.a.`
+                : "—"
+              : periodReturns.inception != null
+              ? `${periodReturns.inception.toFixed(2)}%`
+              : "—"
+            : fmtPct(fundsList?.returns?.ALL)}
+        </td>
       </tr>
       <tr className="hover:bg-[var(--white-5)] border-y border-[var(--border-color)]">
         <td className="py-3 px-4 font-medium text-[var(--text-primary)]">Category average</td>
         <td className="py-3 px-4 text-emerald-400">{fmtPct(fundsList?.categoryAvg?.["1Y"])}</td>
         <td className="py-3 px-4 text-sky-400">{fmtPct(fundsList?.categoryAvg?.["3Y"])}</td>
         <td className="py-3 px-4 text-indigo-400">{fmtPct(fundsList?.categoryAvg?.["5Y"])}</td>
+        <td className="py-3 px-4 text-[var(--text-secondary)]">—</td>
         <td className="py-3 px-4 text-[var(--text-secondary)]">{fundsList?.categoryAvg?.ALL != null ? fmtPct(fundsList.categoryAvg.ALL) : "NA"}</td>
       </tr>
       <tr className="hover:bg-[var(--white-5)]">
         <td className="py-3 px-4 font-medium text-[var(--text-primary)]">Rank within category</td>
-        {["1Y", "3Y", "5Y", "ALL"].map((k) => (
+        {["1Y", "3Y", "5Y", "10Y", "ALL"].map((k) => (
           <td key={k} className="py-3 px-4">
             {fundsList?.rank?.[k] != null ? (
               <span className="bg-emerald-500/15 text-emerald-400 px-3 py-1 rounded-full font-bold">{fundsList.rank[k]}</span>

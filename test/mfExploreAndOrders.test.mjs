@@ -18,7 +18,11 @@ test("plan filter names the plans the way the scheme names do", () => {
 
 test("the fund list opens on physical holdings", () => {
   const explore = read("src/pages/mutual_fund/ExploreMF.jsx");
-  assert.match(explore, /DEFAULT_FILTERS = \{ plan: "", sip: "", mode: "physical" \}/);
+  // This used to assert the object literal character for character, which broke the moment
+  // the risk / transaction / fund-age filters were added. The defaults are what matter.
+  assert.match(explore, /DEFAULT_FILTERS = \{[^}]*plan: ""[^}]*\}/);
+  assert.match(explore, /DEFAULT_FILTERS = \{[^}]*sip: ""[^}]*\}/);
+  assert.match(explore, /DEFAULT_FILTERS = \{[^}]*mode: "physical"[^}]*\}/);
   assert.match(explore, /useState\(DEFAULT_FILTERS\)/);
   // "Held as" must open on the default, so Physical has to be the first option.
   assert.match(explore, /options: \[\["physical", "Physical"\]/);

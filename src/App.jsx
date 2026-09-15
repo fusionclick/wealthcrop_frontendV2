@@ -41,6 +41,7 @@ import Balance from "./pages/Balance";
 import AddMoney from "./pages/AddMoney";
 import BottomHeader from "./components/BottomHeader";
 import ExploreMF from "./pages/mutual_fund/ExploreMF";
+import CompareMF from "./pages/mutual_fund/CompareMF";
 import WatchlistMF from "./pages/mutual_fund/WatchlistMF";
 import DashBoardMF from "./pages/mutual_fund/DashBoardMF";
 import ExternalMF from "./pages/mutual_fund/ExternalMF";
@@ -428,6 +429,9 @@ useEffect(() => {
               <Route path="/mutual_fund/:isin/:code/sip" element={<SIPSetupPage />} />
               <Route path="/mutual_fund/redeem" element={<RedeemMF />} />
               <Route path="/mutual_fund/switch" element={<SwitchMF />} />
+              {/* Fund comparison. A literal segment, so it must stay above /:isin/:code —
+                  the dynamic pair would otherwise match "compare" as an ISIN. */}
+              <Route path="/mutual_fund/compare" element={<CompareMF />} />
               <Route
                 path="/mutual_fund/collections/:categorySlug"
                 element={<FundCategorySection />}

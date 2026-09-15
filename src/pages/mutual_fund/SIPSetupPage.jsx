@@ -4,6 +4,7 @@ import { postApi, postApiWithToken } from "../../api/api";
 import { toastError, toastSuccess } from "../../utils/notifyCustom";
 import { useSelector } from "react-redux";
 import { nodeUrl, validateInvestorReady, buildMandatePayload } from "../../utils/nodeApi";
+import { titleCase } from "../../utils/schemeName";
 
 // BSE counts installments, not an end date; the server derives the count the same way.
 // Showing it here means the investor sees exactly what is being registered.
@@ -153,22 +154,30 @@ const SIPSetupPage = () => {
       <div className="w-full max-w-lg bg-white dark:bg-[var(--card-bg)] rounded-2xl shadow-lg p-8 space-y-6 dark:border dark:border-[var(--border-color)]">
         <div>
           <h1 className="text-xl font-bold text-gray-800 dark:text-[var(--text-primary)]">Set Up SIP</h1>
-          {fund.name && <p className="text-sm text-gray-500 dark:text-[var(--text-secondary)] mt-1">{fund.name}</p>}
+          {fund.name && (
+            <p className="text-sm text-gray-500 dark:text-[var(--text-secondary)] mt-1">{titleCase(fund.name)}</p>
+          )}
         </div>
 
         {/* Which scheme, at what NAV, and what BSE will not go below. */}
         {fund.scheme_bse_code && (
           <div className="rounded-lg border border-slate-200 dark:border-[var(--border-color)] divide-y divide-slate-200 dark:divide-[var(--border-color)] text-sm">
+            {/* ISIN, not the BSE scheme code: the code is our routing detail and still goes
+                out in the registration payload, it just is not an investor-facing id. */}
             {[
-              ["Scheme code", fund.scheme_bse_code],
+              ["ISIN", fund.scheme_isin],
               ["NAV", fund.nav != null ? `₹${Number(fund.nav).toFixed(4)}` : "—"],
               ["Minimum SIP", money(minSip)],
-            ].map(([k, v]) => (
-              <div key={k} className="flex justify-between px-3 py-2">
-                <span className="text-slate-500 dark:text-[var(--text-secondary)]">{k}</span>
-                <span className="font-medium text-slate-900 dark:text-[var(--text-primary)]">{v}</span>
-              </div>
-            ))}
+            ]
+              .filter(([, v]) => v)
+              .map(([k, v]) => (
+                <div key={k} className="flex justify-between px-3 py-2">
+                  <span className="text-slate-500 dark:text-[var(--text-secondary)]">{k}</span>
+                  <span className={`font-medium text-slate-900 dark:text-[var(--text-primary)] ${k === "ISIN" ? "font-mono text-xs" : ""}`}>
+                    {v}
+                  </span>
+                </div>
+              ))}
           </div>
         )}
 

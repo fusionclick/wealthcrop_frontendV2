@@ -1,8 +1,8 @@
 import { FaLandmark, FaCoins, FaChartLine, FaChartPie } from "react-icons/fa";
-import { MdChevronRight, MdVerified } from "react-icons/md";
+import { MdChevronRight } from "react-icons/md";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { getApiWithToken, postApi } from "../../api/api";
+import { postApi } from "../../api/api";
 import { useMemo, useState } from "react";
 import FundListSkeleton from "../../components/ui/skeleton/main/FundListSkeleton";
 import { nodeUrl, fundPath } from "../../utils/nodeApi";
@@ -10,6 +10,7 @@ import AmcMark from "../../components/AmcMark";
 import { navLabel, navDate, useNavMap } from "../../utils/navSocket";
 import FundBadges from "../../components/FundBadges";
 import { toastInfo } from "../../utils/notifyCustom";
+import { titleCase, fmtPct } from "../../utils/schemeName";
 
 const PAGE_SIZE = 20;
 const collections = [
@@ -40,12 +41,65 @@ const FILTERS = [
     label: "Held as",
     options: [["physical", "Physical"], ["demat", "Demat"], ["", "Demat & physical"]],
   },
+  // SEBI's six riskometer levels. The backend only ever labels a scheme with one of these
+  // or leaves it null, so an unknown-risk fund is never swept into a level it was not given.
+  {
+    key: "risk",
+    label: "Risk",
+    options: [
+      ["", "Risk: Any"],
+      ["Low", "Low"],
+      ["Low to Moderate", "Low to Moderate"],
+      ["Moderate", "Moderate"],
+      ["Moderately High", "Moderately High"],
+      ["High", "High"],
+      ["Very High", "Very High"],
+    ],
+  },
+  // Transaction availability, straight off BSE's per-scheme rows.
+  {
+    key: "txn",
+    label: "Supports",
+    options: [
+      ["", "Supports: Any"],
+      ["sip", "SIP"],
+      ["swp", "SWP"],
+      ["stp", "STP"],
+      ["lumpsum", "Lumpsum"],
+      ["sip,swp", "SIP + SWP"],
+    ],
+  },
+  {
+    key: "minAge",
+    label: "Fund age",
+    options: [["", "Age: Any"], ["1", "1+ years"], ["3", "3+ years"], ["5", "5+ years"], ["10", "10+ years"]],
+  },
+];
+
+// Ranking. These run on the SERVER across the whole filtered catalogue — the old select
+// sorted the 20 rows already on screen and had to admit it in its label ("sorted on this
+// page"), which meant "NAV: high to low" never actually found the highest NAV.
+const SORTS = [
+  ["", "Sort: BSE order"],
+  ["returns_1y:desc", "1Y return: high to low"],
+  ["returns_3y:desc", "3Y return: high to low"],
+  ["returns_5y:desc", "5Y return: high to low"],
+  ["rating:desc", "Rating: high to low"],
+  ["age:desc", "Oldest first"],
+  ["expense:asc", "Expense ratio: low to high"],
+  ["min_sip:asc", "Minimum SIP: low to high"],
+  ["nav:desc", "NAV: high to low"],
+  ["name:asc", "Name A-Z"],
 ];
 
 // Physical is the default: units sit with the RTA and no demat account is needed, which is
 // what most investors here have. 49 of the 50 physical schemes also allow demat, so this
 // hides almost nothing — demat-only funds are one dropdown click away.
-const DEFAULT_FILTERS = { plan: "", sip: "", mode: "physical" };
+const DEFAULT_FILTERS = { plan: "", sip: "", mode: "physical", risk: "", txn: "", minAge: "" };
+
+// How many funds can sit in the comparison tray at once. The compare endpoint loads a full
+// NAV history per fund, and more than a handful of overlapping lines is unreadable anyway.
+const MAX_COMPARE = 4;
 
 /** Section heading + optional "View all" — Kotak har row par yehi rakhta hai. */
 const SectionHead = ({ title, accent, subtitle, to }) => (
@@ -80,27 +134,22 @@ const ExploreMF = () => {
   const navs = useNavMap();
   const url = nodeUrl(import.meta.env.VITE_GET_ALL_FUNDS || "/master-scheme-list");
 
+  const [sortField, sortOrder] = sort ? sort.split(":") : ["", ""];
+
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ["FUNDS", query, page, filters],
+    queryKey: ["FUNDS", query, page, filters, sort],
     queryFn: () =>
       postApi(url, {
         start: page * PAGE_SIZE,
         length: PAGE_SIZE,
         search: query,
         ...filters,
+        sort: sortField,
+        order: sortOrder,
       }),
     placeholderData: (prev) => prev,
     staleTime: 5 * 60 * 1000,
   });
-
-  // Kotak ke "combos" wahi cheez hain jo yahan pehle se baskets hain — naya endpoint nahi.
-  const { data: baskets } = useQuery({
-    queryKey: ["MF_COMBOS"],
-    queryFn: () => getApiWithToken(`${import.meta.env.VITE_URL}/baskets`),
-    staleTime: 10 * 60 * 1000,
-    retry: false,
-  });
-  const combos = (baskets?.data?.data ?? []).slice(0, 3);
 
   const funds = data?.data?.lists || [];
   // ponytail: `total` BSE ke poore master ka count hai (28k+) — us mein wo schemes bhi
@@ -108,18 +157,36 @@ const ExploreMF = () => {
   const total = Number(data?.data?.total ?? data?.data?.count ?? 0);
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  // ponytail: sort sirf isi page par lagta hai — paging BSE ke apne master par chalti
-  // hai aur poora catalogue (28k) load karna 1GB box ko mar deta hai. Isi liye label
-  // par "this page" likha hai. Server-side sort chahiye to BSE ka sort param dhoondna
-  // parega, master ko yahan kheenchna nahi.
-  const shown = useMemo(() => {
-    const nav = (f) => Number(f?.nav) || 0;
-    const rows = [...funds];
-    if (sort === "name") return rows.sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
-    if (sort === "nav_desc") return rows.sort((a, b) => nav(b) - nav(a));
-    if (sort === "nav_asc") return rows.sort((a, b) => nav(a) - nav(b));
-    return rows;
-  }, [funds, sort]);
+  // Sorting now happens server-side over the whole filtered catalogue and comes back
+  // already ordered, so this page renders what it was given.
+  const shown = funds;
+
+  // Comparison tray. Held here rather than in the URL because the picks are made while
+  // paging and filtering, and a page change must not drop them.
+  const [compare, setCompare] = useState([]);
+  const inCompare = useMemo(
+    () => new Set(compare.map((c) => `${c.isin}|${c.code}`)),
+    [compare]
+  );
+
+  const toggleCompare = (f) => {
+    const key = `${f.scheme_isin}|${f.scheme_bse_code}`;
+    setCompare((prev) => {
+      if (prev.some((c) => `${c.isin}|${c.code}` === key)) {
+        return prev.filter((c) => `${c.isin}|${c.code}` !== key);
+      }
+      if (prev.length >= MAX_COMPARE) {
+        toastInfo(`You can compare up to ${MAX_COMPARE} funds at a time.`);
+        return prev;
+      }
+      return [...prev, { isin: f.scheme_isin, code: f.scheme_bse_code, name: f.name }];
+    });
+  };
+
+  const openCompare = () => {
+    const ids = compare.map((c) => `${c.isin || ""}~${c.code || ""}`).join(",");
+    navigate(`/mutual_fund/compare?funds=${encodeURIComponent(ids)}`);
+  };
 
   const submitSearch = (e) => {
     e.preventDefault();
@@ -177,7 +244,7 @@ const ExploreMF = () => {
                 >
                   <AmcMark name={f.name} className="h-9 w-9" />
                   <p className="text-sm font-semibold mt-3 line-clamp-2 min-h-10 text-slate-900 dark:text-[var(--text-primary)]">
-                    {f.name || "—"}
+                    {titleCase(f.name) || "—"}
                   </p>
                   <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">{f.scheme_amc_name || "Mutual Fund"}</p>
                   <FundBadges fund={f} className="mt-2" />
@@ -207,37 +274,10 @@ const ExploreMF = () => {
         </aside>
       </div>
 
-      {/* Combos — user ke apne baskets. Ek bhi na ho to poora section chhupa do. */}
-      {combos.length > 0 && (
-        <div className="mb-8">
-          <SectionHead title="Mutual Fund" accent="combos" subtitle="Invest in multiple top schemes, at once" to="/baskets" />
-          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {combos.map((b) => (
-              <Link
-                key={b.id}
-                to={`/basket/${b.id}`}
-                className="rounded-2xl overflow-hidden bg-white dark:bg-[var(--card-bg)] border border-slate-200 dark:border-[var(--border-color)] shadow-sm hover:shadow-md transition"
-              >
-                <div className="p-4 flex items-start gap-3">
-                  <AmcMark name={b.name} className="h-9 w-9" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold line-clamp-1 text-slate-900 dark:text-[var(--text-primary)]">{b.name}</p>
-                    {b.minSip != null && <p className="text-xs text-slate-500 mt-1">Min SIP ₹{b.minSip}</p>}
-                  </div>
-                  {b.funds?.length > 0 && (
-                    <span className="shrink-0 text-[10px] font-semibold px-2 py-1 rounded bg-slate-100 dark:bg-[var(--white-10)] text-slate-600 dark:text-[var(--text-secondary)]">
-                      {b.funds.length} FUNDS
-                    </span>
-                  )}
-                </div>
-                <div className="px-4 py-2 bg-slate-50 dark:bg-[var(--white-10)] text-xs text-slate-600 dark:text-[var(--text-secondary)] flex items-center justify-center gap-1.5">
-                  <MdVerified className="text-emerald-500" /> {b.category || "Curated"} basket
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* The "Mutual Fund combos" rail was removed on the client's instruction (ticket 9),
+          and the /baskets fetch that fed it went with it — it was an authenticated request
+          fired on every visit to Explore, including by logged-out visitors. Baskets
+          themselves are untouched and still live at /baskets. */}
 
       <div className="mb-8">
         <SectionHead title="New Fund Offer (NFO)" to="/nfo" />
@@ -267,10 +307,10 @@ const ExploreMF = () => {
       <div id="all-funds" className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-4">
         <div>
           <h2 className="text-lg font-semibold tracking-tight">All Mutual Funds</h2>
+          {/* `total` is the size of the FILTERED set, counted across the whole catalogue
+              before the page is cut — so this number and the page count are both honest. */}
           <p className="text-sm text-slate-500 dark:text-[var(--text-secondary)] mt-1">
-            {funds.length
-              ? `${funds.length} funds you can buy${sort ? " · sorted on this page" : ""}`
-              : "Loading catalogue…"}
+            {funds.length ? `${total.toLocaleString("en-IN")} funds match` : "Loading catalogue…"}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -297,13 +337,19 @@ const ExploreMF = () => {
           ))}
           <select
             value={sort}
-            onChange={(e) => setSort(e.target.value)}
-            className="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white shadow-sm dark:bg-[var(--white-10)] dark:border-[var(--border-color)]"
+            onChange={(e) => {
+              setPage(0);
+              setSort(e.target.value);
+            }}
+            className={`border rounded-xl px-3 py-2 text-sm shadow-sm dark:bg-[var(--white-10)] dark:border-[var(--border-color)] ${
+              sort ? "border-emerald-500 bg-emerald-50 text-emerald-800 dark:text-emerald-300" : "border-slate-200 bg-white"
+            }`}
           >
-            <option value="">Sort: BSE order</option>
-            <option value="name">Name A–Z</option>
-            <option value="nav_desc">NAV: high to low</option>
-            <option value="nav_asc">NAV: low to high</option>
+            {SORTS.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
           </select>
         </div>
       </div>
@@ -316,36 +362,65 @@ const ExploreMF = () => {
         FundListSkeleton()
       ) : (
         <div className="rounded-lg border border-slate-200 dark:border-[var(--border-color)] bg-white dark:bg-[var(--card-bg)] divide-y divide-slate-200 dark:divide-[var(--border-color)] overflow-hidden">
-          {shown.map((fund) => (
-            <button
-              key={`${fund.scheme_isin}-${fund.scheme_bse_code}`}
-              onClick={() => openFund(fund)}
-              className="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-[var(--white-5)] transition"
-            >
-              <AmcMark name={fund.name} className="h-9 w-9 shrink-0" />
+          {/* A checkbox cannot live inside a <button> (invalid HTML, and the click would be
+              swallowed by the row), so the row is a flex container with the checkbox beside
+              a button that fills the rest of it. */}
+          {shown.map((fund) => {
+            const key = `${fund.scheme_isin}|${fund.scheme_bse_code}`;
+            const picked = inCompare.has(key);
+            return (
+              <div
+                key={key}
+                className={`w-full flex items-center gap-3 px-4 transition ${
+                  picked ? "bg-emerald-50/60 dark:bg-emerald-500/5" : "hover:bg-slate-50 dark:hover:bg-[var(--white-5)]"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={picked}
+                  onChange={() => toggleCompare(fund)}
+                  aria-label={`Add ${titleCase(fund.name)} to comparison`}
+                  title="Compare this fund"
+                  className="shrink-0 h-4 w-4 accent-emerald-600 cursor-pointer"
+                />
+                <button
+                  onClick={() => openFund(fund)}
+                  className="min-w-0 flex-1 text-left flex items-center gap-3 py-3"
+                >
+                  <AmcMark name={fund.name} className="h-9 w-9 shrink-0" />
 
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium leading-snug line-clamp-2 text-slate-900 dark:text-[var(--text-primary)]">
-                  {fund.name || "—"}
-                </p>
-                <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mt-0.5 line-clamp-1">
-                  {fund.subType || fund.category || "Mutual Fund"}
-                </p>
-                <FundBadges fund={fund} className="mt-1.5" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium leading-snug line-clamp-2 text-slate-900 dark:text-[var(--text-primary)]">
+                      {titleCase(fund.name) || "—"}
+                    </p>
+                    <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mt-0.5 line-clamp-1">
+                      {fund.subType || fund.category || "Mutual Fund"}
+                    </p>
+                    <FundBadges fund={fund} className="mt-1.5" />
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-semibold text-slate-900 dark:text-[var(--text-primary)]">
+                      {navLabel(fund, navs)}
+                    </p>
+                    {/* Returns on the card at last: the list rows carried `returns: null` for
+                        every scheme until the enrichment pass started filling them. */}
+                    {fund.returns?.["3Y"] != null ? (
+                      <p className="text-[11px] mt-0.5 text-emerald-600 dark:text-emerald-400">
+                        {fmtPct(fund.returns["3Y"], { annualised: true })} · 3Y
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mt-0.5">
+                        {fund.minLumpsum ? `Min ₹${fund.minLumpsum}` : navDate(fund, navs) || ""}
+                      </p>
+                    )}
+                  </div>
+
+                  <MdChevronRight className="text-xl shrink-0 text-slate-400 dark:text-[var(--text-secondary)]" />
+                </button>
               </div>
-
-              <div className="text-right shrink-0">
-                <p className="text-sm font-semibold text-slate-900 dark:text-[var(--text-primary)]">
-                  {navLabel(fund, navs)}
-                </p>
-                <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mt-0.5">
-                  {fund.minLumpsum ? `Min ₹${fund.minLumpsum}` : navDate(fund, navs) || ""}
-                </p>
-              </div>
-
-              <MdChevronRight className="text-xl shrink-0 text-slate-400 dark:text-[var(--text-secondary)]" />
-            </button>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -376,6 +451,47 @@ const ExploreMF = () => {
           >
             Next
           </button>
+        </div>
+      )}
+
+      {/* Comparison tray. Survives paging and filtering, because funds worth comparing are
+          rarely on the same page. */}
+      {compare.length > 0 && (
+        <div className="sticky bottom-4 mt-6 z-20">
+          <div className="mx-auto max-w-3xl rounded-2xl border border-emerald-300 dark:border-emerald-500/30 bg-white dark:bg-[var(--card-bg)] shadow-lg p-3 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-slate-500 dark:text-[var(--text-secondary)] px-1">
+              Comparing {compare.length}/{MAX_COMPARE}
+            </span>
+            {compare.map((c) => (
+              <button
+                key={`${c.isin}|${c.code}`}
+                type="button"
+                onClick={() => setCompare((prev) => prev.filter((x) => `${x.isin}|${x.code}` !== `${c.isin}|${c.code}`))}
+                title="Remove from comparison"
+                className="text-xs px-2 py-1 rounded-full bg-slate-100 dark:bg-[var(--white-10)] text-slate-700 dark:text-[var(--text-secondary)] max-w-[220px] truncate"
+              >
+                {titleCase(c.name)} ✕
+              </button>
+            ))}
+            <div className="ml-auto flex gap-2">
+              <button
+                type="button"
+                onClick={() => setCompare([])}
+                className="px-3 py-2 rounded-xl border border-slate-200 dark:border-[var(--border-color)] text-sm"
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                disabled={compare.length < 2}
+                onClick={openCompare}
+                title={compare.length < 2 ? "Pick at least two funds" : "Compare these funds"}
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-sm font-medium"
+              >
+                Compare
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

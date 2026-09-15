@@ -1,10 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { RANGES, INTERVALS, bucketSeries, fmtLabel } from "./navSeries";
+import { RANGES, INTERVALS, bucketSeries, fmtLabel, spanDays, toReturnSeries } from "./navSeries";
 
-export default function MFChart({ series = [], height = 320, synthetic = false }) {
+// What the y-axis is showing. NAV is the fund's own price; the other two are the same window
+// expressed as a return, which is what the Absolute / CAGR toggle switches between.
+const MODES = { nav: "NAV", absolute: "Absolute", cagr: "CAGR" };
+
+export default function MFChart({ series = [], height = 320, synthetic = false, onModeChange }) {
   const [range, setRange] = useState("1Y");
   const [interval, setInterval] = useState("D");
+  const [mode, setMode] = useState("nav");
   // ponytail: native <input type="date"> — koi date-picker library nahi. min/max chart
   // ke apne data se aate hain, to koi aisi tareekh chuni hi nahi ja sakti jispar NAV nahi.
   const [span, setSpan] = useState({ from: "", to: "" });
@@ -63,6 +68,17 @@ export default function MFChart({ series = [], height = 320, synthetic = false }
     if (next) setInterval(next);
   }, [pointsPerInterval]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // A range wider than the fund's own history would draw less than it promises — "10Y" on a
+  // four-year-old fund. Same data-driven rule the interval buttons use.
+  const history = useMemo(() => spanDays(series), [series]);
+  const rangeUsable = (r) => custom || RANGES[r] === Infinity || history >= RANGES[r] * 0.9;
+
+  useEffect(() => {
+    if (rangeUsable(range)) return;
+    const next = Object.keys(RANGES).filter(rangeUsable).pop();
+    if (next) setRange(next);
+  }, [history]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const pickRange = (r) => {
     setSpan({ from: "", to: "" });
     setRange(r);
@@ -71,6 +87,34 @@ export default function MFChart({ series = [], height = 320, synthetic = false }
   const change = rows.length > 1 ? ((rows[rows.length - 1].nav - rows[0].nav) / rows[0].nav) * 100 : null;
   const up = (change ?? 0) >= 0;
   const stroke = up ? "#00b26a" : "#e5484d";
+
+  // Annualising a window shorter than a year is how "3% in a fortnight" becomes "112% p.a.".
+  // The toggle disables itself rather than print it.
+  const windowYears = rows.length > 1 ? (rows[rows.length - 1].timestamp - rows[0].timestamp) / (86400 * 365) : 0;
+  const cagrUsable = windowYears >= 1;
+  const activeMode = mode === "cagr" && !cagrUsable ? "absolute" : mode;
+
+  const plotted = useMemo(() => {
+    if (activeMode === "nav") return rows;
+    return toReturnSeries(rows, activeMode);
+  }, [rows, activeMode]);
+
+  const pickMode = (m) => {
+    setMode(m);
+    // The percentage figures elsewhere on the page follow the same toggle.
+    onModeChange?.(m === "nav" ? "absolute" : m);
+  };
+
+  const yFmt = (v) => (activeMode === "nav" ? `₹${Number(v).toFixed(2)}` : `${Number(v).toFixed(1)}%`);
+  const dataKey = activeMode === "nav" ? "nav" : "value";
+
+  // The headline next to the NAV follows the toggle too: the same window, annualised or not.
+  const changeLabel =
+    change == null
+      ? null
+      : activeMode === "cagr" && cagrUsable
+      ? `${((Math.pow(1 + change / 100, 1 / windowYears) - 1) * 100).toFixed(2)}% p.a.`
+      : `${change.toFixed(2)}%`;
 
   const btn = (active, disabled = false) =>
     `px-2.5 py-1 rounded-md text-xs font-medium transition ${
@@ -85,11 +129,21 @@ export default function MFChart({ series = [], height = 320, synthetic = false }
     <div className="w-full">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
         <div className="flex flex-wrap gap-1.5">
-          {Object.keys(RANGES).map((r) => (
-            <button key={r} type="button" onClick={() => pickRange(r)} className={btn(!custom && range === r)}>
-              {r}
-            </button>
-          ))}
+          {Object.keys(RANGES).map((r) => {
+            const ok = rangeUsable(r);
+            return (
+              <button
+                key={r}
+                type="button"
+                disabled={!ok}
+                onClick={() => pickRange(r)}
+                className={btn(!custom && range === r, !ok)}
+                title={ok ? `Last ${r}` : `This fund has about ${(history / 365).toFixed(1)} years of NAV history`}
+              >
+                {r}
+              </button>
+            );
+          })}
         </div>
         <div className="flex gap-1.5">
           {Object.entries(INTERVALS).map(([k, label]) => {
@@ -108,6 +162,36 @@ export default function MFChart({ series = [], height = 320, synthetic = false }
                         (pointsPerInterval[k] ?? 0) === 1 ? "point" : "points"
                       }`
                 }
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Absolute / CAGR — compact and inline, next to the chart it redraws. NAV is kept as
+          the third option because the fund's own price is still what most people open the
+          page for; the toggle changes what the y-axis means, not just a label. */}
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <span className="text-xs text-slate-500 dark:text-[var(--text-secondary)]">Show</span>
+        <div className="inline-flex rounded-md overflow-hidden border border-slate-200 dark:border-[var(--border-color)]">
+          {Object.entries(MODES).map(([k, label]) => {
+            const disabled = k === "cagr" && !cagrUsable;
+            return (
+              <button
+                key={k}
+                type="button"
+                disabled={disabled}
+                onClick={() => pickMode(k)}
+                title={disabled ? "CAGR needs at least a year of the selected range" : `Plot ${label}`}
+                className={`px-2.5 py-1 text-xs font-medium transition ${
+                  disabled
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-[var(--white-5)] dark:text-[var(--text-secondary)]"
+                    : activeMode === k
+                    ? "bg-blue-600 text-white"
+                    : "bg-white text-gray-700 hover:bg-gray-100 dark:bg-[var(--white-5)] dark:text-[var(--text-primary)]"
+                }`}
               >
                 {label}
               </button>
@@ -161,7 +245,7 @@ export default function MFChart({ series = [], height = 320, synthetic = false }
             {change != null && (
               <span className={`text-sm font-medium ${up ? "text-emerald-600" : "text-red-500"}`}>
                 {up ? "+" : ""}
-                {change.toFixed(2)}% · {custom ? `${span.from || bounds.min} → ${span.to || bounds.max}` : range}
+                {changeLabel} · {custom ? `${span.from || bounds.min} → ${span.to || bounds.max}` : range}
               </span>
             )}
           </div>
@@ -170,19 +254,29 @@ export default function MFChart({ series = [], height = 320, synthetic = false }
             style={{ height }}
           >
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={rows} margin={{ top: 12, right: 12, left: 0, bottom: 0 }}>
+              <AreaChart data={plotted} margin={{ top: 12, right: 12, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" strokeOpacity={0.4} vertical={false} />
                 <XAxis dataKey="label" minTickGap={48} tick={{ fontSize: 11 }} />
-                <YAxis domain={["auto", "auto"]} tick={{ fontSize: 11 }} width={56} />
-                <Tooltip formatter={(v) => [`₹${Number(v).toFixed(4)}`, "NAV"]} labelFormatter={(l) => l} />
-                <Area type="monotone" dataKey="nav" stroke={stroke} fill={`${stroke}22`} strokeWidth={2} />
+                <YAxis domain={["auto", "auto"]} tick={{ fontSize: 11 }} width={56} tickFormatter={yFmt} />
+                <Tooltip
+                  formatter={(v) => [
+                    activeMode === "nav" ? `₹${Number(v).toFixed(4)}` : `${Number(v).toFixed(2)}%${activeMode === "cagr" ? " p.a." : ""}`,
+                    MODES[activeMode],
+                  ]}
+                  labelFormatter={(l) => l}
+                />
+                <Area type="monotone" dataKey={dataKey} stroke={stroke} fill={`${stroke}22`} strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
           <p className="text-[11px] text-slate-400 mt-2">
             {synthetic
               ? "Indicative trend — NAV history unavailable for this scheme, projected from reported returns."
-              : `${INTERVALS[interval]} NAV · ${rows.length} points`}
+              : activeMode === "nav"
+              ? `${INTERVALS[interval]} NAV · ${rows.length} points`
+              : activeMode === "absolute"
+              ? `Absolute return since ${custom ? span.from || bounds.min : `the start of the ${range} window`} · ${plotted.length} points`
+              : `Annualised (CAGR) since ${custom ? span.from || bounds.min : `the start of the ${range} window`} — plotted from the first anniversary onward · ${plotted.length} points`}
           </p>
         </>
       )}

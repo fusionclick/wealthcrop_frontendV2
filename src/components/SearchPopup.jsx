@@ -5,6 +5,7 @@ import { searchStocks } from "../api/marketApi";
 import { useNavigate } from "react-router-dom";
 import { nodeUrl, fundPath, loadMfWatchlist, toggleMfWatchlist } from "../utils/nodeApi";
 import { toastSuccess } from "../utils/notifyCustom";
+import { titleCase } from "../utils/schemeName";
 
 const savedKeysNow = () => new Set(loadMfWatchlist().map((f) => `${f.isin}|${f.code}`));
 
@@ -300,7 +301,7 @@ export default function SearchPopup({ onClose }) {
             >
               <div>
                 <div className=" text-sm dark:text-[var(--text-primary)]">
-                  {asset.name}
+                  {titleCase(asset.name)}
                 </div>
 
                 {asset.type && (

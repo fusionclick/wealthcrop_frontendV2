@@ -7,6 +7,7 @@ import { nodeUrl, fundPath } from "../../utils/nodeApi";
 import AmcMark from "../../components/AmcMark";
 import { collectionSearch, collectionSlug, MF_COLLECTIONS } from "../../utils/mfCollections";
 import { navLabel, useNavMap } from "../../utils/navSocket";
+import { titleCase } from "../../utils/schemeName";
 
 const PAGE_SIZE = 20;
 const ICONS = {
@@ -81,7 +82,7 @@ const FundCategorySection = () => {
               className="text-left rounded-2xl p-4 bg-white border border-slate-200 shadow-sm hover:shadow-md transition"
             >
               <AmcMark name={fund.name} />
-              <p className="text-sm font-semibold mt-3 line-clamp-2 min-h-10">{fund.name || "—"}</p>
+              <p className="text-sm font-semibold mt-3 line-clamp-2 min-h-10">{titleCase(fund.name) || "—"}</p>
               <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">{fund.subType || fund.category || "Mutual Fund"}</p>
               <p className="text-sm font-medium mt-4">
                 {navLabel(fund, navs)}
