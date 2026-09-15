@@ -6,7 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 import { getApiWithToken, postApiWithToken } from "../../api/api";
 import FundDashboardSkeleton from "../../components/ui/skeleton/main/FundDashboardSkeleton";
 import { useSelector } from "react-redux";
-import { laravelUrl, nodeUrl, mergePortfolio, calcXirr, fundBuyPath } from "../../utils/nodeApi";
+import { laravelUrl, nodeUrl, mergePortfolio, fundBuyPath } from "../../utils/nodeApi";
+import { portfolioXirr } from "../../utils/xirr";
 import HoldingSheet from "../../components/mutual_fund/HoldingSheet";
 import { History } from "lucide-react";
 
@@ -39,6 +40,16 @@ const DashBoardMF = () => {
     [laravelOrders, bseHoldings]
   );
 
+  // XIRR needs the dates money moved on, and the holdings list does not carry them — only
+  // the order history does. It is the same call the Orders page makes, so react-query
+  // serves it from cache when the investor has already been there.
+  const { data: orders } = useQuery({
+    queryKey: ["mfOrderHistory", ucc],
+    queryFn: () => postApiWithToken(nodeUrl("/orderHistory"), { ucc }),
+    select: (res) => (Array.isArray(res?.data?.orders) ? res.data.orders : []),
+    enabled: !!ucc,
+  });
+
   const hasInvestments = funds.length > 0;
   const totalInvested = funds.reduce((acc, f) => acc + (Number(f.inv_amo) || 0), 0);
   const totalReturns = funds.reduce(
@@ -46,7 +57,10 @@ const DashBoardMF = () => {
     0
   );
   const currentValue = totalInvested + totalReturns;
-  const xirr = calcXirr(funds);
+  // Every settled purchase and redemption on their real dates, capped by what the units are
+  // worth today. null when the orders cannot produce a rate — a brand new account, or one
+  // whose history BSE did not return — and the tile says so rather than printing a 0.
+  const xirr = useMemo(() => portfolioXirr(orders || [], currentValue), [orders, currentValue]);
   const activeSipCount = funds.filter((f) => f.sip_status === "ACTIVE").length;
 
   const allocation = useMemo(() => {
@@ -127,8 +141,15 @@ const DashBoardMF = () => {
                 <p className="text-sm font-semibold mt-0.5">{activeSipCount}</p>
               </div>
               <div>
-                <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">XIRR (est.)</p>
-                <p className="text-sm font-semibold mt-0.5">{xirr}%</p>
+                <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">XIRR</p>
+                <p
+                  className={`text-sm font-semibold mt-0.5 ${
+                    xirr == null ? "" : xirr >= 0 ? "text-emerald-600" : "text-red-500"
+                  }`}
+                  title={xirr == null ? "Not enough settled orders yet to work out a rate" : "Money-weighted return p.a., from your order dates"}
+                >
+                  {xirr == null ? "—" : `${xirr >= 0 ? "+" : "−"}${Math.abs(xirr).toFixed(2)}% p.a.`}
+                </p>
               </div>
             </div>
           </div>

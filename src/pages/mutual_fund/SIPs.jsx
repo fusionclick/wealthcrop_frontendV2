@@ -4,11 +4,13 @@ import { useNavigate } from "react-router-dom";
 import { postApiWithToken } from "../../api/api";
 import { useSelector } from "react-redux";
 import { nodeUrl, mapXspToSip, xspItems } from "../../utils/nodeApi";
+import { sipXirr } from "../../utils/xirr";
 
 const SIPs = () => {
   const navigate = useNavigate();
   const { data: investorData } = useSelector((state) => state.investorData);
   const [sips, setSips] = useState([]);
+  const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -20,15 +22,23 @@ const SIPs = () => {
       }
       try {
         const url = nodeUrl(import.meta.env.VITE_GET_ALL_XSP || "/getAllXsp");
-        const res = await postApiWithToken(url, {
-          data: {
-            fields: ["ALL"],
-            start: 0,
-            length: 50,
-            filter_param: { sxp_type: "SIP", ucc },
-          },
-        });
+        // The registrations, and the instalments each one actually put through. A SIP's XIRR
+        // is the second list's dates against the first list's scheme — getAllXsp describes
+        // the registration and carries no cash flows. Orders are optional: if that call
+        // fails the cards still render, just without a rate on them.
+        const [res, history] = await Promise.all([
+          postApiWithToken(url, {
+            data: {
+              fields: ["ALL"],
+              start: 0,
+              length: 50,
+              filter_param: { sxp_type: "SIP", ucc },
+            },
+          }),
+          postApiWithToken(nodeUrl("/orderHistory"), { ucc }).catch(() => null),
+        ]);
         setSips(xspItems(res).map((item, i) => mapXspToSip(item, i)));
+        setOrders(Array.isArray(history?.data?.orders) ? history.data.orders : []);
       } catch (_) {
         /* empty */
       } finally {
@@ -74,20 +84,36 @@ const SIPs = () => {
             </button>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
-            {sips.map((sip) => (
-              <div
-                key={sip.id}
-                className="rounded-xl border border-slate-200 dark:border-[var(--border-color)] p-5 bg-white dark:bg-[var(--card-bg)]"
-              >
-                <h3 className="font-semibold text-sm dark:text-[var(--text-primary)]">{sip.schemeName}</h3>
-                <p className="text-xs text-slate-500 dark:text-[var(--text-secondary)] mt-1">{sip.category}</p>
-                <div className="mt-3 flex justify-between text-sm">
-                  <span>₹{sip.sipAmount.toLocaleString()} / {sip.frequency}</span>
-                  <span className="text-emerald-600 font-medium">{sip.status}</span>
+            {sips.map((sip) => {
+              // Only once BSE has valued the holding. `sip.currentValue` falls back to what
+              // was paid in, and running that through XIRR prints a confident 0%.
+              const rate = sip.marketValue ? sipXirr(orders, sip.schemeCode, sip.marketValue) : null;
+              return (
+                <div
+                  key={sip.id}
+                  className="rounded-xl border border-slate-200 dark:border-[var(--border-color)] p-5 bg-white dark:bg-[var(--card-bg)]"
+                >
+                  <h3 className="font-semibold text-sm dark:text-[var(--text-primary)]">{sip.schemeName}</h3>
+                  <p className="text-xs text-slate-500 dark:text-[var(--text-secondary)] mt-1">{sip.category}</p>
+                  <div className="mt-3 flex justify-between text-sm">
+                    <span>₹{sip.sipAmount.toLocaleString()} / {sip.frequency}</span>
+                    <span className="text-emerald-600 font-medium">{sip.status}</span>
+                  </div>
+                  <div className="mt-2 flex justify-between items-baseline">
+                    <p className="text-xs text-slate-400">Next: {sip.nextInstallment}</p>
+                    {rate != null && (
+                      <p
+                        className={`text-xs font-semibold ${rate >= 0 ? "text-emerald-600" : "text-red-500"}`}
+                        title="XIRR on this SIP's own instalments, valued today"
+                      >
+                        {rate >= 0 ? "+" : "−"}
+                        {Math.abs(rate).toFixed(2)}% p.a.
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <p className="text-xs text-slate-400 mt-2">Next: {sip.nextInstallment}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </>
       )}

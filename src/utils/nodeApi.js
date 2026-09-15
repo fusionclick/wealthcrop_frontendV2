@@ -128,8 +128,15 @@ export const validateInvestorReady = (investorData, minAmount = 0, amount = 0, f
   return null;
 };
 
-/** Simple annualised return estimate from invested + returns */
-export const calcXirr = (funds = []) => {
+/**
+ * Absolute return on the portfolio: total gain over total invested.
+ *
+ * This used to be exported as `calcXirr` and printed under an "XIRR" label, which it never
+ * was — it has no dates in it, so it cannot tell a gain made in six months from the same
+ * gain made in six years. The real thing lives in utils/xirr.js and runs off the order
+ * history. This kept its arithmetic and lost the wrong name.
+ */
+export const calcAbsoluteReturn = (funds = []) => {
   const invested = funds.reduce((a, f) => a + (Number(f.inv_amo) || 0), 0);
   const returns = funds.reduce((a, f) => a + ((Number(f.inv_amo) || 0) * (Number(f.ret_percentage) || 0)) / 100, 0);
   if (!invested) return "0.00";
@@ -154,6 +161,13 @@ export const mapXspToSip = (item, idx = 0) => ({
   id: item.reg_no || item.id || idx + 1,
   reg_no: item.reg_no || item.id,
   schemeName: item.src_scheme_name || item.scheme_name || item.src_scheme || "SIP",
+  // BSE's own scheme code for the SIP's source scheme. order_list carries no reg_no, so
+  // this is what ties a SIP to its instalments when working out that SIP's XIRR.
+  schemeCode: item.src_scheme || item.scheme_code || item.scheme || "",
+  // Only when BSE actually valued the holding. currentValue below falls back to what was
+  // paid in, which is fine for a progress bar and fatal for a return calculation — it
+  // would read as a flat 0% rather than as "not known".
+  marketValue: Number(item.current_value) || null,
   category: item.scheme_category || "Mutual Fund",
   sipAmount: Number(item.amount || 0),
   frequency: item.freq === "m" ? "Monthly" : item.freq === "q" ? "Quarterly" : item.freq === "w" ? "Weekly" : "Monthly",
