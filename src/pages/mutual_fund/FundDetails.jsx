@@ -90,6 +90,8 @@ const FundDetails = () => {
       factsheetUrl: schemeInfo?.factsheetUrl || null,
       inceptionDate: schemeInfo?.inceptionDate || null,
       ageYears: schemeInfo?.ageYears ?? null,
+      // Ticket 3 — fund size, already normalised to ₹ crore by the backend.
+      aum: schemeInfo?.aum ?? null,
       lockIn: schemeInfo?.lockIn || base.lockIn || null,
       benchmark: schemeInfo?.benchmark || base.benchmark || null,
       payout: schemeInfo?.payout || base.payout || null,
@@ -514,13 +516,17 @@ const pctOf = (key) => {
 
     {/* CORE SCHEME PARAMETERS — each one drawn only when it is actually known. A tile that
         says "—" is the "incorrect or hardcoded placeholder" the brief rules out; an absent
-        tile is the honest form of "not published".
-
-        Fund size / AUM is deliberately NOT here. The figure is available but its unit could
-        not be verified against any source, and a fund size wrong by 100x is worse than a
-        missing one. See the note at the top of Backend/src/mf/kuvera.js. */}
+        tile is the honest form of "not published". */}
     {[
       ["ISIN", fundsList?.scheme_isin, "The public identifier printed on your CAS"],
+      // Ticket 3 — the backend hands this over already in ₹ crore, unit verified against
+      // published figures for two funds. Rendered in the Indian digit grouping people read
+      // fund sizes in, so 148429 shows as 1,48,429.
+      [
+        "Fund size",
+        fundsList?.aum > 0 ? `₹${Number(fundsList.aum).toLocaleString("en-IN", { maximumFractionDigits: 0 })} Cr` : null,
+        "Total assets this scheme manages, across all its plans",
+      ],
       ["Plan inception", fmtDate(fundsList?.inceptionDate), "When this plan started — not necessarily when the scheme launched"],
       ["Fund age", fmtAge(fundsList?.ageYears), null],
       ["Lock-in", fundsList?.lockIn?.label, "Units cannot be redeemed during this period"],
