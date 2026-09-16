@@ -76,6 +76,8 @@ const FundDetails = () => {
       holdings: extra.holdings || schemeInfo?.holdings || [],
       assetSplit: extra.assetSplit || [],
       sectors: extra.sectors || [],
+      // Ticket 5 — the month the AMC disclosed this portfolio for.
+      holdingsAsOf: extra.holdingsAsOf || null,
       categoryAvg: extra.categoryAvg || {},
       rank: extra.rank || {},
       advancedRatios: schemeInfo?.advancedRatios || extra.advancedRatios,
@@ -1027,11 +1029,18 @@ const pctOf = (key) => {
       ) : null}
 
       {/* Holdings come from the AMC's monthly portfolio disclosure, which none of our
-          feeds carry, so the backend returns []. The card used to render a header over an
-          empty table; hide it entirely, the way the two donuts below already do. */}
+          feeds carry, so it is uploaded through the admin panel and served from there. Still
+          hidden entirely when there is none, the way the two donuts below already are. */}
       {(fundsList?.holdings || []).length ? (
       <div className="bg-[var(--white-10)] border border-[var(--border-color)] shadow-lg rounded-2xl p-6 max-w-4xl">
-  <h2 className="text-2xl font-semibold mb-4 text-[var(--text-primary)]">Holdings</h2>
+  <h2 className="text-2xl font-semibold mb-1 text-[var(--text-primary)]">Top Holdings</h2>
+  {/* A portfolio is a point-in-time fact — saying which month it is stops a stale upload
+      being read as today's positions. */}
+  <p className="text-xs text-[var(--text-secondary)] mb-4">
+    {fundsList?.holdingsAsOf
+      ? `As disclosed by the AMC on ${fmtDate(fundsList.holdingsAsOf)}`
+      : "As disclosed by the AMC"}
+  </p>
   <div className="overflow-x-auto">
     <table className="w-full border-collapse">
       <thead>
