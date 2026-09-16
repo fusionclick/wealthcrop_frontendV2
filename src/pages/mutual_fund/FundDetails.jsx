@@ -223,10 +223,10 @@ const fundamentals = [
   { label: "Sharpe", value: ratios?.sharpe },
   { label: "Sortino", value: ratios?.sortino },
   { label: "Max Drawdown", value: ratios?.maxDrawdown, suffix: "%" },
-  // Back, and this time measured: the backend computes both against the scheme's OWN
-  // benchmark (BSE's scheme_benchmark -> a real index price series). If that benchmark
-  // cannot be resolved, the backend sends nothing and these two tiles stay gone rather
-  // than reappearing as the constants they used to be.
+  // Measured, not assumed: the backend computes both against a real index price series —
+  // the scheme's own benchmark where BSE names one, otherwise the index SEBI prescribes for
+  // its category. Which of the two it was is on the tooltip, so a category benchmark is
+  // never read as the AMC's own. No index the backend can price = no tiles, as before.
   { label: "Alpha", value: ratios?.alpha, suffix: "%" },
   { label: "Beta", value: ratios?.beta },
   { label: "P/E Ratio", value: ratios?.peRatio },
@@ -234,6 +234,13 @@ const fundamentals = [
 ].filter((m) => m.value != null);
 
 const rf = ratios?.riskFreeRate;
+// Says so out loud when the index came from the scheme's category rather than from the AMC
+// naming it. Alpha and Beta against a standard category index are still real numbers, but
+// the investor should know which of the two they are reading.
+const benchmarkOrigin =
+  fundsList?.riskMetrics?.benchmarkSource === "category"
+    ? ", the standard benchmark for this category"
+    : "";
 const advancedDefinitions = {
   "Volatility": "Annualised standard deviation of the fund's daily NAV moves over the last year. Higher means the NAV swings more.",
   // The return inside Sharpe and Sortino is the annualised ARITHMETIC mean of the daily
@@ -245,10 +252,10 @@ const advancedDefinitions = {
   "Max Drawdown": "The worst peak-to-trough fall in NAV over the last year — how far the fund dropped before recovering.",
   Alpha: `Return earned beyond what this fund's market exposure alone would explain, measured against ${
     fundsList?.riskMetrics?.benchmark || "its benchmark"
-  }${fundsList?.riskMetrics?.benchmarkIsPriceIndex ? " (price index, so a TRI-based alpha would read slightly lower)" : ""}. Positive means the manager added value.`,
+  }${benchmarkOrigin}${fundsList?.riskMetrics?.benchmarkIsPriceIndex ? " (price index, so a TRI-based alpha would read slightly lower)" : ""}. Positive means the manager added value.`,
   Beta: `How much the fund moves for each 1% move in ${
     fundsList?.riskMetrics?.benchmark || "its benchmark"
-  }. Above 1 is more volatile than the index, below 1 is less.`,
+  }${benchmarkOrigin}. Above 1 is more volatile than the index, below 1 is less.`,
   "P/E Ratio": "Price-to-Earnings Ratio shows how much investors are willing to pay for each unit of earnings. A higher P/E may indicate growth expectations.",
   "P/B Ratio": "Price-to-Book Ratio compares a company's market price to its book value. A lower P/B can indicate undervaluation or financial stability.",
 };
@@ -1087,6 +1094,33 @@ const pctOf = (key) => {
           <DonutChart data={fundsList.sectors} hoverIndex={hoverIndex2} setHoverIndex={setHoverIndex2} />
         </div>
       </div>
+      ) : null}
+
+      {/* Portfolio composition — holdings, asset split and sectors — comes from the AMC's
+          monthly disclosure, which no feed wired into this platform publishes. Rather than
+          three silently missing cards, say so once and point at the document that does have
+          it: the factsheet URL we already hold for this exact scheme. */}
+      {!(fundsList?.holdings || []).length &&
+      !(fundsList?.assetSplit || []).length &&
+      !(fundsList?.sectors || []).length ? (
+        <div className="bg-[var(--white-10)] border border-[var(--border-color)] shadow-lg rounded-2xl p-6 max-w-4xl mt-10">
+          <h2 className="text-2xl font-semibold mb-2 text-[var(--text-primary)]">Portfolio &amp; Top Holdings</h2>
+          <p className="text-sm text-[var(--text-secondary)]">
+            This scheme&apos;s holdings are published by the AMC in its monthly portfolio
+            disclosure, which this platform does not yet receive as a data feed.
+            {fundsList?.factsheetUrl ? " The AMC's own factsheet has the current list:" : ""}
+          </p>
+          {fundsList?.factsheetUrl ? (
+            <a
+              href={fundsList.factsheetUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block mt-3 text-sm font-medium text-emerald-600 dark:text-emerald-400 underline"
+            >
+              View the factsheet for {titleCase(fundsList?.name || "this scheme")} →
+            </a>
+          ) : null}
+        </div>
       ) : null}
 
       <div className="bg-[var(--white-10)] backdrop-blur-lg shadow-xl rounded-3xl p-6 max-w-4xl mt-10 overflow-x-auto border border-[var(--border-color)]">
