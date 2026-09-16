@@ -1,8 +1,9 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { postApiWithToken } from "../../api/api";
+import { postApi, postApiWithToken } from "../../api/api";
 import { toastError, toastSuccess } from "../../utils/notifyCustom";
 import { useSelector } from "react-redux";
 import { nodeUrl, mapXspToSip, xspItems } from "../../utils/nodeApi";
+import { allowedDays, FALLBACK_SIP_DAYS, nextOccurrence, ordinal, smartDefaultDay } from "../../utils/sipDates";
 
 const SIP_HISTORY_PLACEHOLDER = [];
 
@@ -18,6 +19,10 @@ const ManageSipPage = () => {
   const [showPauseModal, setShowPauseModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showModifyPage, setShowModifyPage] = useState(false);
+  const [showTopUpModal, setShowTopUpModal] = useState(false);
+  // A modify replaces the registration and a top-up changes it, so both re-read the list
+  // from BSE rather than patching a card that no longer describes anything real.
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     const fetchSips = async () => {
@@ -70,7 +75,7 @@ const ManageSipPage = () => {
       }
     };
     fetchSips();
-  }, [investorData?.kyc?.ucc_code]);
+  }, [investorData?.kyc?.ucc_code, refreshKey]);
 
   // ---- Derived summary values ----
   const summary = useMemo(() => {
@@ -133,22 +138,30 @@ const ManageSipPage = () => {
     if (!selectedSip) return;
     const isActive = selectedSip.status === "ACTIVE";
     const payload = isActive
-      ? { data: { reg_no: selectedSip.reg_no || selectedSip.id, ninstallments: pauseData?.months || 1, paused_from: new Date().toISOString().split("T")[0] } }
+      ? {
+          data: {
+            reg_no: selectedSip.reg_no || selectedSip.id,
+            // The modal offers 1/3/6 months and used to hand back `pauseType: "1M"`, which
+            // this read as `pauseData.months` — always undefined, so every "pause 6 months"
+            // paused exactly one installment.
+            ninstallments: Number(pauseData?.installments) || 1,
+            paused_from: new Date().toISOString().split("T")[0],
+          },
+        }
       : { data: { reg_no: selectedSip.reg_no || selectedSip.id, resume_reason: "Resumed by investor" } };
-    try {
-      const url = nodeUrl(isActive ? (import.meta.env.VITE_PAUSE_XSP || "/pauseXsp") : (import.meta.env.VITE_RESUME_XSP || "/resumeXsp"));
-      const res = await postApiWithToken(url, payload);
-      if (res) toastSuccess(isActive ? "SIP paused successfully" : "SIP resumed successfully");
-    } catch (_) {
-      toastError("Action failed. Please try again.");
+    const url = nodeUrl(isActive ? (import.meta.env.VITE_PAUSE_XSP || "/pauseXsp") : (import.meta.env.VITE_RESUME_XSP || "/resumeXsp"));
+    const res = await postApiWithToken(url, payload);
+    // postApiWithToken returns null and toasts the server's own reason on failure. The
+    // status was being flipped either way, so a SIP that BSE refused to pause still looked
+    // paused — and kept debiting.
+    if (!res) {
+      setShowPauseModal(false);
+      setSelectedSip(null);
+      return;
     }
+    toastSuccess(isActive ? "SIP paused successfully" : "SIP resumed successfully");
     setSips((prev) =>
-      prev.map((sip) => {
-        if (sip.id !== selectedSip.id) return sip;
-        if (sip.status === "ACTIVE") return { ...sip, status: "PAUSED" };
-        if (sip.status === "PAUSED") return { ...sip, status: "ACTIVE" };
-        return sip;
-      })
+      prev.map((sip) => (sip.id === selectedSip.id ? { ...sip, status: isActive ? "PAUSED" : "ACTIVE" } : sip))
     );
     setShowPauseModal(false);
     setSelectedSip(null);
@@ -163,14 +176,21 @@ const ManageSipPage = () => {
 
   const confirmCancel = async ({ reason }) => {
     if (!selectedSip) return;
-    try {
-      const url = nodeUrl(import.meta.env.VITE_CANCEL_XSP || "/cancelXsp");
-      const payload = { data: { reg_no: selectedSip.reg_no || selectedSip.id, reason_cd: 6, reason_cd_msg: reason || "", sxp_type: "SIP" } };
-      const res = await postApiWithToken(url, payload);
-      if (res) toastSuccess("SIP cancelled successfully");
-    } catch (_) {
-      toastError("Cancellation failed. Please try again.");
+    const url = nodeUrl(import.meta.env.VITE_CANCEL_XSP || "/cancelXsp");
+    // Intent only. The server owns reason_cd and sxp_type now, and refuses a reg_no that is
+    // not this investor's — the page used to name all three itself.
+    const res = await postApiWithToken(url, {
+      data: { reg_no: selectedSip.reg_no || selectedSip.id, reason: reason || "" },
+    });
+    // Ticket 20: the investor must get the real outcome. This used to mark the SIP
+    // CANCELLED even when the call failed, so the debits carried on against a card that
+    // said "SIP cancelled. No further debits."
+    if (!res) {
+      setShowCancelModal(false);
+      setSelectedSip(null);
+      return;
     }
+    toastSuccess("SIP cancelled successfully");
     setSips((prev) =>
       prev.map((s) =>
         s.id === selectedSip.id ? { ...s, status: "CANCELLED", nextInstallment: "-" } : s
@@ -187,17 +207,59 @@ const ManageSipPage = () => {
     setShowModifyPage(true);
   };
 
-  const saveModifiedSip = ({ amount, sipDate, frequency }) => {
+  const handleTopUp = (id) => {
+    const sip = sips.find((s) => s.id === id);
+    if (!sip) return;
+    setSelectedSip(sip);
+    setShowTopUpModal(true);
+  };
+
+  /**
+   * Ticket 21. This used to change local state and toast "updated locally", so the card
+   * showed the new amount and BSE kept debiting the old one until the page was reloaded.
+   *
+   * BSE has no sxp_update, so /modifyXsp registers the replacement and then cancels the
+   * original — in that order, server-side. 207 means the new SIP is live but the old one
+   * is still running, which the investor has to act on rather than be told "saved".
+   */
+  const saveModifiedSip = async ({ amount, startDate, frequency }) => {
     if (!selectedSip) return;
-    // Modify is informational only — BSE requires cancel + re-register for amount changes
-    toastSuccess("SIP details updated locally. Re-registration with BSE required for amount changes.");
-    setSips((prev) =>
-      prev.map((s) =>
-        s.id === selectedSip.id ? { ...s, sipAmount: Number(amount), sipDay: Number(sipDate), frequency } : s
-      )
-    );
+    const res = await postApiWithToken(nodeUrl("/modifyXsp"), {
+      data: {
+        reg_no: selectedSip.reg_no || selectedSip.id,
+        amount: Number(amount),
+        start_date: startDate,
+        freq: frequency,
+      },
+    });
+    if (!res) return; // the server's reason has already been shown; stay on the form
+    if (res.status === "partial") {
+      toastError(res.message);
+    } else {
+      toastSuccess("SIP updated.");
+    }
+    // The old registration is gone and a new one exists under a new reg_no, so a local
+    // patch would be a fiction. Reload the list from BSE.
     setShowModifyPage(false);
     setSelectedSip(null);
+    setRefreshKey((k) => k + 1);
+  };
+
+  const confirmTopUp = async ({ amount, freq, startDate }) => {
+    if (!selectedSip) return;
+    const res = await postApiWithToken(nodeUrl("/topupXsp"), {
+      data: {
+        reg_no: selectedSip.reg_no || selectedSip.id,
+        amount: Number(amount),
+        freq,
+        ...(startDate ? { start_date: startDate } : {}),
+      },
+    });
+    if (!res) return;
+    toastSuccess("Top-Up added to this SIP.");
+    setShowTopUpModal(false);
+    setSelectedSip(null);
+    setRefreshKey((k) => k + 1);
   };
 
   const handleImportExternal = () => {
@@ -403,6 +465,12 @@ const ManageSipPage = () => {
                         Modify
                       </button>
                       <button
+                        onClick={() => handleTopUp(sip.id)}
+                        className="text-[11px] px-3 py-1.5 rounded-lg border border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                      >
+                        Top-Up
+                      </button>
+                      <button
                         onClick={() => handleCancel(sip.id)}
                         className="text-[11px] px-3 py-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50"
                       >
@@ -519,6 +587,17 @@ const ManageSipPage = () => {
           onConfirm={confirmCancel}
         />
       )}
+
+      {showTopUpModal && selectedSip && (
+        <TopUpSipModal
+          sip={selectedSip}
+          onClose={() => {
+            setShowTopUpModal(false);
+            setSelectedSip(null);
+          }}
+          onConfirm={confirmTopUp}
+        />
+      )}
     </div>
   );
 };
@@ -529,11 +608,18 @@ export default ManageSipPage;
 /*  pause, cancel, modify Modals    */
 /* -------------------------------- */
 
+// BSE pauses a count of installments, not a stretch of calendar. For a monthly SIP the two
+// coincide; for a quarterly one, "3 months" is a single installment. Convert here so the
+// number leaving this modal is the one BSE will act on.
+const PER_YEAR = { Monthly: 12, Quarterly: 4, Weekly: 52 };
+const pauseInstallments = (months, frequency) =>
+  Math.max(1, Math.round((months / 12) * (PER_YEAR[frequency] || 12)));
+
 const PauseSipModal = ({ sip, onClose, onConfirm }) => {
-  const [pauseType, setPauseType] = useState("1M");
+  const [months, setMonths] = useState(1);
 
   const handleSubmit = () => {
-    onConfirm({ pauseType });
+    onConfirm({ installments: pauseInstallments(months, sip.frequency) });
   };
 
   return (
@@ -552,24 +638,22 @@ const PauseSipModal = ({ sip, onClose, onConfirm }) => {
           <div className="space-y-2 mb-3 text-xs">
             <p className="text-[11px] text-slate-500">Pause duration</p>
             <div className="flex gap-2">
-              {["1M", "3M", "6M"].map((opt) => (
+              {[1, 3, 6].map((m) => (
                 <button
-                  key={opt}
-                  onClick={() => setPauseType(opt)}
+                  key={m}
+                  onClick={() => setMonths(m)}
                   className={`flex-1 py-1.5 rounded-lg border text-xs ${
-                    pauseType === opt
-                      ? "bg-slate-900 text-white border-slate-900"
-                      : "border-slate-200 text-slate-600"
+                    months === m ? "bg-slate-900 text-white border-slate-900" : "border-slate-200 text-slate-600"
                   }`}
                 >
-                  {opt === "1M"
-                    ? "1 month"
-                    : opt === "3M"
-                    ? "3 months"
-                    : "6 months"}
+                  {m} month{m === 1 ? "" : "s"}
                 </button>
               ))}
             </div>
+            <p className="text-[11px] text-slate-500">
+              {pauseInstallments(months, sip.frequency)} installment
+              {pauseInstallments(months, sip.frequency) === 1 ? "" : "s"} will be skipped.
+            </p>
           </div>
         )}
 
@@ -644,24 +728,148 @@ const CancelSipModal = ({ sip, onClose, onConfirm }) => {
 };
 
 /* ---------------------- */
+/*   Top-Up (ticket 19)   */
+/* ---------------------- */
+
+/**
+ * A BSE top-up is its own recurring instruction layered on the registration — its own
+ * amount, its own cadence — not an edit of the SIP's amount. So the parent SIP's amount,
+ * dates and frequency are untouched, which is what "existing SIP details must remain
+ * unchanged except for the configured Top-Up" asks for.
+ */
+const TOPUP_FREQ = [
+  ["y", "Every year"],
+  ["h", "Every 6 months"],
+];
+
+const TopUpSipModal = ({ sip, onClose, onConfirm }) => {
+  const [amount, setAmount] = useState(Math.max(500, Math.round(sip.sipAmount * 0.1)));
+  const [freq, setFreq] = useState("y");
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!amount || Number(amount) <= 0) {
+      toastError("Enter a top-up amount");
+      return;
+    }
+    setSaving(true);
+    // The scheme's real minimum is checked on the server against BSE's own master — this
+    // form does not invent a floor of its own.
+    await onConfirm({ amount, freq });
+    setSaving(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-5">
+        <h2 className="text-sm font-semibold text-slate-900 mb-1">Top up this SIP</h2>
+        <p className="text-[11px] text-slate-500 mb-3">
+          Increase what you invest in <span className="font-medium text-slate-800">{sip.schemeName}</span> over
+          time. Your current SIP of ₹{sip.sipAmount.toLocaleString("en-IN")} stays as it is; the top-up is
+          added on top of it.
+        </p>
+
+        <label className="text-[11px] text-slate-500 mb-1 block">Top-up amount (₹)</label>
+        <input
+          type="number"
+          value={amount}
+          min={1}
+          onChange={(e) => setAmount(e.target.value)}
+          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none"
+        />
+
+        <label className="text-[11px] text-slate-500 mt-3 mb-1 block">How often</label>
+        <select
+          value={freq}
+          onChange={(e) => setFreq(e.target.value)}
+          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none"
+        >
+          {TOPUP_FREQ.map(([code, label]) => (
+            <option key={code} value={code}>
+              {label}
+            </option>
+          ))}
+        </select>
+
+        <div className="mt-4 flex justify-end gap-3 text-xs">
+          <button onClick={onClose} className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600">
+            Close
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={saving}
+            className="px-4 py-2 rounded-lg bg-emerald-600 text-white font-medium disabled:opacity-50"
+          >
+            {saving ? "Adding…" : "Add Top-Up"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ---------------------- */
 /*   Modify SIP Page      */
 /* ---------------------- */
 
+// BSE's own frequency codes. The select used to offer Half-yearly and Yearly, which
+// sxp_register does not accept for a SIP at all (it takes m / q / w), and it sent the
+// English word rather than the code — so a frequency change could never have registered.
+const FREQ_OPTIONS = [
+  ["m", "Monthly"],
+  ["q", "Quarterly"],
+  ["w", "Weekly"],
+];
+const FREQ_CODE = { Monthly: "m", Quarterly: "q", Weekly: "w" };
+
 const ModifySipPage = ({ sip, onBack, onSave }) => {
   const [amount, setAmount] = useState(sip.sipAmount);
-  const [sipDate, setSipDate] = useState(sip.sipDay);
-  const [frequency, setFrequency] = useState(sip.frequency || "Monthly");
+  const [frequency, setFrequency] = useState(FREQ_CODE[sip.frequency] || "m");
+  const [saving, setSaving] = useState(false);
 
-  const handleSubmit = () => {
+  // The scheme's own accepted SIP dates and minimum, same source the SIP setup page uses.
+  // Offering a date this scheme does not take is how an order comes back invalid_txn_date.
+  const [sipTxn, setSipTxn] = useState(null);
+  const [minSip, setMinSip] = useState(0);
+  useEffect(() => {
+    if (!sip.schemeCode) return;
+    let live = true;
+    postApi(nodeUrl(import.meta.env.VITE_SCHEME_DETAILS || "/scheme-details"), { scheme_code: sip.schemeCode })
+      .then((res) => {
+        if (!live) return;
+        const info = res?.data?.scheme_info;
+        setSipTxn(info?.transactions?.sip || null);
+        setMinSip(Number(info?.transactions?.sip?.minAmount) || 0);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [sip.schemeCode]);
+
+  const sipDays = useMemo(() => allowedDays(sipTxn, frequency), [sipTxn, frequency]);
+  const [sipDate, setSipDate] = useState(() => Number(sip.sipDay) || smartDefaultDay(FALLBACK_SIP_DAYS));
+  useEffect(() => {
+    if (sipDays.includes(sipDate)) return;
+    setSipDate(smartDefaultDay(sipDays));
+  }, [sipDays, sipDate]);
+
+  // BSE ties start_date's day-of-month to the SIP date (msgid 3809), so the start date is
+  // derived rather than asked for — the next occurrence of the chosen day.
+  const startDate = nextOccurrence(sipDate);
+
+  const handleSubmit = async () => {
     if (!amount || amount <= 0) {
       toastError("Please enter a valid amount");
       return;
     }
-    if (sipDate < 1 || sipDate > 28) {
-      toastError("SIP date must be between 1 and 28");
+    if (minSip && Number(amount) < minSip) {
+      toastError(`Minimum SIP for this fund is ₹${minSip.toLocaleString("en-IN")}`);
       return;
     }
-    onSave({ amount, sipDate, frequency });
+    setSaving(true);
+    await onSave({ amount, startDate, frequency });
+    setSaving(false);
   };
 
   return (
@@ -697,6 +905,12 @@ const ModifySipPage = ({ sip, onBack, onSave }) => {
             </div>
           </div>
 
+          {minSip > 0 && (
+            <p className="text-[11px] text-slate-500 -mt-2">
+              Minimum for this fund: ₹{minSip.toLocaleString("en-IN")}
+            </p>
+          )}
+
           <div>
             <p className="text-[11px] text-slate-500 mb-1">SIP date</p>
             <select
@@ -704,12 +918,15 @@ const ModifySipPage = ({ sip, onBack, onSave }) => {
               onChange={(e) => setSipDate(Number(e.target.value))}
               className="w-full border border-slate-200 bg-slate-50 rounded-xl px-3 py-2 text-xs outline-none"
             >
-              {[1, 5, 10, 15, 20, 25].map((d) => (
+              {sipDays.map((d) => (
                 <option key={d} value={d}>
-                  {d.toString().padStart(2, "0")} of every month
+                  {ordinal(d)} of every month
                 </option>
               ))}
             </select>
+            <p className="text-[11px] text-slate-500 mt-1">
+              The replacement SIP starts on {startDate}.
+            </p>
           </div>
 
           <div>
@@ -719,25 +936,27 @@ const ModifySipPage = ({ sip, onBack, onSave }) => {
               onChange={(e) => setFrequency(e.target.value)}
               className="w-full border border-slate-200 bg-slate-50 rounded-xl px-3 py-2 text-xs outline-none"
             >
-              <option value="Monthly">Monthly</option>
-              <option value="Quarterly">Quarterly</option>
-              <option value="Half-yearly">Half-yearly</option>
-              <option value="Yearly">Yearly</option>
+              {FREQ_OPTIONS.map(([code, label]) => (
+                <option key={code} value={code}>
+                  {label}
+                </option>
+              ))}
             </select>
           </div>
 
           <div className="pt-2 border-t border-slate-100 mt-2 flex items-center justify-between gap-3">
+            {/* Not a euphemism: BSE has no way to edit a SIP, so this really does register a
+                new one and cancel this one. The investor should know that before pressing. */}
             <p className="text-[11px] text-slate-500">
-              Changes will apply from the{" "}
-              <span className="font-medium text-slate-800">
-                next SIP installment
-              </span>
+              This registers a <span className="font-medium text-slate-800">new SIP</span> and cancels the
+              current one — BSE cannot edit an existing registration.
             </p>
             <button
               onClick={handleSubmit}
-              className="px-5 py-2.5 rounded-xl text-xs font-semibold shadow-sm bg-blue-600 hover:bg-blue-700 text-white"
+              disabled={saving}
+              className="px-5 py-2.5 rounded-xl text-xs font-semibold shadow-sm bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
             >
-              Save changes
+              {saving ? "Saving…" : "Save changes"}
             </button>
           </div>
         </div>
