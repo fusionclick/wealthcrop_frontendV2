@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, FileUp } from "lucide-react";
 import { deleteApiWithToken, getApiWithToken, postApi, postApiWithToken } from "../../api/api";
 import { externalTotals, laravelUrl, navForDate, navLooksPlausible, nodeUrl, unitsFor } from "../../utils/nodeApi";
 import { useNavMap, liveNav } from "../../utils/navSocket";
@@ -8,6 +8,7 @@ import { ensureExternalNav } from "../../utils/externalNav";
 import Combo from "../../components/ui/Combo";
 import FundDashboardSkeleton from "../../components/ui/skeleton/main/FundDashboardSkeleton";
 import HoldingSheet from "../../components/mutual_fund/HoldingSheet";
+import CasImport from "../../components/mutual_fund/CasImport";
 
 const EXTERNAL_URL = () => laravelUrl(import.meta.env.VITE_EXTERNAL_MF || "/portfolio/mf/external");
 const money = (n) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
@@ -21,6 +22,7 @@ const ExternalMF = () => {
   const navs = useNavMap();
   const [form, setForm] = useState(EMPTY);
   const [showForm, setShowForm] = useState(false);
+  const [showCas, setShowCas] = useState(false);
   const [schemeText, setSchemeText] = useState("");
   const [schemeQuery, setSchemeQuery] = useState("");
   const [error, setError] = useState("");
@@ -162,13 +164,29 @@ const ExternalMF = () => {
             Doosre AMC, bank ya platform se li hui units — yahan sirf track hoti hain, buy/sell nahi.
           </p>
         </div>
-        <button
-          onClick={() => setShowForm((v) => !v)}
-          className="flex items-center gap-1 bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs shrink-0"
-        >
-          <Plus size={14} /> Add Fund
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => setShowCas((v) => !v)}
+            className="flex items-center gap-1 border border-emerald-600 text-emerald-700 dark:text-emerald-400 px-4 py-2 rounded-lg text-xs"
+          >
+            <FileUp size={14} /> Import CAS
+          </button>
+          <button
+            onClick={() => setShowForm((v) => !v)}
+            className="flex items-center gap-1 bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs"
+          >
+            <Plus size={14} /> Add Fund
+          </button>
+        </div>
       </div>
+
+      <CasImport
+        open={showCas}
+        onClose={() => setShowCas(false)}
+        existing={rows}
+        onSave={(payload) => postApiWithToken(EXTERNAL_URL(), payload)}
+        onDone={() => qc.invalidateQueries({ queryKey: ["externalMf"] })}
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
         <Card label="Current Value" value={money(totals.current)} />

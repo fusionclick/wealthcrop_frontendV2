@@ -236,6 +236,50 @@ export const navLooksPlausible = (invested, units, nav) => {
   return n <= avg * 5 && n >= avg / 5;
 };
 
+/**
+ * ─── CAS import (ticket 16) ──────────────────────────────────────────────────────────────
+ *
+ * The backend reads the CAMS/KFintech PDF and hands back holdings; these two turn them into
+ * rows this page can save. Deliberately here and not in the component: a wrong key or a
+ * wrong default quietly double-counts someone's money, so it has to be testable.
+ *
+ * ISIN + folio is the identity, not the name. The same fund held in two folios is two
+ * holdings; the same fund spelled two ways across a statement and a hand-typed row is one.
+ */
+export const casRowKey = (h = {}) =>
+  `${String(h.scheme_isin || h.scheme_name || "").toUpperCase().trim()}|${String(h.folio || "").replace(/\s+/g, "")}`;
+
+export const markCasDuplicates = (holdings = [], existing = []) => {
+  const seen = new Set(existing.map(casRowKey));
+  return holdings.map((h) => ({
+    ...h,
+    key: casRowKey(h),
+    // Already in the portfolio — offered unticked, because importing it again is how one
+    // fund becomes two lines and the totals stop matching the statement.
+    duplicate: seen.has(casRowKey(h)),
+    // A statement that opens mid-holding does not say what was paid. Current value is the
+    // neutral stand-in: P&L reads zero instead of a gain nobody made. The field is editable.
+    invested_amount: h.invested_amount ?? h.statement_value ?? "",
+    cost_from_statement: h.invested_amount != null,
+  }));
+};
+
+/** Exactly the body the "Add Fund" form posts, so an imported row and a typed one match. */
+export const casHoldingPayload = (row = {}) => ({
+  // The catalogue's spelling when it matched — that is the name the NAV socket and the
+  // fund page use; the RTA's abbreviation only has to be good enough to find it.
+  scheme_name: row.matched_name || row.scheme_name || "",
+  scheme_isin: row.scheme_isin || "",
+  scheme_bse_code: row.scheme_bse_code || "",
+  scheme_category: row.scheme_category || "",
+  nav: Number(row.nav) > 0 ? Number(row.nav) : null,
+  units: Number(row.units),
+  invested_amount: Number(row.invested_amount) || 0,
+  folio: row.folio || "",
+  source: row.source || "CAS",
+  purchased_at: row.purchased_at || null,
+});
+
 export const externalTotals = (rows = [], navOf = () => null) => {
   let invested = 0;
   let current = 0;
