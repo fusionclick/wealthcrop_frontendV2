@@ -6,6 +6,7 @@ import { useSelector } from "react-redux";
 import { nodeUrl, validateInvestorReady, buildMandatePayload } from "../../utils/nodeApi";
 import { titleCase } from "../../utils/schemeName";
 import { allowedDays, FALLBACK_SIP_DAYS, iso, nextOccurrence, ordinal, smartDefaultDay } from "../../utils/sipDates";
+import OrderDisclaimers, { useDisclaimers } from "../../components/mutual_fund/OrderDisclaimers";
 
 // BSE counts installments, not an end date; the server derives the count the same way.
 // Showing it here means the investor sees exactly what is being registered.
@@ -95,6 +96,9 @@ const SIPSetupPage = () => {
   const startDayInvalid = !sipDays.includes(startDay);
 
   const [loading, setLoading] = useState(false);
+  // Ticket 22: a SIP is a purchase instruction repeated, so it carries the same
+  // acknowledgement. The server refuses /xspRegister without it.
+  const disc = useDisclaimers();
 
   // Once the scheme's real dates arrive, re-pick. Only when the day in hand is not one the
   // scheme accepts — an investor who already chose a valid date keeps it.
@@ -150,6 +154,7 @@ const SIPSetupPage = () => {
         txn_date: Number(sipDay),
         start_date: startDate,
         end_date: endDate,
+        acknowledged: disc.acked,
       },
     };
 
@@ -312,6 +317,8 @@ const SIPSetupPage = () => {
           </div>
         )}
 
+        <OrderDisclaimers {...disc} />
+
         <div className="flex gap-3">
           <button
             onClick={() => navigate(-1)}
@@ -321,7 +328,9 @@ const SIPSetupPage = () => {
           </button>
           <button
             onClick={handleRegister}
-            disabled={loading || !fund.scheme_bse_code || Number(amount) < minSip || !installments || startDayInvalid}
+            disabled={
+              loading || !fund.scheme_bse_code || Number(amount) < minSip || !installments || startDayInvalid || !disc.ready
+            }
             className="flex-1 py-3 rounded-lg bg-blue-600 text-white font-medium disabled:opacity-50 dark:bg-blue-500"
           >
             {loading ? "Registering…" : "Start SIP"}

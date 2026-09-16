@@ -6,6 +6,7 @@ import { toastError, toastSuccess } from "../../utils/notifyCustom";
 import { useSelector } from "react-redux";
 import { nodeUrl, laravelUrl, validateInvestorReady } from "../../utils/nodeApi";
 import Combo, { fieldClass } from "../../components/ui/Combo";
+import OrderDisclaimers, { useDisclaimers } from "../../components/mutual_fund/OrderDisclaimers";
 
 // Folio isi liye label mein hai — ek hi scheme kai folios mein ho sakti hai,
 // aur switch hamesha ek folio se nikalta hai.
@@ -26,6 +27,9 @@ const SwitchMF = () => {
   const [switchAll, setSwitchAll] = useState(true);
   const [amount, setAmount] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // Ticket 22/24: a switch BUYS into the destination scheme, so it takes the same gates a
+  // lumpsum does — the server judges dest_scheme, not the fund being sold.
+  const disc = useDisclaimers();
 
   // Same query key as RedeemMF — cache hit, aur in holdings par asli BSE folio hota hai.
   const { data: holdings = [], isLoading } = useQuery({
@@ -118,6 +122,7 @@ const SwitchMF = () => {
             email: investorData?.email || "",
           },
         ],
+        acknowledged: disc.acked,
       },
     };
 
@@ -210,11 +215,13 @@ const SwitchMF = () => {
               />
             )}
 
+            <OrderDisclaimers {...disc} />
+
             <div className="flex gap-3">
               <button onClick={() => navigate(-1)} className="flex-1 py-3 rounded-lg border">Cancel</button>
               <button
                 onClick={handleSwitch}
-                disabled={submitting}
+                disabled={submitting || !disc.ready}
                 className="flex-1 py-3 rounded-lg bg-indigo-600 text-white font-medium disabled:opacity-50"
               >
                 {submitting ? "Processing…" : "Switch Fund"}

@@ -196,5 +196,5 @@ test("SIP date and start date can never be sent out of step", () => {
   // A 29th-31st start has no monthly equivalent, and nor does any day this scheme does
   // not accept — one block now covers both.
   assert.match(sip, /startDayInvalid/);
-  assert.match(sip, /disabled=\{[^}]*startDayInvalid\}/);
+  assert.match(sip, /disabled=\{[\s\S]{0,300}?startDayInvalid/, "an invalid SIP date no longer blocks submit");
 });

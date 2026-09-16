@@ -6,6 +6,7 @@ import { clearToasts, toastError, toastSuccess } from "../../utils/notifyCustom"
 import InvestLoader from "../../components/InvestLoader";
 import PaymentPromptModal from "../../components/PaymentPromptModal";
 import { apiErrorMessage, nodeUrl, laravelUrl, validateInvestorReady } from "../../utils/nodeApi";
+import OrderDisclaimers, { useDisclaimers } from "../../components/mutual_fund/OrderDisclaimers";
 
 const MutualFundInvestPage = ({ fundsList: fundsProp, setBuyModal }) => {
   const { isin, code } = useParams();
@@ -18,6 +19,8 @@ const MutualFundInvestPage = ({ fundsList: fundsProp, setBuyModal }) => {
   const [showPaymentPopup, setShowPaymentPopup] = useState(false);
   const [paymentLink, setPaymentLink] = useState("");
   const [orderError, setOrderError] = useState("");
+  // Ticket 22. The server refuses the order without these, so the button waits for them.
+  const disc = useDisclaimers();
 
   useEffect(() => {
     if (fundsProp?.scheme_bse_code) {
@@ -151,6 +154,7 @@ const MutualFundInvestPage = ({ fundsList: fundsProp, setBuyModal }) => {
             email: investor?.email || "",
           },
         ],
+        acknowledged: disc.acked,
       },
     };
 
@@ -242,6 +246,8 @@ const MutualFundInvestPage = ({ fundsList: fundsProp, setBuyModal }) => {
           </p>
         )}
 
+        <OrderDisclaimers {...disc} />
+
         <div className="flex gap-3">
           <button
             onClick={() => {
@@ -256,7 +262,7 @@ const MutualFundInvestPage = ({ fundsList: fundsProp, setBuyModal }) => {
           </button>
           <button
             onClick={handleInvest}
-            disabled={dematBlocked}
+            disabled={dematBlocked || !disc.ready}
             className="flex-1 py-3 rounded-lg bg-emerald-600 text-white font-medium disabled:opacity-50"
           >
             Confirm & Invest
