@@ -62,6 +62,7 @@ import TradingViewWidget from "./components/chart/TradingViewWidget";
 import FundCategorySection from "./pages/mutual_fund/FundCategorySection";
 import IpoDashboardPage from "./components/ipo/IpoDashboardPage";
 import ManageSipPage from "./components/sip/ManageSipPage";
+import ManageSxpPage from "./components/sip/ManageSxpPage";
 import IpoDetails from "./components/ipo/IpoDetails";
 import BondPage from "./components/BondPage";
 import ErrorPage from "./components/ErrorPage";
@@ -420,6 +421,10 @@ useEffect(() => {
               </Route>
 
               <Route path="/mutual_fund/manage-sip" element={<ManageSipPage />} />
+              {/* Tickets 17, 18: an SWP and an STP are started from the redeem and switch
+                  forms, so all they need of their own is somewhere to be seen and stopped. */}
+              <Route path="/mutual_fund/manage-swp" element={<ManageSxpPage type="swp" />} />
+              <Route path="/mutual_fund/manage-stp" element={<ManageSxpPage type="stp" />} />
               <Route path="/mutual_fund/sip-setup" element={<SIPSetupPage />} />
               {/* Same page, but the scheme is in the URL — survives a refresh and can be
                   linked. The bare /sip-setup route above only works while router state

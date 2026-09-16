@@ -5,6 +5,8 @@ import { toastError, toastSuccess } from "../../utils/notifyCustom";
 import { useSelector } from "react-redux";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { nodeUrl, validateInvestorReady, laravelUrl, holdingMatchesScheme, fundBuyPath } from "../../utils/nodeApi";
+import SxpSchedule, { useSxpSchedule } from "../../components/mutual_fund/SxpSchedule";
+import { buildSxpIntent, sxpIntentError } from "../../utils/sxp";
 
 export async function submitRedeemOrder({ investorData, holding, redeemAll, redeemAmount, queryClient }) {
   const err = validateInvestorReady(investorData);
@@ -75,6 +77,33 @@ export async function submitRedeemOrder({ investorData, holding, redeemAll, rede
   }
 }
 
+/**
+ * Ticket 17 — the same withdrawal, registered as a schedule instead of placed once.
+ *
+ * Intent only: BSE's sxp_register payload is assembled server-side, which is also where the
+ * folio's units are checked against BSE rather than against whatever this page last read.
+ */
+export async function registerSwp({ investorData, holding, amount, sched, queryClient }) {
+  const err = validateInvestorReady(investorData);
+  if (err) return { ok: false, message: err };
+  const bad = sxpIntentError({ type: "swp", source: holding, amount, schedule: sched });
+  if (bad) return { ok: false, message: bad };
+
+  try {
+    const res = await postApiWithToken(
+      nodeUrl(import.meta.env.VITE_XSP_REGISTER || "/xspRegister"),
+      buildSxpIntent({ type: "swp", source: holding, amount, schedule: sched })
+    );
+    if (res?.status === 200 || res?.status === true || res?.status === "success") {
+      queryClient?.invalidateQueries({ queryKey: ["bsePortfolio"] });
+      return { ok: true };
+    }
+    return { ok: false, message: res?.message || res?.error || "Could not register the SWP." };
+  } catch (e) {
+    return { ok: false, message: e?.response?.data?.message || e?.message || "Could not register the SWP." };
+  }
+}
+
 export function RedeemForm({ holding, locked, onCancel, onSuccess }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -82,22 +111,25 @@ export function RedeemForm({ holding, locked, onCancel, onSuccess }) {
   const [redeemAmount, setRedeemAmount] = useState("");
   const [redeemAll, setRedeemAll] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Ticket 17: an SWP is this same withdrawal, repeated. The holding and its folio are
+  // already picked above, so the only thing the investor adds is a schedule.
+  const sched = useSxpSchedule("swp", holding);
 
   const handleRedeem = async () => {
     setSubmitting(true);
-    const result = await submitRedeemOrder({
-      investorData,
-      holding,
-      redeemAll,
-      redeemAmount,
-      queryClient,
-    });
+    const result = sched.on
+      ? await registerSwp({ investorData, holding, amount: redeemAmount, sched, queryClient })
+      : await submitRedeemOrder({ investorData, holding, redeemAll, redeemAmount, queryClient });
     setSubmitting(false);
     if (!result.ok) {
       toastError(result.message);
       return;
     }
-    toastSuccess("Redemption placed. You can invest more in this fund any time.");
+    toastSuccess(
+      sched.on
+        ? "SWP registered. You can stop it any time from Manage SWP."
+        : "Redemption placed. You can invest more in this fund any time."
+    );
     onSuccess?.();
   };
 
@@ -114,19 +146,23 @@ export function RedeemForm({ holding, locked, onCancel, onSuccess }) {
         </p>
       </div>
 
-      <label className="flex items-center gap-3 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={redeemAll}
-          onChange={(e) => setRedeemAll(e.target.checked)}
-          className="w-4 h-4"
-        />
-        <span className="text-sm text-gray-700 dark:text-[var(--text-secondary)]">Redeem all units</span>
-      </label>
-      {!redeemAll && (
+      {/* "All units" and a schedule contradict each other — the first installment would
+          empty the folio and leave the rest of the schedule with nothing to sell. */}
+      {!sched.on && (
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={redeemAll}
+            onChange={(e) => setRedeemAll(e.target.checked)}
+            className="w-4 h-4"
+          />
+          <span className="text-sm text-gray-700 dark:text-[var(--text-secondary)]">Redeem all units</span>
+        </label>
+      )}
+      {(sched.on || !redeemAll) && (
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-[var(--text-secondary)] mb-1">
-            Redemption Amount (₹)
+            {sched.on ? "Amount per installment (₹)" : "Redemption Amount (₹)"}
           </label>
           <input
             type="number"
@@ -138,6 +174,8 @@ export function RedeemForm({ holding, locked, onCancel, onSuccess }) {
           />
         </div>
       )}
+
+      <SxpSchedule {...sched} amount={redeemAmount} />
 
       <div className="flex gap-3">
         {onCancel ? (
@@ -152,10 +190,10 @@ export function RedeemForm({ holding, locked, onCancel, onSuccess }) {
         <button
           type="button"
           onClick={handleRedeem}
-          disabled={submitting || (locked && !holding)}
+          disabled={submitting || (locked && !holding) || !sched.ready}
           className="flex-1 py-3 rounded-lg bg-red-600 text-white font-medium disabled:opacity-50"
         >
-          {submitting ? "Processing…" : "Redeem"}
+          {submitting ? "Processing…" : sched.on ? "Start SWP" : "Redeem"}
         </button>
       </div>
 

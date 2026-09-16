@@ -7,6 +7,8 @@ import { useSelector } from "react-redux";
 import { nodeUrl, laravelUrl, validateInvestorReady } from "../../utils/nodeApi";
 import Combo, { fieldClass } from "../../components/ui/Combo";
 import OrderDisclaimers, { useDisclaimers } from "../../components/mutual_fund/OrderDisclaimers";
+import SxpSchedule, { useSxpSchedule } from "../../components/mutual_fund/SxpSchedule";
+import { buildSxpIntent, sxpIntentError } from "../../utils/sxp";
 
 // Folio isi liye label mein hai — ek hi scheme kai folios mein ho sakti hai,
 // aur switch hamesha ek folio se nikalta hai.
@@ -77,6 +79,48 @@ const SwitchMF = () => {
 
   const selectedSource = holdings.find((h) => holdingLabel(h) === srcText);
   const selectedDest = destFunds.find((f) => f.name === destText);
+  // Ticket 18: an STP is this same switch, repeated. Source, destination and folio are
+  // already picked above, so all the investor adds is a schedule.
+  const sched = useSxpSchedule("stp", selectedSource);
+
+  /**
+   * Intent only. sxp_register's payload — UCC, member code, demat ids — is built
+   * server-side, which is also where the folio's units are checked against BSE, and where
+   * the risk-profile and disclaimer gates are applied to the fund being bought into.
+   */
+  const handleStp = async () => {
+    const err = validateInvestorReady(investorData);
+    if (err) return toastError(err);
+    const destCode = selectedDest?.scheme_bse_code;
+    const bad = sxpIntentError({ type: "stp", source: selectedSource, destCode, amount, schedule: sched });
+    if (bad) return toastError(bad);
+
+    setSubmitting(true);
+    try {
+      const res = await postApiWithToken(
+        nodeUrl(import.meta.env.VITE_XSP_REGISTER || "/xspRegister"),
+        buildSxpIntent({
+          type: "stp",
+          source: selectedSource,
+          destCode,
+          amount,
+          schedule: sched,
+          acknowledged: disc.acked,
+        })
+      );
+      if (res?.status === 200 || res?.status === true || res?.status === "success") {
+        queryClient.invalidateQueries({ queryKey: ["bsePortfolio"] });
+        toastSuccess("STP registered. You can stop it any time from Manage STP.");
+        navigate("/mutual_fund/manage-stp");
+      } else {
+        toastError(res?.message || res?.error || "Could not register the STP.");
+      }
+    } catch (e) {
+      toastError(e?.response?.data?.message || e?.message || "Could not register the STP.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const handleSwitch = async () => {
     const err = validateInvestorReady(investorData);
@@ -200,31 +244,37 @@ const SwitchMF = () => {
               }))}
             />
 
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={switchAll} onChange={(e) => setSwitchAll(e.target.checked)} />
-              <span className="text-sm">Switch all units</span>
-            </label>
+            {/* "All units" and a schedule contradict each other — the first installment
+                would empty the folio and leave the rest with nothing to transfer. */}
+            {!sched.on && (
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={switchAll} onChange={(e) => setSwitchAll(e.target.checked)} />
+                <span className="text-sm">Switch all units</span>
+              </label>
+            )}
 
-            {!switchAll && (
+            {(sched.on || !switchAll) && (
               <input
                 type="number"
-                placeholder="Amount (₹)"
+                placeholder={sched.on ? "Amount per installment (₹)" : "Amount (₹)"}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 className={fieldClass}
               />
             )}
 
+            <SxpSchedule {...sched} amount={amount} />
+
             <OrderDisclaimers {...disc} />
 
             <div className="flex gap-3">
               <button onClick={() => navigate(-1)} className="flex-1 py-3 rounded-lg border">Cancel</button>
               <button
-                onClick={handleSwitch}
-                disabled={submitting || !disc.ready}
+                onClick={sched.on ? handleStp : handleSwitch}
+                disabled={submitting || !disc.ready || !sched.ready}
                 className="flex-1 py-3 rounded-lg bg-indigo-600 text-white font-medium disabled:opacity-50"
               >
-                {submitting ? "Processing…" : "Switch Fund"}
+                {submitting ? "Processing…" : sched.on ? "Start STP" : "Switch Fund"}
               </button>
             </div>
           </>

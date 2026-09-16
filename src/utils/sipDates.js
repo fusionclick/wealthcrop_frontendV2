@@ -60,3 +60,16 @@ export const smartDefaultDay = (days = FALLBACK_SIP_DAYS, from = new Date()) => 
     Date.parse(nextOccurrence(d, from)) < Date.parse(nextOccurrence(best, from)) ? d : best
   );
 };
+
+/**
+ * BSE registers a count of installments, never an end date, so every scheduled-instruction
+ * form has to turn the two dates the investor picked into that count. The server derives it
+ * the same way; showing it here means the dates are not a black box.
+ */
+const PER_YEAR = { m: 12, q: 4, w: 52 };
+export const installmentCount = (start, end, freq) => {
+  const perYear = PER_YEAR[freq];
+  const years = (Date.parse(end) - Date.parse(start)) / (365.25 * 24 * 3600 * 1000);
+  if (!perYear || !Number.isFinite(years) || years <= 0) return 0;
+  return Math.max(1, Math.round(years * perYear));
+};
