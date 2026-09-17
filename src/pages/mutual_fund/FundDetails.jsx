@@ -229,8 +229,8 @@ const fundamentals = [
   // the scheme's own benchmark where BSE names one, otherwise the index SEBI prescribes for
   // its category. Which of the two it was is on the tooltip, so a category benchmark is
   // never read as the AMC's own. No index the backend can price = no tiles, as before.
-  { label: "Alpha", value: ratios?.alpha, suffix: "%" },
-  { label: "Beta", value: ratios?.beta },
+  { label: "Alpha", value: ratios?.alpha, suffix: "%", vs: ratios?.benchmark },
+  { label: "Beta", value: ratios?.beta, vs: ratios?.benchmark },
   { label: "P/E Ratio", value: ratios?.peRatio },
   { label: "P/B Ratio", value: ratios?.pbRatio },
 ].filter((m) => m.value != null);
@@ -655,7 +655,15 @@ const pctOf = (key) => {
                 }
               >
                 <div className="flex justify-between items-center">
-                  <p className="text-xs text-slate-500 dark:text-[var(--text-secondary)]">{item.label}</p>
+                  <p className="text-xs text-slate-500 dark:text-[var(--text-secondary)]">
+                    {item.label}
+                    {/* Alpha and Beta are meaningless without the index they were measured
+                        against, so it sits on the card itself rather than only in the
+                        tooltip — a number nobody hovers is a number read out of context. */}
+                    {item.vs ? (
+                      <span className="text-[10px] text-slate-400 dark:text-[var(--text-secondary)]"> vs {item.vs}</span>
+                    ) : null}
+                  </p>
                   <span className="text-gray-500 dark:text-[var(--text-secondary)] text-xs">
                     <MdOutlineInfo />
                   </span>

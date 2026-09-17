@@ -486,6 +486,21 @@ useEffect(() => {
     setIsUccCreated(true);
     return;
   }
+
+  // The review step is reached by `await refetch()` then `setStep(4)`, and React can render
+  // the new step BEFORE the refetched record lands. This effect then ran against the copy
+  // loaded when the page opened — which has no bank account, because the bank was saved in
+  // this same session — and refused with "Add your bank account" over a step whose tick was
+  // already green. That is what QA hit.
+  //
+  // So: if the investor has completed the bank step but THIS copy of the record does not
+  // show it yet, that is a stale read, not a missing account. Wait for the next one rather
+  // than spending the single UCC attempt on it. `kyc_steps` is the server's own count, so
+  // it cannot disagree with itself the way two client-side copies can.
+  const bankStepDone = Number(userData?.kyc_steps ?? 0) >= 1;
+  const bankLoaded = Boolean(userData?.bank_accounts?.[0]?.account_number);
+  if (bankStepDone && !bankLoaded) return;
+
   if (uccRequested.current) return;
   uccRequested.current = true;
 
