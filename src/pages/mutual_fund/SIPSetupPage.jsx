@@ -94,6 +94,8 @@ const SIPSetupPage = () => {
   // "only the 5th and the 15th" — so an unsupported day is caught here and blocks submit.
   const startDay = Number(String(startDate).slice(8, 10));
   const startDayInvalid = !sipDays.includes(startDay);
+  // `min` keeps the picker honest, but a date can still be typed straight into the field.
+  const endBeforeStart = Boolean(endDate) && Date.parse(endDate) <= Date.parse(startDate);
 
   const [loading, setLoading] = useState(false);
   // Ticket 22: a SIP is a purchase instruction repeated, so it carries the same
@@ -290,9 +292,17 @@ const SIPSetupPage = () => {
               <input
                 type="date"
                 value={endDate}
+                // The start date has always been floored at tomorrow; this one was not, so
+                // the calendar happily offered 2008 and the only sign of trouble was the
+                // installment count silently reading zero. A SIP cannot end before it
+                // begins, so that is the floor.
+                min={startDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 className="w-full border rounded-lg px-3 py-2 text-gray-800 dark:bg-[var(--white-10)] dark:text-[var(--text-primary)] dark:border-[var(--border-color)]"
               />
+              {endBeforeStart && (
+                <p className="text-xs text-red-500 mt-1">The end date has to come after the start date.</p>
+              )}
             </div>
           </div>
         </div>

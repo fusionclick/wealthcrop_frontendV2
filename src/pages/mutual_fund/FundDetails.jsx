@@ -267,7 +267,9 @@ const [activeInfo, setActiveInfo] = useState(null);
 // Absolute vs CAGR. The chart owns the visible toggle and calls back here, so the numbers
 // in the returns table and the headline always agree with the line being drawn — one
 // control, not two that can disagree.
-const [returnMode, setReturnMode] = useState("cagr");
+// Opens on what the chart opens on. MFChart reports its mode on mount now, so a mismatched
+// default here only bought one painted frame of the wrong label before it corrected itself.
+const [returnMode, setReturnMode] = useState("absolute");
 const periodReturns = fundsList?.periodReturns;
 const shownReturns = periodReturns?.[returnMode] || null;
 const annualised = returnMode === "cagr";

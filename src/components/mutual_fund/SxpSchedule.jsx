@@ -206,7 +206,18 @@ export default function SxpSchedule({
               <label className="block text-sm font-medium text-gray-700 dark:text-[var(--text-secondary)] mb-1">
                 End date
               </label>
-              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={field} />
+              {/* Same floor the start date already had. Without it the picker offered dates
+                  years in the past and the only symptom was an installment count of zero. */}
+              <input
+                type="date"
+                value={endDate}
+                min={startDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className={field}
+              />
+              {Boolean(endDate) && Date.parse(endDate) <= Date.parse(startDate) && (
+                <p className="text-xs text-red-500 mt-1">The end date has to come after the start date.</p>
+              )}
             </div>
           </div>
 

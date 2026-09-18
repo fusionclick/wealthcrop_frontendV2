@@ -99,11 +99,23 @@ export default function MFChart({ series = [], height = 320, synthetic = false, 
     return toReturnSeries(rows, activeMode);
   }, [rows, activeMode]);
 
-  const pickMode = (m) => {
-    setMode(m);
-    // The percentage figures elsewhere on the page follow the same toggle.
-    onModeChange?.(m === "nav" ? "absolute" : m);
-  };
+  const pickMode = (m) => setMode(m);
+
+  /**
+   * Tell the page what is ACTUALLY being drawn, not what was clicked.
+   *
+   * The percentage beside the fund name disagreed with this toggle in two ways, both from
+   * being told the wrong thing. It was only told anything on a click, so on first paint the
+   * chart sat on NAV while the page kept its own independent default of CAGR — that is the
+   * "7.03% p.a. 3Y annualised" over an untouched NAV chart. And a click reported the button
+   * rather than `activeMode`, so on a fund with under a year of history picking CAGR fell
+   * back to absolute here while the header went on saying "p.a.".
+   *
+   * One value, sent whenever it changes, first render included.
+   */
+  useEffect(() => {
+    onModeChange?.(activeMode === "nav" ? "absolute" : activeMode);
+  }, [activeMode, onModeChange]);
 
   const yFmt = (v) => (activeMode === "nav" ? `₹${Number(v).toFixed(2)}` : `${Number(v).toFixed(1)}%`);
   const dataKey = activeMode === "nav" ? "nav" : "value";

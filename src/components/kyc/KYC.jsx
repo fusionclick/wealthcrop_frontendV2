@@ -1392,7 +1392,8 @@ function PersonalStep({ data, onChange, errors = {}, panLookupBusy }) {
       </h2>
       <p className="text-xs text-gray-500 dark:text-gray-400">
         Enter your PAN and pincode first — we fill in whatever we can from them.
-        PAN and Aadhaar are optional here; PAN is only needed when you submit for BSE verification.
+        Aadhaar is optional. PAN you can leave for now and come back to, but KYC cannot be
+        submitted without it: BSE will not open an account against a missing PAN.
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3">
         <Field
@@ -1405,7 +1406,13 @@ function PersonalStep({ data, onChange, errors = {}, panLookupBusy }) {
           placeholder="As per PAN"
         />
          <Field
+        // Labelled "(optional)" until now, which was only true of *this step* — the review
+        // step refuses to submit without it, so the investor filled four more steps before
+        // being told. The field still does not block Continue, because entering the PAN
+        // first is what drives the autofill below; the label just stops disagreeing with
+        // the rule that actually applies.
         label="PAN Number"
+        required
         value={data.pan}
         error={errors.pan}
         upper
