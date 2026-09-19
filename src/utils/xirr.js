@@ -97,8 +97,31 @@ const INFLOW = /redeem|redemption|sell|withdraw|swp|switch[\s_-]*out|stp[\s_-]*o
 // what "settled" means.
 const SETTLED = /allot|accept|success|complet|paid|executed?/i;
 
+/**
+ * BSE reports the transaction as a CODE, not a word.
+ *
+ * `order_list` sends `trxn_type: "p"` / `"r"` / `"sw"` — the same three this app sends when
+ * it places an order (see order.js ALLOWED_TYPES). The word patterns above never matched a
+ * bare letter, so every single flow scored 0 and was dropped: an account with a full order
+ * history and a correct P&L still rendered XIRR as "—", because there were no cash flows
+ * left to run a rate over.
+ *
+ * "sw" is deliberately absent. A switch moves money between schemes without any leaving the
+ * portfolio, and the code alone does not say which leg this row is, so counting it either
+ * way would invent a flow. Unclassified is the honest answer, and the word patterns still
+ * catch "switch in"/"switch out" when BSE spells them out.
+ */
+const TRXN_CODE = new Map([
+  ["p", -1], // purchase — money leaves the investor
+  ["r", 1], // redemption — money comes back
+]);
+
 export const classifyFlow = (order) => {
-  const type = `${order?.type || ""} ${order?.trxn_type || ""}`;
+  for (const raw of [order?.type, order?.trxn_type, order?.order_type]) {
+    const code = String(raw ?? "").trim().toLowerCase();
+    if (TRXN_CODE.has(code)) return TRXN_CODE.get(code);
+  }
+  const type = `${order?.type || ""} ${order?.trxn_type || ""} ${order?.order_type || ""}`;
   if (INFLOW.test(type)) return 1;
   if (OUTFLOW.test(type)) return -1;
   return 0;
