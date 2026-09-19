@@ -150,7 +150,14 @@ const [docUploaded, setDocUploaded] = useState({
   // marital status,
   // fathers name
 
-  const update = (key, value) =>
+  // A field's error is only ever cleared by the next Continue, so "City is required" stayed
+  // under a filled City box and "Enter a valid 6-digit India pincode" stayed under 110001.
+  // Editing a field is the investor answering that complaint; drop it then.
+  const clearError = (key) =>
+    setFieldErrors((prev) => (key in prev ? Object.fromEntries(Object.entries(prev).filter(([k]) => k !== key)) : prev));
+
+  const update = (key, value) => {
+    clearError(key);
     setKycData((prev) => {
       const next = { ...prev, [key]: value };
       // An IFSC's first four characters ARE the bank code, so picking the bank out of a
@@ -162,6 +169,7 @@ const [docUploaded, setDocUploaded] = useState({
       }
       return next;
     });
+  };
 
   // Pincode → city + state, from India Post's free keyless endpoint. Fires once per
   // pincode; a failed lookup leaves both fields editable and never blocks the step.
@@ -174,6 +182,10 @@ const [docUploaded, setDocUploaded] = useState({
     lookupPincode(pin).then((found) => {
       if (cancelled || !found) return;
       setKycData((prev) => (prev.pin === pin ? { ...prev, city: found.city, state: found.state } : prev));
+      // These two were just filled in for the investor, so any complaint about them is
+      // now stale — they never typed in the boxes, so `update` would not have cleared it.
+      clearError("city");
+      clearError("state");
     });
     return () => {
       cancelled = true;
@@ -1528,6 +1540,21 @@ function PersonalStep({ data, onChange, errors = {}, panLookupBusy }) {
             { value: "1000000", label: "Above ₹5,00,000" },
           ]}
         />
+        {/* Pin first: it fills City and State in for the investor, so asking for it after
+            them made the whole thing read backwards — you type a city, then a pincode
+            overwrites it. */}
+        <Field
+          label="Pin"
+          required
+          value={data.pin}
+          error={errors.pin}
+          digitsOnly
+          maxLength={6}
+          inputMode="numeric"
+          hint="City and state fill in from this"
+          onChange={(v) => onChange("pin", v)}
+          placeholder="123654"
+        />
         <Field
           label="City"
           required
@@ -1542,18 +1569,6 @@ function PersonalStep({ data, onChange, errors = {}, panLookupBusy }) {
           error={errors.state}
           onChange={(v) => onChange("state", v)}
           placeholder="West Bengal"
-        />
-        <Field
-          label="Pin"
-          required
-          value={data.pin}
-          error={errors.pin}
-            digitsOnly
-            maxLength={6}
-            inputMode="numeric"
-          hint="City and state fill in from this"
-          onChange={(v) => onChange("pin", v)}
-          placeholder="123654"
         />
       </div>
     </div>
