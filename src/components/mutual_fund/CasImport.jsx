@@ -204,6 +204,16 @@ const CasImport = ({ open, onClose, existing = [], onSave, onDone }) => {
                 <p className="text-xs text-slate-500">
                   {row.units} units
                   {Number(row.nav) > 0 ? ` · NAV ₹${Number(row.nav).toFixed(2)}` : " · NAV —"}
+                  {/* A CAS prints its NAV as at the statement's closing date. Today's price
+                      is what values the holding, but showing only that looked like the
+                      import had altered a figure printed on the uploaded document. */}
+                  {row.nav_source === "catalogue" && Number(row.statement_nav) > 0 && (
+                    <span className="text-slate-400">
+                      {` (today · statement ₹${Number(row.statement_nav).toFixed(2)}`}
+                      {row.nav_date ? ` on ${row.nav_date}` : ""}
+                      {")"}
+                    </span>
+                  )}
                   {row.folio ? ` · Folio ${row.folio}` : ""}
                   {row.amc ? ` · ${row.amc}` : ""}
                 </p>

@@ -118,3 +118,26 @@ test("the same fund spelled differently is not flagged", () => {
   assert.equal(nameDiffers({ scheme_name: "Whatever Fund", matched_name: "" }), false);
   assert.equal(nameDiffers({}), false);
 });
+
+/**
+ * QA: "the Axis ELSS NAV is being overridden — UI shows 96.57 instead of the statement's
+ * 110.00". Today's price is the right number to value a holding with; a CAS prints its NAV
+ * as at the statement's closing date, and valuing now at an 18-month-old price would be
+ * wrong. But replacing the only NAV on screen looked like the import had altered a figure
+ * printed on the document. Both are carried.
+ */
+test("the statement's own NAV survives beside today's", () => {
+  const [row] = markCasDuplicates(
+    [{ ...holding, nav: 96.5733, statement_nav: 110, nav_date: "2025-03-31", nav_source: "catalogue" }],
+    []
+  );
+  assert.equal(row.nav, 96.5733, "today's price values the holding");
+  assert.equal(row.statement_nav, 110, "and the statement's is still there to show");
+  assert.equal(row.nav_source, "catalogue");
+});
+
+test("an unmatched row reports its NAV as coming from the statement", () => {
+  const [row] = markCasDuplicates([{ ...holding, nav: 44.21 }], []);
+  assert.equal(row.nav_source, "statement");
+  assert.equal(row.statement_nav, null, "nothing was replaced, so there is no second number");
+});

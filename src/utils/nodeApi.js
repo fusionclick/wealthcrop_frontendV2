@@ -304,6 +304,10 @@ export const markCasDuplicates = (holdings = [], existing = []) => {
     cost_from_statement: h.invested_amount != null,
     visible_cost: h.visible_cost ?? null,
     opening_units: Number(h.opening_units) || 0,
+    // What the statement itself printed, kept beside today's price rather than replaced by
+    // it — see the CAS import panel.
+    statement_nav: h.statement_nav ?? null,
+    nav_source: h.nav_source || "statement",
   }));
 };
 
