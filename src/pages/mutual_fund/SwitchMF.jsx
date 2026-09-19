@@ -46,15 +46,24 @@ const SwitchMF = () => {
   // folio too. Only ever sets the field while it is still untouched.
   useEffect(() => {
     if (srcText || !holdings.length) return;
-    const code = String(pre.scheme_bse_code || pre.code || "").trim();
-    if (!code) return;
-    const match = holdings.find(
-      (h) =>
-        String(h.scheme_bse_code || "").trim() === code &&
-        (!pre.folio || String(h.folio || "") === String(pre.folio))
-    );
-    if (match) setSrcText(holdingLabel(match));
-  }, [holdings, pre.scheme_bse_code, pre.code, pre.folio, srcText]);
+    const code = String(pre.scheme_bse_code || pre.code || "").trim().toUpperCase();
+    const isin = String(pre.isin || "").trim().toUpperCase();
+    if (!code && !isin) return;
+
+    const sameScheme = holdings.filter((h) => {
+      const hc = String(h.scheme_bse_code || "").trim().toUpperCase();
+      const hi = String(h.scheme_isin || h.isin || "").trim().toUpperCase();
+      return (code && hc === code) || (isin && hi === isin);
+    });
+    if (!sameScheme.length) return;
+
+    // The folio narrows between two folios of the SAME fund — it is not a condition for
+    // pre-filling at all. The caller's folio can come from Laravel's mirror while these
+    // holdings come from BSE, and the two number folios differently; requiring a match
+    // then left the dropdown blank on exactly the funds the investor came here from.
+    const byFolio = pre.folio && sameScheme.find((h) => String(h.folio || "") === String(pre.folio));
+    setSrcText(holdingLabel(byFolio || sameScheme[0]));
+  }, [holdings, pre.scheme_bse_code, pre.code, pre.isin, pre.folio, srcText]);
 
   useEffect(() => {
     const t = setTimeout(() => setDestQuery(destText.trim()), 250);

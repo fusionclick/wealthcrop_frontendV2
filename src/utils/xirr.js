@@ -89,7 +89,13 @@ const INFLOW = /redeem|redemption|sell|withdraw|swp|switch[\s_-]*out|stp[\s_-]*o
 
 // Only orders BSE actually put through. A rejected purchase never left the bank account
 // and a pending one has not yet; counting either invents a cash flow.
-const SETTLED = /allot|success|complet|paid|executed?/i;
+//
+// ACCEPTED belongs in here. getClientPortfolio already treats it as a holding — its HELD
+// set is ALLOTTED / ACCEPTED / PAID — so leaving it out meant the portfolio showed the
+// units while XIRR refused the money that bought them, and an account whose orders are all
+// ACCEPTED got a blank rate next to a populated holdings list. Both sides have to agree on
+// what "settled" means.
+const SETTLED = /allot|accept|success|complet|paid|executed?/i;
 
 export const classifyFlow = (order) => {
   const type = `${order?.type || ""} ${order?.trxn_type || ""}`;

@@ -178,6 +178,12 @@ export const mapXspToSip = (item, idx = 0) => ({
   currentValue: Number(item.current_value || item.total_amt_paid || item.invested_amount || 0),
   mandateStatus: item.mandate_status || "Active",
   status: (item.status || "ACTIVE").toUpperCase(),
+  // A registered top-up raises the instalment on a schedule of its own. It was never read
+  // off the registration, so a successful top-up left no trace anywhere on the card and
+  // the investor had no way to tell whether it had taken.
+  topupAmount: Number(item.topup_amount || item.topup_amt || 0) || null,
+  topupFrequency:
+    item.topup_freq === "y" ? "Yearly" : item.topup_freq === "h" ? "Half-yearly" : item.topup_freq === "q" ? "Quarterly" : null,
 });
 
 /** Map BSE allotted orders to portfolio holdings */
@@ -206,18 +212,44 @@ export const mapOrderToFund = (order) => ({
   created_at: order.created_at,
 });
 
-/** Merge Laravel orders + BSE holdings, dedupe by scheme */
+/**
+ * Merge Laravel orders + BSE holdings into one row per scheme.
+ *
+ * The two arguments describe the SAME money from two places — BSE's own order book, and
+ * Laravel's mirror of it. So rows are summed WITHIN a source and chosen BETWEEN sources;
+ * adding the two together would double every position.
+ *
+ * This used to keep whichever single row carried the largest `inv_amo`. With three
+ * purchases into one fund (₹10k, ₹12k, ₹4k) it reported ₹12k invested instead of the
+ * total, and quietly threw away the other two rows' units and folio.
+ */
 export const mergePortfolio = (laravelOrders = [], bseHoldings = []) => {
-  const map = new Map();
-  [...laravelOrders, ...bseHoldings].forEach((f) => {
-    const key = f.scheme_bse_code || f.scheme_name;
-    if (!key) return;
-    const existing = map.get(key);
-    if (!existing || Number(f.inv_amo) > Number(existing.inv_amo)) {
-      map.set(key, { ...existing, ...f });
+  const sumBySource = (rows) => {
+    const acc = new Map();
+    for (const f of rows) {
+      const key = String(f?.scheme_bse_code || f?.scheme_name || "").trim().toUpperCase();
+      if (!key) continue;
+      const prev = acc.get(key);
+      if (!prev) {
+        acc.set(key, { ...f, inv_amo: Number(f.inv_amo) || 0, units: Number(f.units) || 0 });
+        continue;
+      }
+      prev.inv_amo += Number(f.inv_amo) || 0;
+      prev.units += Number(f.units) || 0;
+      // Prefer a folio over an empty one — Redeem and Switch both refuse without it.
+      if (!prev.folio && f.folio) prev.folio = f.folio;
+      if (Number(f.nav) > 0) prev.nav = Number(f.nav);
     }
-  });
-  return Array.from(map.values());
+    return acc;
+  };
+
+  const fromLaravel = sumBySource(laravelOrders);
+  const fromBse = sumBySource(bseHoldings);
+
+  // BSE is the book of record; Laravel only fills in a scheme BSE did not return at all.
+  const out = new Map(fromLaravel);
+  for (const [key, row] of fromBse) out.set(key, { ...out.get(key), ...row });
+  return Array.from(out.values());
 };
 
 /**

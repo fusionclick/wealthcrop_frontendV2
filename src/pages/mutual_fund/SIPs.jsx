@@ -56,8 +56,32 @@ const SIPs = () => {
     );
   }
 
+  // /mutual_fund/manage-swp and /mutual_fund/manage-stp have existed and worked all along,
+  // but nothing anywhere linked to them — so the toast after registering an SWP told the
+  // investor to "stop it any time from Manage SWP", a page they had no way to reach.
+  // Outside the sips.length check on purpose: an investor with an SWP and no SIP still
+  // needs the way in, and that is exactly the case that was stranded.
+  const manageLinks = (
+    <div className="mb-6 flex flex-wrap gap-2">
+      {[
+        ["Manage SIPs", "/mutual_fund/manage-sip"],
+        ["Manage SWP", "/mutual_fund/manage-swp"],
+        ["Manage STP", "/mutual_fund/manage-stp"],
+      ].map(([label, to]) => (
+        <button
+          key={to}
+          onClick={() => navigate(to)}
+          className="text-sm px-3 py-1.5 rounded-lg border border-slate-200 dark:border-[var(--border-color)] text-blue-600 dark:text-blue-400 font-medium hover:bg-slate-50 dark:hover:bg-[var(--white-5)]"
+        >
+          {label} →
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <div className="w-full max-w-5xl mx-auto px-4 py-10 bg-transparent text-slate-900 dark:text-[var(--text-primary)]">
+      {manageLinks}
       {sips.length === 0 ? (
         <div className="min-h-[400px] flex flex-col justify-center items-center space-y-5">
           <img src={emptySip} className="w-72 opacity-90" alt="" />
@@ -74,14 +98,8 @@ const SIPs = () => {
         </div>
       ) : (
         <>
-          <div className="mb-6 flex justify-between items-center">
+          <div className="mb-6">
             <h1 className="text-xl font-semibold dark:text-[var(--text-primary)]">Your SIPs</h1>
-            <button
-              onClick={() => navigate("/mutual_fund/manage-sip")}
-              className="text-sm text-blue-600 dark:text-blue-400 font-medium"
-            >
-              Manage SIPs →
-            </button>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             {sips.map((sip) => {

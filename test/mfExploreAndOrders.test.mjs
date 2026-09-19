@@ -61,8 +61,16 @@ test("SwitchMF preselects the fund it was opened for", () => {
   // Holdings arrive after first render, so the preselect waits for them, and it never
   // overwrites a choice the investor has already made.
   assert.match(sw, /if \(srcText \|\| !holdings\.length\) return/);
-  // Same scheme can sit in more than one folio; the folio disambiguates.
-  assert.match(sw, /!pre\.folio \|\| String\(h\.folio \|\| ""\) === String\(pre\.folio\)/);
+  // Same scheme can sit in more than one folio, and the folio picks between them — but it
+  // must not GATE the pre-fill. The caller's folio can come from Laravel's mirror while
+  // these holdings come from BSE, and the two number folios differently; requiring a match
+  // left the dropdown blank on exactly the fund the investor had just clicked Switch on.
+  // Narrow when the folio matches, fall back to the scheme when it does not.
+  assert.match(sw, /const byFolio = pre\.folio && sameScheme\.find/);
+  assert.match(sw, /setSrcText\(holdingLabel\(byFolio \|\| sameScheme\[0\]\)\)/);
+  // ISIN is the second way to find the same fund when the two sources spell the code
+  // differently.
+  assert.match(sw, /pre\.isin/);
 });
 
 test("the orders page is routed and reachable from the tab bar", () => {

@@ -269,6 +269,10 @@ const DashBoardMF = () => {
                           navigate("/mutual_fund/switch", {
                             state: {
                               scheme_bse_code: fund.scheme_bse_code,
+                              // A second way to find the same fund. A row merged in from
+                              // Laravel can spell its scheme code differently to BSE's
+                              // holdings, and then the code alone matches nothing there.
+                              isin: fund.scheme_isin || fund.isin || "",
                               scheme_name: fund.scheme_name,
                               folio: fund.folio,
                             },

@@ -420,6 +420,14 @@ const ManageSipPage = () => {
                     <p className="text-[11px] text-slate-500 mt-0.5">
                       Next: {sip.nextInstallment}
                     </p>
+                    {/* A registered top-up changed nothing visible on this card, so one
+                        that took looked exactly like one that never did. */}
+                    {sip.topupAmount ? (
+                      <p className="text-[11px] font-medium text-emerald-600 mt-0.5">
+                        Top-up +₹{sip.topupAmount.toLocaleString()}
+                        {sip.topupFrequency ? ` ${sip.topupFrequency.toLowerCase()}` : ""}
+                      </p>
+                    ) : null}
                   </div>
                   <div className="text-right md:text-left">
                     <p className="text-slate-500">Invested</p>
