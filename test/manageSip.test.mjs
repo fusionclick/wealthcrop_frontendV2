@@ -82,9 +82,19 @@ test("ticket 19: Top-Up exists and goes to the server", () => {
 });
 
 test("ticket 19: the top-up form does not invent a minimum of its own", () => {
-  // The scheme's real minimum is checked server-side against BSE's master.
+  // Ticket 3's rule is that this app must not make up a floor BSE never published. It was
+  // pinned here as "the modal never mentions a minimum at all" — and under that phrasing the
+  // modal opened on a hardcoded ₹500 against a fund whose published minimum is ₹1,000. That
+  // is an invented floor, and a lower one. Reading the scheme's OWN minAmount keeps the
+  // rule; what must never come back is a rupee figure chosen in this file.
   const modal = code.slice(code.indexOf("const TopUpSipModal"));
-  assert.doesNotMatch(modal, /Minimum top-up/i);
+  assert.doesNotMatch(modal, /Math\.max\(\s*\d{3,}/, "no hardcoded rupee floor");
+  assert.doesNotMatch(modal, /minTopup\s*\|\|\s*\d{3,}/, "and no hardcoded fallback either");
+  assert.match(
+    modal,
+    /setMinTopup\(Number\(res\?\.data\?\.scheme_info\?\.transactions\?\.sip\?\.minAmount\)/,
+    "every minimum shown must have come from the scheme"
+  );
 });
 
 test("the page sends intent, not a BSE payload it made up", () => {
@@ -92,4 +102,46 @@ test("the page sends intent, not a BSE payload it made up", () => {
   // refuses a reg_no that is not this investor's.
   assert.doesNotMatch(code, /reason_cd: 6/);
   assert.doesNotMatch(body("confirmCancel"), /sxp_type/);
+});
+
+/**
+ * QA: the Top-Up modal opened on ₹500 for a fund whose minimum is ₹1,000, and only said so
+ * after the button was pressed. 500 was a floor invented in this file — `Math.max(500, 10%)`
+ * — while the server validates against the scheme's own minAmount from BSE's master.
+ * A form must not pre-fill a value it can know will be refused.
+ */
+test("the top-up modal asks the scheme for its minimum instead of inventing one", () => {
+  assert.doesNotMatch(code, /Math\.max\(500,/, "the invented 500 floor is gone");
+  // Same source the SIP and Modify forms already read.
+  assert.match(code, /VITE_SCHEME_DETAILS \|\| "\/scheme-details"[\s\S]*?setMinTopup/);
+  assert.match(code, /const belowMin = minTopup > 0 && Number\(amount\) < minTopup/);
+});
+
+test("the top-up minimum is shown, and blocks the button rather than only toasting", () => {
+  assert.match(code, /Minimum for this fund: ₹\{minTopup/, "the number is on screen before you press");
+  assert.match(code, /disabled=\{saving \|\| belowMin\}/);
+});
+
+test("a typed top-up amount is never overwritten by the scheme minimum", () => {
+  // The prefill only lifts an untouched field; silently rewriting what someone typed is
+  // how a form loses an instruction.
+  assert.match(code, /if \(!touched && minTopup > 0 && Number\(amount\) < minTopup\) setAmount\(minTopup\)/);
+});
+
+/**
+ * QA: SIP modify came back "Please read and accept the required disclaimers before placing
+ * this order" — for something the screen never showed. A modify re-registers the SIP, so
+ * the server runs it through the same order gate as a fresh purchase.
+ */
+test("the modify screen shows the disclaimers it is gated on, and sends the acks", () => {
+  assert.match(src, /import OrderDisclaimers, \{ useDisclaimers \}/);
+  assert.match(code, /const disc = useDisclaimers\(\)/);
+  assert.match(code, /<OrderDisclaimers \{\.\.\.disc\}/, "shown on the page, not just held in state");
+  assert.match(code, /acknowledged: disc\.acked/, "and actually sent with the modify");
+  assert.match(code, /disabled=\{saving \|\| !disc\.ready\}/, "Save is closed until they are ticked");
+});
+
+test("the modify request carries the acknowledgement through to the server", () => {
+  const fn = body("saveModifiedSip");
+  assert.match(fn, /acknowledged/, "saveModifiedSip must forward it to /modifyXsp");
 });

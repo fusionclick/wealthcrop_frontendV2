@@ -4,6 +4,7 @@ import { toastError, toastSuccess } from "../../utils/notifyCustom";
 import { useSelector } from "react-redux";
 import { nodeUrl, mapXspToSip, xspItems } from "../../utils/nodeApi";
 import { allowedDays, FALLBACK_SIP_DAYS, nextOccurrence, ordinal, smartDefaultDay } from "../../utils/sipDates";
+import OrderDisclaimers, { useDisclaimers } from "../mutual_fund/OrderDisclaimers";
 
 const SIP_HISTORY_PLACEHOLDER = [];
 
@@ -222,7 +223,7 @@ const ManageSipPage = () => {
    * original — in that order, server-side. 207 means the new SIP is live but the old one
    * is still running, which the investor has to act on rather than be told "saved".
    */
-  const saveModifiedSip = async ({ amount, startDate, frequency }) => {
+  const saveModifiedSip = async ({ amount, startDate, frequency, acknowledged }) => {
     if (!selectedSip) return;
     const res = await postApiWithToken(nodeUrl("/modifyXsp"), {
       data: {
@@ -230,6 +231,11 @@ const ManageSipPage = () => {
         amount: Number(amount),
         start_date: startDate,
         freq: frequency,
+        // A modify re-registers the SIP, so the server runs it through the same order gate
+        // as a fresh purchase — disclaimers included. This form never sent them, so every
+        // save came back "Please read and accept the required disclaimers", naming
+        // something the screen did not show.
+        acknowledged,
       },
     });
     if (!res) return; // the server's reason has already been shown; stay on the form
@@ -751,13 +757,45 @@ const TOPUP_FREQ = [
 ];
 
 const TopUpSipModal = ({ sip, onClose, onConfirm }) => {
-  const [amount, setAmount] = useState(Math.max(500, Math.round(sip.sipAmount * 0.1)));
+  // The scheme's real minimum, from the same /scheme-details the SIP and Modify forms read.
+  // The server validates the top-up against exactly this number (sipLimitsFor → minAmount),
+  // so not asking for it meant the form opened on ₹500 — a floor invented here, below the
+  // ₹1,000 this fund actually takes — and the investor only found out after pressing the
+  // button. A form must not pre-fill a value it can know will be rejected.
+  const [minTopup, setMinTopup] = useState(0);
+  useEffect(() => {
+    if (!sip.schemeCode) return;
+    let live = true;
+    postApi(nodeUrl(import.meta.env.VITE_SCHEME_DETAILS || "/scheme-details"), { scheme_code: sip.schemeCode })
+      .then((res) => {
+        if (!live) return;
+        setMinTopup(Number(res?.data?.scheme_info?.transactions?.sip?.minAmount) || 0);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [sip.schemeCode]);
+
+  // 10% of the SIP is a sensible starting suggestion; the scheme's floor overrides it.
+  const [amount, setAmount] = useState(Math.round(sip.sipAmount * 0.1) || 0);
+  const [touched, setTouched] = useState(false);
+  useEffect(() => {
+    // Only while the investor has not typed — never overwrite a number they chose.
+    if (!touched && minTopup > 0 && Number(amount) < minTopup) setAmount(minTopup);
+  }, [minTopup, touched, amount]);
+
   const [freq, setFreq] = useState("y");
   const [saving, setSaving] = useState(false);
+  const belowMin = minTopup > 0 && Number(amount) < minTopup;
 
   const handleSubmit = async () => {
     if (!amount || Number(amount) <= 0) {
       toastError("Enter a top-up amount");
+      return;
+    }
+    if (belowMin) {
+      toastError(`Minimum top-up for this fund is ₹${minTopup.toLocaleString("en-IN")}`);
       return;
     }
     setSaving(true);
@@ -781,10 +819,18 @@ const TopUpSipModal = ({ sip, onClose, onConfirm }) => {
         <input
           type="number"
           value={amount}
-          min={1}
-          onChange={(e) => setAmount(e.target.value)}
+          min={minTopup || 1}
+          onChange={(e) => {
+            setTouched(true);
+            setAmount(e.target.value);
+          }}
           className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none"
         />
+        {minTopup > 0 && (
+          <p className={`text-[11px] mt-1 ${belowMin ? "text-red-500" : "text-slate-500"}`}>
+            Minimum for this fund: ₹{minTopup.toLocaleString("en-IN")}
+          </p>
+        )}
 
         <label className="text-[11px] text-slate-500 mt-3 mb-1 block">How often</label>
         <select
@@ -805,7 +851,7 @@ const TopUpSipModal = ({ sip, onClose, onConfirm }) => {
           </button>
           <button
             onClick={handleSubmit}
-            disabled={saving}
+            disabled={saving || belowMin}
             className="px-4 py-2 rounded-lg bg-emerald-600 text-white font-medium disabled:opacity-50"
           >
             {saving ? "Adding…" : "Add Top-Up"}
@@ -839,6 +885,7 @@ const ModifySipPage = ({ sip, onBack, onSave }) => {
   // Offering a date this scheme does not take is how an order comes back invalid_txn_date.
   const [sipTxn, setSipTxn] = useState(null);
   const [minSip, setMinSip] = useState(0);
+  const disc = useDisclaimers();
   useEffect(() => {
     if (!sip.schemeCode) return;
     let live = true;
@@ -876,7 +923,7 @@ const ModifySipPage = ({ sip, onBack, onSave }) => {
       return;
     }
     setSaving(true);
-    await onSave({ amount, startDate, frequency });
+    await onSave({ amount, startDate, frequency, acknowledged: disc.acked });
     setSaving(false);
   };
 
@@ -952,6 +999,13 @@ const ModifySipPage = ({ sip, onBack, onSave }) => {
             </select>
           </div>
 
+          {/* A modify re-registers the SIP, so the server runs it through the same order
+              gate as a fresh purchase — disclaimers included. This screen never showed them
+              and never sent the acknowledgement, so every save came back "Please read and
+              accept the required disclaimers", naming something that was not on the page.
+              Same component and hook the SIP and lumpsum checkouts already use. */}
+          <OrderDisclaimers {...disc} className="pt-2 border-t border-slate-100 mt-2" />
+
           <div className="pt-2 border-t border-slate-100 mt-2 flex items-center justify-between gap-3">
             {/* Not a euphemism: BSE has no way to edit a SIP, so this really does register a
                 new one and cancel this one. The investor should know that before pressing. */}
@@ -961,7 +1015,7 @@ const ModifySipPage = ({ sip, onBack, onSave }) => {
             </p>
             <button
               onClick={handleSubmit}
-              disabled={saving}
+              disabled={saving || !disc.ready}
               className="px-5 py-2.5 rounded-xl text-xs font-semibold shadow-sm bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
             >
               {saving ? "Saving…" : "Save changes"}
