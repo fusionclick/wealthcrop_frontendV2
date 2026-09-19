@@ -121,25 +121,25 @@ test("the same fund spelled differently is not flagged", () => {
 
 /**
  * QA: "the Axis ELSS NAV is being overridden — UI shows 96.57 instead of the statement's
- * 110.00". Today's price is the right number to value a holding with; a CAS prints its NAV
- * as at the statement's closing date, and valuing now at an 18-month-old price would be
- * wrong. But replacing the only NAV on screen looked like the import had altered a figure
- * printed on the document. Both are carried.
+ * 110.00". An import reproduces the document: units × the statement's NAV is what the CAS
+ * says the holding was worth, so that figure is the one kept and the one saved. Today's
+ * published price is carried alongside for display only.
  */
-test("the statement's own NAV survives beside today's", () => {
+test("the statement's own NAV is the one the import keeps", () => {
   const [row] = markCasDuplicates(
-    [{ ...holding, nav: 96.5733, statement_nav: 110, nav_date: "2025-03-31", nav_source: "catalogue" }],
+    [{ ...holding, nav: 110, current_nav: 96.5733, nav_date: "2025-03-31", nav_source: "statement" }],
     []
   );
-  assert.equal(row.nav, 96.5733, "today's price values the holding");
-  assert.equal(row.statement_nav, 110, "and the statement's is still there to show");
-  assert.equal(row.nav_source, "catalogue");
+  assert.equal(row.nav, 110, "the statement's figure values the imported holding");
+  assert.equal(row.current_nav, 96.5733, "today's price is shown beside it, not in place of it");
+  assert.equal(row.nav_source, "statement");
+  assert.equal(casHoldingPayload(row).nav, 110, "and it is what gets saved");
 });
 
-test("an unmatched row reports its NAV as coming from the statement", () => {
-  const [row] = markCasDuplicates([{ ...holding, nav: 44.21 }], []);
-  assert.equal(row.nav_source, "statement");
-  assert.equal(row.statement_nav, null, "nothing was replaced, so there is no second number");
+test("a statement with no NAV of its own falls back to today's", () => {
+  const [row] = markCasDuplicates([{ ...holding, nav: 231.413, nav_source: "catalogue" }], []);
+  assert.equal(row.nav_source, "catalogue");
+  assert.equal(row.current_nav, null, "nothing was substituted, so there is no second number");
 });
 
 /**

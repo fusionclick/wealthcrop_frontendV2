@@ -208,13 +208,15 @@ const CasImport = ({ open, onClose, existing = [], onSave, onDone }) => {
                 <p className="text-xs text-slate-500">
                   {row.units} units
                   {Number(row.nav) > 0 ? ` · NAV ₹${Number(row.nav).toFixed(2)}` : " · NAV —"}
-                  {/* A CAS prints its NAV as at the statement's closing date. Today's price
-                      is what values the holding, but showing only that looked like the
-                      import had altered a figure printed on the uploaded document. */}
-                  {row.nav_source === "catalogue" && Number(row.statement_nav) > 0 && (
+                  {/* The statement's own figure is the primary one — units × this NAV is
+                      what the uploaded document says the holding was worth. Today's
+                      published price is shown beside it, never in place of it. */}
+                  {row.nav_source === "statement" && Number(row.nav) > 0 && (
                     <span className="text-slate-400">
-                      {` (today · statement ₹${Number(row.statement_nav).toFixed(2)}`}
-                      {row.nav_date ? ` on ${row.nav_date}` : ""}
+                      {` (statement${row.nav_date ? `, ${row.nav_date}` : ""}`}
+                      {Number(row.current_nav) > 0
+                        ? ` · today ₹${Number(row.current_nav).toFixed(2)}`
+                        : ""}
                       {")"}
                     </span>
                   )}
