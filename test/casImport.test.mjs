@@ -141,3 +141,24 @@ test("an unmatched row reports its NAV as coming from the statement", () => {
   assert.equal(row.nav_source, "statement");
   assert.equal(row.statement_nav, null, "nothing was replaced, so there is no second number");
 });
+
+/**
+ * A holding whose ISIN names a different fund than the statement is not ticked by default.
+ * The ISIN is the identifier and is almost always right — but "almost always" is not enough
+ * to start tracking a fund the investor may not own, so importing it becomes a decision.
+ */
+test("a row whose ISIN names a different fund is offered unticked", async () => {
+  const src = await import("node:fs").then((fs) =>
+    fs.readFileSync("src/components/mutual_fund/CasImport.jsx", "utf8")
+  );
+  assert.match(src, /!r\.duplicate && !nameDiffers\(r\)/);
+});
+
+test("a row that agrees with the statement is still ticked", () => {
+  // Same-fund spellings must not be caught by that rule, or nothing would be pre-ticked.
+  assert.equal(
+    nameDiffers({ scheme_name: "HDFC777-HDFC Flexi Cap Fund - Direct Plan - Growth", matched_name: "HDFC Flexi Cap Fund" }),
+    false
+  );
+  assert.equal(nameDiffers({ scheme_name: "Axis ELSS Tax Saver Fund", matched_name: "" }), false);
+});

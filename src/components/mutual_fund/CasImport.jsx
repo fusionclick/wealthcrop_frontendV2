@@ -61,8 +61,12 @@ const CasImport = ({ open, onClose, existing = [], onSave, onDone }) => {
 
       const found = markCasDuplicates(res.data?.holdings || [], existing);
       setRows(found);
-      // Everything except what is already in the portfolio — see markCasDuplicates.
-      setPicked(new Set(found.filter((r) => !r.duplicate).map((r) => r.key)));
+      // Everything except what is already in the portfolio — see markCasDuplicates — and
+      // except a row whose ISIN resolved to a fund the statement calls something else. The
+      // ISIN is the identifier and is almost always right, but "almost always" is not good
+      // enough to start tracking a holding the investor may not own: that one is offered
+      // unticked so importing it is a decision rather than a default.
+      setPicked(new Set(found.filter((r) => !r.duplicate && !nameDiffers(r)).map((r) => r.key)));
       if (!found.length) {
         setNote(
           res.data?.message ||
