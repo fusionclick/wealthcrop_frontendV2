@@ -291,11 +291,52 @@ export const markCasDuplicates = (holdings = [], existing = []) => {
     // Already in the portfolio — offered unticked, because importing it again is how one
     // fund becomes two lines and the totals stop matching the statement.
     duplicate: seen.has(casRowKey(h)),
-    // A statement that opens mid-holding does not say what was paid. Current value is the
-    // neutral stand-in: P&L reads zero instead of a gain nobody made. The field is editable.
-    invested_amount: h.invested_amount ?? h.statement_value ?? "",
+    // A statement that opens mid-holding does not say what was paid, so the field is left
+    // EMPTY and the investor supplies it.
+    //
+    // It used to be pre-filled with the market value, reasoned as a neutral stand-in that
+    // makes P&L read zero. It is not neutral: it states that ₹77,000 was invested in a
+    // holding whose statement says no such thing, and anyone who misses the warning saves
+    // that as their cost basis. The visible purchases (₹20,000 here) are no better as a
+    // default — they would claim a 285% gain. Neither number is known, so neither is shown
+    // as an answer; `visible_cost` is offered separately as something to accept.
+    invested_amount: h.invested_amount ?? "",
     cost_from_statement: h.invested_amount != null,
+    visible_cost: h.visible_cost ?? null,
+    opening_units: Number(h.opening_units) || 0,
   }));
+};
+
+/**
+ * Did the catalogue resolve this ISIN to a fund the statement calls something else?
+ *
+ * Compared on the significant words, not the whole string: an RTA writes
+ * "HDFC777-HDFC Flexi Cap Fund - Growth" where the catalogue says "HDFC Flexi Cap Fund",
+ * and those are the same fund. "HDFC Liquid Fund" against "HDFC Mid Cap Fund" is not — and
+ * that is the case worth showing, because it means either the statement carries the wrong
+ * ISIN or the investor is about to track a fund they do not own.
+ */
+const SCHEME_NOISE = /\b(fund|plan|option|growth|direct|regular|idcw|payout|reinvestment|scheme|the|of|and)\b/gi;
+
+const significantWords = (name) =>
+  new Set(
+    String(name || "")
+      // RTAs prefix their own scheme code: "HDFC777-HDFC Flexi Cap Fund".
+      .replace(/^[A-Z0-9]+-/i, "")
+      .replace(SCHEME_NOISE, " ")
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((w) => w.length > 2)
+  );
+
+export const nameDiffers = (row = {}) => {
+  if (!row.matched_name || !row.scheme_name) return false;
+  const statement = significantWords(row.scheme_name);
+  const matched = significantWords(row.matched_name);
+  if (!statement.size || !matched.size) return false;
+  // Same fund = every significant word on the statement also appears in the matched name.
+  for (const w of statement) if (!matched.has(w)) return true;
+  return false;
 };
 
 /** Exactly the body the "Add Fund" form posts, so an imported row and a typed one match. */

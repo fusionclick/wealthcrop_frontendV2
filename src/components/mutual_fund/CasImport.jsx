@@ -7,7 +7,7 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { postApiWithToken } from "../../api/api";
-import { casHoldingPayload, markCasDuplicates, nodeUrl } from "../../utils/nodeApi";
+import { casHoldingPayload, markCasDuplicates, nameDiffers, nodeUrl } from "../../utils/nodeApi";
 
 const CAS_URL = () => nodeUrl(import.meta.env.VITE_CAS_IMPORT || "/cas/import");
 const MAX_MB = 20;
@@ -115,6 +115,11 @@ const CasImport = ({ open, onClose, existing = [], onSave, onDone }) => {
   const setInvested = (key, value) =>
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, invested_amount: value } : r)));
 
+  // Ticked rows whose cost the statement never gave and nobody has typed. `casHoldingPayload`
+  // sends `Number(invested_amount) || 0`, so saving one of these records ₹0 invested and the
+  // portfolio then reports the entire holding as profit.
+  const missingCost = rows.filter((r) => picked.has(r.key) && !(Number(r.invested_amount) > 0));
+
   if (!open) return null;
 
   return (
@@ -213,10 +218,35 @@ const CasImport = ({ open, onClose, existing = [], onSave, onDone }) => {
                       Not in our catalogue — NAV from the statement
                     </span>
                   )}
+                  {/* The ISIN is the identifier, so it wins — but silently swapping the name
+                      is alarming when the statement says something else, and it hides a real
+                      RTA data error behind a confident-looking row. Say both. */}
+                  {nameDiffers(row) && (
+                    <span
+                      className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800"
+                      title={`ISIN ${row.scheme_isin}`}
+                    >
+                      Statement calls this “{row.scheme_name}” — matched by ISIN
+                    </span>
+                  )}
                   {!row.cost_from_statement && (
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
-                      Invested amount not in this statement — check it
+                      {row.opening_units > 0
+                        ? `Opened with ${row.opening_units} units bought before this period — enter what you paid`
+                        : "Invested amount not in this statement — enter what you paid"}
                     </span>
+                  )}
+                  {/* The purchases that ARE printed here. Offered, never pre-filled: on a
+                      statement that opens mid-holding this is only part of the cost, and
+                      filling it in would claim a gain the investor never made. */}
+                  {!row.cost_from_statement && row.visible_cost > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setInvested(row.key, String(row.visible_cost))}
+                      className="text-[10px] px-1.5 py-0.5 rounded border border-slate-300 text-slate-600 hover:bg-slate-50"
+                    >
+                      Use {money(row.visible_cost)} shown here
+                    </button>
                   )}
                 </div>
               </div>
@@ -237,9 +267,16 @@ const CasImport = ({ open, onClose, existing = [], onSave, onDone }) => {
             </div>
           ))}
 
+          {missingCost.length > 0 && (
+            <p className="text-[11px] text-amber-700">
+              Enter the invested amount for {missingCost.length} selected holding(s) — saving it blank
+              would record ₹0 and show the whole value as profit.
+            </p>
+          )}
+
           <button
             onClick={save}
-            disabled={saving || !picked.size}
+            disabled={saving || !picked.size || missingCost.length > 0}
             className="inline-flex items-center gap-1 bg-emerald-600 text-white px-5 py-2 rounded-lg text-xs disabled:opacity-60"
           >
             {saving && <Loader2 size={12} className="animate-spin" />}
