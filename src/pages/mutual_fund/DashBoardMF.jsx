@@ -52,11 +52,18 @@ const DashBoardMF = () => {
 
   const hasInvestments = funds.length > 0;
   const totalInvested = funds.reduce((acc, f) => acc + (Number(f.inv_amo) || 0), 0);
-  const totalReturns = funds.reduce(
-    (acc, f) => acc + ((Number(f.inv_amo) || 0) * (Number(f.ret_percentage) || 0)) / 100,
+
+  // Prefer what the units are actually worth. getClientPortfolio now prices each folio off
+  // the AMFI NAV store and sends `current_value`; a scheme it could not price sends null,
+  // and that row falls back to its cost so it neither invents a gain nor disappears from
+  // the total. Deriving everything from `ret_percentage` alone is what made the Returns
+  // tile read a flat ₹0 and handed XIRR a "today's value" identical to the money paid in —
+  // a confident 0% p.a. on every account.
+  const currentValue = funds.reduce(
+    (acc, f) => acc + (Number(f.current_value) || Number(f.inv_amo) || 0),
     0
   );
-  const currentValue = totalInvested + totalReturns;
+  const totalReturns = currentValue - totalInvested;
   // Every settled purchase and redemption on their real dates, capped by what the units are
   // worth today. null when the orders cannot produce a rate — a brand new account, or one
   // whose history BSE did not return — and the tile says so rather than printing a 0.

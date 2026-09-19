@@ -138,9 +138,11 @@ export const validateInvestorReady = (investorData, minAmount = 0, amount = 0, f
  */
 export const calcAbsoluteReturn = (funds = []) => {
   const invested = funds.reduce((a, f) => a + (Number(f.inv_amo) || 0), 0);
-  const returns = funds.reduce((a, f) => a + ((Number(f.inv_amo) || 0) * (Number(f.ret_percentage) || 0)) / 100, 0);
+  // Same rule as the dashboard: value the units where a NAV is known, and fall back to cost
+  // where it is not, so an unpriced scheme reads as no change rather than as a total loss.
+  const value = funds.reduce((a, f) => a + (Number(f.current_value) || Number(f.inv_amo) || 0), 0);
   if (!invested) return "0.00";
-  return ((returns / invested) * 100).toFixed(2);
+  return (((value - invested) / invested) * 100).toFixed(2);
 };
 
 /** Read the documented BSE `data.lists` response, with old shapes as fallbacks. */
