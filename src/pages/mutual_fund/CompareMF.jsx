@@ -105,6 +105,13 @@ export default function CompareMF() {
     const latest = Math.max(...withData.map((f) => f.rebased[f.rebased.length - 1].timestamp));
     const cut = days === Infinity ? -Infinity : latest - days * 86400;
 
+    // Compute ann inside the memo so mode and fullSpan are explicit deps — avoids a stale
+    // chartAnnualised if fullSpan resolved to 0 on an earlier render.
+    const first = Math.min(...withData.map((f) => f.rebased[0].timestamp));
+    const spanDays = (latest - first) / 86400;
+    const drawnDays = days === Infinity ? spanDays : Math.min(spanDays, days);
+    const ann = mode === "cagr" && drawnDays / 365 >= 2;
+
     const lines = withData.map((f, i) => {
       const win = f.rebased.filter((p) => p.timestamp >= cut);
       const base = win[0]?.nav;
@@ -114,7 +121,7 @@ export default function CompareMF() {
         for (const p of win) {
           const ratio = p.nav / base;
           if (!(ratio > 0)) continue;
-          if (chartAnnualised) {
+          if (ann) {
             const years = (p.timestamp - t0) / (86400 * 365);
             if (years < 1) continue;
             points.push({ timestamp: p.timestamp, value: (Math.pow(ratio, 1 / years) - 1) * 100 });
@@ -143,7 +150,7 @@ export default function CompareMF() {
         label: new Date(r.timestamp * 1000).toLocaleDateString("en-GB", { month: "short", year: "2-digit" }),
       }));
     return { rows: merged, series: lines.filter((l) => l.points.length > 1) };
-  }, [funds, range, chartAnnualised]);
+  }, [funds, range, mode]);
 
   if (picks.length < 2) {
     return (
