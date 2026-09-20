@@ -3,7 +3,7 @@ import { FiShare2 } from "react-icons/fi";
 import { AiOutlineStar } from "react-icons/ai";
 import { MdOutlineInfo } from "react-icons/md";
 import { useNavigate, useParams } from "react-router-dom";
-import DonutChart from "../../components/DonutChart";
+import DonutChart, { sliceColor } from "../../components/DonutChart";
 import MFChart from "../../components/chart/MFChart";
 import MutualFundInvestPage from "./MutualFundInvestPage";
 import { RedeemForm } from "./RedeemMF";
@@ -1080,7 +1080,9 @@ const pctOf = (key) => {
             <td className="py-3 px-4 text-[var(--text-primary)]">{h.name}</td>
             <td className="py-3 px-4 text-[var(--text-secondary)] hidden lg:table-cell">{h.sector}</td>
             <td className="py-3 px-4 text-[var(--text-secondary)] hidden lg:table-cell">{h.instrument}</td>
-            <td className="py-3 px-4 text-[var(--text-secondary)]">{h.asset}%</td>
+            {/* The field is `pct` — `asset` never existed, so this column rendered a bare
+                "%" on every row. Invisible until a scheme actually had a disclosure. */}
+            <td className="py-3 px-4 text-[var(--text-secondary)]">{h.pct}%</td>
           </tr>
         ))}
       </tbody>
@@ -1094,11 +1096,13 @@ const pctOf = (key) => {
         <div className="space-y-3 w-1/2">
           <h2 className="text-lg font-semibold mb-3 text-[var(--text-primary)]">Holding Analysis</h2>
           <p className="mb-3 text-[var(--text-secondary)]">Equity / Debt / Cash Split</p>
+          {/* `name`, not `label` — the backend has always sent `name`, so every one of these
+              legends rendered a blank swatch beside a bare percentage. */}
           {fundsList.assetSplit.map((item, index) => (
-            <div key={item.label} className={`flex items-center gap-3 cursor-pointer ${hoverIndex === null || hoverIndex === index ? "opacity-100" : "opacity-30"}`}
+            <div key={item.name} className={`flex items-center gap-3 cursor-pointer ${hoverIndex === null || hoverIndex === index ? "opacity-100" : "opacity-30"}`}
               onMouseEnter={() => setHoverIndex(index)} onMouseLeave={() => setHoverIndex(null)}>
-              <span className="h-3 w-3 rounded-full" style={{ background: item.color }} />
-              <span className="text-[var(--text-primary)]">{item.label}</span>
+              <span className="h-3 w-3 rounded-full" style={{ background: sliceColor(item, index) }} />
+              <span className="text-[var(--text-primary)]">{item.name}</span>
               <span className="text-[var(--text-secondary)]">{item.value}%</span>
             </div>
           ))}
@@ -1114,10 +1118,10 @@ const pctOf = (key) => {
         <div className="space-y-3 w-1/2">
           <h2 className="text-lg font-semibold mb-3 text-[var(--text-primary)]">Equity Sector Allocation</h2>
           {fundsList.sectors.map((item, index) => (
-            <div key={item.label} className={`flex items-center gap-3 cursor-pointer ${hoverIndex2 === null || hoverIndex2 === index ? "opacity-100" : "opacity-30"}`}
+            <div key={item.name} className={`flex items-center gap-3 cursor-pointer ${hoverIndex2 === null || hoverIndex2 === index ? "opacity-100" : "opacity-30"}`}
               onMouseEnter={() => setHoverIndex2(index)} onMouseLeave={() => setHoverIndex2(null)}>
-              <span className="h-3 w-3 rounded-full" style={{ background: item.color }} />
-              <span className="text-[var(--text-primary)]">{item.label}</span>
+              <span className="h-3 w-3 rounded-full" style={{ background: sliceColor(item, index) }} />
+              <span className="text-[var(--text-primary)]">{item.name}</span>
               <span className="text-[var(--text-secondary)]">{item.value}%</span>
             </div>
           ))}
