@@ -131,9 +131,35 @@ const CasImport = ({ open, onClose, existing = [], onSave, onDone }) => {
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold">Import from CAMS / KFintech statement</p>
+          {/* "Where do I get this PDF?" was the first question every single time, and the
+              panel never answered it — it said "request a statement" and left the investor
+              to find the RTA themselves. Both registrars mail the CAS free; either link
+              covers all fund houses, because CAMS and KFintech consolidate for each other.
+              The password line was also wrong: the RTA does not email a password, the
+              investor CHOOSES one on the request form and that is what opens the file. */}
           <p className="text-[11px] text-slate-500 mt-0.5">
-            Request a Consolidated Account Statement (detailed, with transactions, period
-            “since inception”) and upload the PDF with the password they emailed you.
+            Don’t have the PDF yet? Request it free from{" "}
+            <a
+              href="https://www.camsonline.com/Investors/Statements/Consolidated-Account-Statement"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-emerald-600 underline"
+            >
+              CAMS
+            </a>{" "}
+            or{" "}
+            <a
+              href="https://mfs.kfintech.com/investor/General/ConsolidatedAccountStatement"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-emerald-600 underline"
+            >
+              KFintech
+            </a>
+            . Use the email address registered in your folios, choose{" "}
+            <strong className="font-medium">Detailed</strong> and period{" "}
+            <strong className="font-medium">“since inception”</strong>, and set a password on
+            their form — the statement arrives by email and that password is what opens it.
           </p>
         </div>
         <button
@@ -169,7 +195,7 @@ const CasImport = ({ open, onClose, existing = [], onSave, onDone }) => {
             autoComplete="off"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="From the CAS email"
+            placeholder="The one you set on the RTA's form"
             className="w-full border rounded-md px-3 py-2 text-sm mt-1 dark:bg-transparent dark:border-[var(--border-color)]"
           />
         </label>
