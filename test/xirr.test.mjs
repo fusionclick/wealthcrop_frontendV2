@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { classifyFlow, flowsFromOrders, parseFlowDate, portfolioXirr, sipXirr, xirr } from "../src/utils/xirr.js";
+import { mapXspToSip } from "../src/utils/nodeApi.js";
 
 const d = (s) => new Date(s);
 const near = (actual, expected, tol = 0.05) =>
@@ -134,4 +135,39 @@ test("no hardcoded XIRR anywhere, and the old fake is gone", () => {
   assert.doesNotMatch(dash, /XIRR \(est\.\)/);
   const api = fs.readFileSync("src/utils/nodeApi.js", "utf8");
   assert.doesNotMatch(api, /export const calcXirr/, "calcXirr was renamed to calcAbsoluteReturn");
+});
+
+// ── one holding, one worth ────────────────────────────────────────────────────────────
+
+test("a SIP is valued the way the portfolio values it, not by the registration row", () => {
+  // QA account xohenad709 / folio QA1000001: BSE reported current_value 29450 ON THE
+  // REGISTRATION while getClientPortfolio priced the same 380.398 units at 34181.39 off
+  // the AMFI NAV store. Both describe the same folio and the same 26,000 paid in, so the
+  // SIP card was rating the units 16% lower than the portfolio page beside it — two XIRRs
+  // for one holding, and at most one of them true.
+  const src = fs.readFileSync("src/pages/mutual_fund/SIPs.jsx", "utf8");
+
+  assert.match(src, /getClientPortfolio/, "the SIP page must read the portfolio's valuation");
+  assert.match(
+    src,
+    /Number\(held\?\.current_value\) \|\| sip\.marketValue/,
+    "the live holding value must win, with the registration figure only as fallback"
+  );
+  // The fallback has to stay: a SIP whose folio has not reached the portfolio yet should
+  // still show a rate rather than nothing.
+  assert.match(src, /sip\.marketValue/, "the registration figure must remain as a fallback");
+});
+
+test("mapXspToSip carries what is needed to find the SIP's holding", () => {
+  const sip = mapXspToSip({
+    reg_no: "QASIP0001",
+    src_scheme: "PP001ZG-GR",
+    scheme_isin: "INF879O01027",
+    folio_num: "QA1000001",
+    amount: 5000,
+    current_value: 29450,
+  });
+  assert.equal(sip.schemeIsin, "INF879O01027", "the ISIN is the stable half of the match");
+  assert.equal(sip.folio, "QA1000001");
+  assert.equal(sip.marketValue, 29450, "still exposed, as the fallback");
 });

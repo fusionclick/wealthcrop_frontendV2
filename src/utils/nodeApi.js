@@ -166,9 +166,17 @@ export const mapXspToSip = (item, idx = 0) => ({
   // BSE's own scheme code for the SIP's source scheme. order_list carries no reg_no, so
   // this is what ties a SIP to its instalments when working out that SIP's XIRR.
   schemeCode: item.src_scheme || item.scheme_code || item.scheme || "",
+  // Carried so a SIP can be paired with its holding in the portfolio. BSE spells the same
+  // scheme with more than one code across endpoints; the ISIN is the stable half.
+  schemeIsin: item.scheme_isin || item.isin || "",
+  folio: item.folio_num || item.folio || "",
   // Only when BSE actually valued the holding. currentValue below falls back to what was
   // paid in, which is fine for a progress bar and fatal for a return calculation — it
   // would read as a flat 0% rather than as "not known".
+  //
+  // This is BSE's figure ON THE REGISTRATION, which is not always the portfolio's figure
+  // for the same folio — the SIP card prefers the live-priced holding and keeps this as a
+  // fallback. See SIPs.jsx.
   marketValue: Number(item.current_value) || null,
   category: item.scheme_category || "Mutual Fund",
   sipAmount: Number(item.amount || 0),

@@ -3,7 +3,7 @@ import emptySip from "../../assets/mutualFund/sipEmpty2.svg";
 import { useNavigate } from "react-router-dom";
 import { postApiWithToken } from "../../api/api";
 import { useSelector } from "react-redux";
-import { nodeUrl, mapXspToSip, xspItems } from "../../utils/nodeApi";
+import { nodeUrl, mapXspToSip, xspItems, holdingMatchesScheme } from "../../utils/nodeApi";
 import { sipXirr } from "../../utils/xirr";
 
 const SIPs = () => {
@@ -11,6 +11,7 @@ const SIPs = () => {
   const { data: investorData } = useSelector((state) => state.investorData);
   const [sips, setSips] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [holdings, setHoldings] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,7 +27,13 @@ const SIPs = () => {
         // is the second list's dates against the first list's scheme — getAllXsp describes
         // the registration and carries no cash flows. Orders are optional: if that call
         // fails the cards still render, just without a rate on them.
-        const [res, history] = await Promise.all([
+        // The portfolio comes too, for the valuation. BSE reports a `current_value` on the
+        // registration row as well, but it is not the same number the portfolio shows for
+        // the very same folio — on QA1000001 the row said ₹29,450 against a live-priced
+        // ₹34,181, so the SIP card rated the units 16% lower than the page next to it and
+        // the two XIRRs could not both be right. getClientPortfolio prices each folio off
+        // the AMFI NAV store, so that is the one that moves with the market.
+        const [res, history, portfolio] = await Promise.all([
           postApiWithToken(url, {
             data: {
               fields: ["ALL"],
@@ -36,9 +43,11 @@ const SIPs = () => {
             },
           }),
           postApiWithToken(nodeUrl("/orderHistory"), { ucc }).catch(() => null),
+          postApiWithToken(nodeUrl("/getClientPortfolio"), { data: { ucc } }).catch(() => null),
         ]);
         setSips(xspItems(res).map((item, i) => mapXspToSip(item, i)));
         setOrders(Array.isArray(history?.data?.orders) ? history.data.orders : []);
+        setHoldings(Array.isArray(portfolio?.data?.holdings) ? portfolio.data.holdings : []);
       } catch (_) {
         /* empty */
       } finally {
@@ -103,9 +112,18 @@ const SIPs = () => {
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             {sips.map((sip) => {
-              // Only once BSE has valued the holding. `sip.currentValue` falls back to what
-              // was paid in, and running that through XIRR prints a confident 0%.
-              const rate = sip.marketValue ? sipXirr(orders, sip.schemeCode, sip.marketValue) : null;
+              // Value the units the way the portfolio page values them, so one holding does
+              // not carry two different worths on two screens. The registration's own
+              // `current_value` is the fallback for a SIP whose folio is not in the
+              // portfolio yet — better a stale valuation than none.
+              //
+              // Only once SOMETHING valued the holding. `sip.currentValue` falls back to
+              // what was paid in, and running that through XIRR prints a confident 0%.
+              const held = holdings.find((h) =>
+                holdingMatchesScheme(h, { isin: sip.schemeIsin, code: sip.schemeCode })
+              );
+              const valued = Number(held?.current_value) || sip.marketValue;
+              const rate = valued ? sipXirr(orders, sip.schemeCode, valued) : null;
               return (
                 <div
                   key={sip.id}
