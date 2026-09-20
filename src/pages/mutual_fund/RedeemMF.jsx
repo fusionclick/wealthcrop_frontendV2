@@ -6,9 +6,10 @@ import { useSelector } from "react-redux";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { nodeUrl, validateInvestorReady, laravelUrl, holdingMatchesScheme, fundBuyPath } from "../../utils/nodeApi";
 import SxpSchedule, { useSxpSchedule } from "../../components/mutual_fund/SxpSchedule";
+import OrderDisclaimers, { useDisclaimers } from "../../components/mutual_fund/OrderDisclaimers";
 import { buildSxpIntent, sxpIntentError } from "../../utils/sxp";
 
-export async function submitRedeemOrder({ investorData, holding, redeemAll, redeemAmount, queryClient }) {
+export async function submitRedeemOrder({ investorData, holding, redeemAll, redeemAmount, acknowledged = [], queryClient }) {
   const err = validateInvestorReady(investorData);
   if (err) return { ok: false, message: err };
   if (!holding) return { ok: false, message: "Please select a fund to redeem." };
@@ -46,6 +47,7 @@ export async function submitRedeemOrder({ investorData, holding, redeemAll, rede
           email: investorData?.email || "",
         },
       ],
+      acknowledged,
     },
   };
 
@@ -83,7 +85,7 @@ export async function submitRedeemOrder({ investorData, holding, redeemAll, rede
  * Intent only: BSE's sxp_register payload is assembled server-side, which is also where the
  * folio's units are checked against BSE rather than against whatever this page last read.
  */
-export async function registerSwp({ investorData, holding, amount, sched, queryClient }) {
+export async function registerSwp({ investorData, holding, amount, sched, acknowledged = [], queryClient }) {
   const err = validateInvestorReady(investorData);
   if (err) return { ok: false, message: err };
   const bad = sxpIntentError({ type: "swp", source: holding, amount, schedule: sched });
@@ -92,7 +94,7 @@ export async function registerSwp({ investorData, holding, amount, sched, queryC
   try {
     const res = await postApiWithToken(
       nodeUrl(import.meta.env.VITE_XSP_REGISTER || "/xspRegister"),
-      buildSxpIntent({ type: "swp", source: holding, amount, schedule: sched })
+      buildSxpIntent({ type: "swp", source: holding, amount, schedule: sched, acknowledged })
     );
     if (res?.status === 200 || res?.status === true || res?.status === "success") {
       queryClient?.invalidateQueries({ queryKey: ["bsePortfolio"] });
@@ -114,12 +116,15 @@ export function RedeemForm({ holding, locked, onCancel, onSuccess }) {
   // Ticket 17: an SWP is this same withdrawal, repeated. The holding and its folio are
   // already picked above, so the only thing the investor adds is a schedule.
   const sched = useSxpSchedule("swp", holding);
+  // Ticket 22: a withdrawal shows the same statutory notices a purchase does, and the tick
+  // travels with the order — the server refuses either one without it.
+  const disc = useDisclaimers();
 
   const handleRedeem = async () => {
     setSubmitting(true);
     const result = sched.on
-      ? await registerSwp({ investorData, holding, amount: redeemAmount, sched, queryClient })
-      : await submitRedeemOrder({ investorData, holding, redeemAll, redeemAmount, queryClient });
+      ? await registerSwp({ investorData, holding, amount: redeemAmount, sched, acknowledged: disc.acked, queryClient })
+      : await submitRedeemOrder({ investorData, holding, redeemAll, redeemAmount, acknowledged: disc.acked, queryClient });
     setSubmitting(false);
     if (!result.ok) {
       toastError(result.message);
@@ -177,6 +182,8 @@ export function RedeemForm({ holding, locked, onCancel, onSuccess }) {
 
       <SxpSchedule {...sched} amount={redeemAmount} />
 
+      <OrderDisclaimers {...disc} />
+
       <div className="flex gap-3">
         {onCancel ? (
           <button
@@ -190,7 +197,7 @@ export function RedeemForm({ holding, locked, onCancel, onSuccess }) {
         <button
           type="button"
           onClick={handleRedeem}
-          disabled={submitting || (locked && !holding) || !sched.ready}
+          disabled={submitting || (locked && !holding) || !sched.ready || !disc.ready}
           className="flex-1 py-3 rounded-lg bg-red-600 text-white font-medium disabled:opacity-50"
         >
           {submitting ? "Processing…" : sched.on ? "Start SWP" : "Redeem"}

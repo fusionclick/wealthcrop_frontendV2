@@ -56,7 +56,10 @@ const FILTERS = [
       ["Very High", "Very High"],
     ],
   },
-  // Transaction availability, straight off BSE's per-scheme rows.
+  // Transaction availability, straight off BSE's per-scheme rows. The last two are the
+  // scheme's income-distribution option rather than a lumpsum[]/systematic[] rulebook, but
+  // they are a transaction attribute the investor picks on (ticket 2) and the backend
+  // filters them from the same index row.
   {
     key: "txn",
     label: "Supports",
@@ -67,12 +70,27 @@ const FILTERS = [
       ["stp", "STP"],
       ["lumpsum", "Lumpsum"],
       ["sip,swp", "SIP + SWP"],
+      ["idcw_payout", "IDCW Payout"],
+      ["idcw_reinvest", "Dividend Reinvestment"],
     ],
   },
   {
     key: "minAge",
     label: "Fund age",
     options: [["", "Age: Any"], ["1", "1+ years"], ["3", "3+ years"], ["5", "5+ years"], ["10", "10+ years"]],
+  },
+  // Ticket 11 — fund size. ₹ crore, matching the backend's minAum band. A fund BSE never
+  // published a size for drops out of an explicit band rather than counting as zero.
+  {
+    key: "minAum",
+    label: "Fund size",
+    options: [
+      ["", "AUM: Any"],
+      ["500", "₹500 Cr+"],
+      ["1000", "₹1,000 Cr+"],
+      ["5000", "₹5,000 Cr+"],
+      ["10000", "₹10,000 Cr+"],
+    ],
   },
 ];
 
@@ -85,6 +103,7 @@ const SORTS = [
   ["returns_3y:desc", "3Y return: high to low"],
   ["returns_5y:desc", "5Y return: high to low"],
   ["rating:desc", "Rating: high to low"],
+  ["aum:desc", "Fund size: high to low"],
   ["age:desc", "Oldest first"],
   ["expense:asc", "Expense ratio: low to high"],
   ["min_sip:asc", "Minimum SIP: low to high"],
@@ -95,7 +114,7 @@ const SORTS = [
 // Physical is the default: units sit with the RTA and no demat account is needed, which is
 // what most investors here have. 49 of the 50 physical schemes also allow demat, so this
 // hides almost nothing — demat-only funds are one dropdown click away.
-const DEFAULT_FILTERS = { plan: "", sip: "", mode: "physical", risk: "", txn: "", minAge: "" };
+const DEFAULT_FILTERS = { plan: "", sip: "", mode: "physical", risk: "", txn: "", minAge: "", minAum: "" };
 
 // How many funds can sit in the comparison tray at once. The compare endpoint loads a full
 // NAV history per fund, and more than a handful of overlapping lines is unreadable anyway.

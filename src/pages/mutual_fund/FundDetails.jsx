@@ -903,6 +903,15 @@ const pctOf = (key) => {
             ]
               .map(([key, label]) => [key, label, fundsList.transactions[key]])
               .filter(([, , t]) => t && t.allowed)
+              // Ticket 2 — what the scheme does with distributed income belongs on this card
+              // too. It is not one of BSE's lumpsum[]/systematic[] rulebooks, so it carries
+              // no minimum or cut-off; `payout` is scheme_option, already normalised to
+              // "IDCW Payout" / "IDCW Reinvestment" / "Growth" by the backend.
+              .concat(
+                fundsList.payout && fundsList.payout !== "Growth"
+                  ? [["payout", fundsList.payout === "IDCW Reinvestment" ? "Dividend Reinvestment" : fundsList.payout, {}]]
+                  : []
+              )
               .map(([key, label, t]) => (
                 <div key={key} className="bg-[var(--white-5)] p-4 rounded-xl dark:border border-[var(--border-color)]">
                   <div className="flex items-center justify-between">
