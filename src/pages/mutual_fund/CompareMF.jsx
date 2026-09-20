@@ -5,6 +5,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, Responsi
 import { postApi } from "../../api/api";
 import { nodeUrl, fundPath, MF_EXPLORE_PATH } from "../../utils/nodeApi";
 import { titleCase, fmtPct, fmtDate, fmtAge } from "../../utils/schemeName";
+import { annualise } from "../../components/chart/navSeries";
 import FundBadges, { RiskBadge } from "../../components/FundBadges";
 import PageLoader from "../../components/PageLoader";
 
@@ -55,6 +56,34 @@ export default function CompareMF() {
   const commonStart = data?.data?.commonStart || null;
   const limitedBy = data?.data?.limitedBy || null;
 
+  // A range wider than the shared window would draw the shared window and call it 10Y.
+  const fullSpan = useMemo(() => {
+    const withData = funds.filter((f) => f.rebased?.length > 1);
+    if (!withData.length) return 0;
+    const first = Math.min(...withData.map((f) => f.rebased[0].timestamp));
+    const last = Math.max(...withData.map((f) => f.rebased[f.rebased.length - 1].timestamp));
+    return (last - first) / 86400;
+  }, [funds]);
+
+  const windowYears = fullSpan / 365;
+  const annualised = mode === "cagr";
+
+  /**
+   * The toggle has two consumers with different validity, so they are separated here.
+   *
+   * The TABLE's CAGR is always available — those are each fund's own trailing 1Y/3Y/5Y
+   * figures, computed by the backend, and none of them depends on what the chart is showing.
+   *
+   * The CHART's is not. A CAGR point needs a full year to have elapsed before it means
+   * anything (annualising a fortnight is how 3% becomes "112% p.a."), so on a one-year range
+   * every point but the last is dropped and the line becomes a dot. Two years is the first
+   * window that leaves something worth drawing; below that the chart stays on growth-of-₹100
+   * and the caption says so, rather than going blank or disabling a control the table still
+   * needs.
+   */
+  const drawnDays = RANGES[range] === Infinity ? fullSpan : Math.min(fullSpan, RANGES[range]);
+  const chartAnnualised = annualised && drawnDays / 365 >= 2;
+
   /**
    * Re-rebase for the chosen range.
    *
@@ -62,6 +91,11 @@ export default function CompareMF() {
    * to be worth on that date — three lines beginning at 143, 96 and 210, which is unreadable
    * and not what "last 3 years" means. Each fund is rebased again off its own NAV at the
    * start of the new window.
+   *
+   * The chart follows the Absolute/CAGR toggle, because it sits in this card's toolbar and a
+   * control that changes nothing it is standing next to reads as a broken chart. Absolute is
+   * the growth of ₹100; CAGR is that same growth annualised, and it drops the window's first
+   * year for the reason above.
    */
   const { rows, series } = useMemo(() => {
     const days = RANGES[range];
@@ -72,14 +106,24 @@ export default function CompareMF() {
     const cut = days === Infinity ? -Infinity : latest - days * 86400;
 
     const lines = withData.map((f, i) => {
-      const window = f.rebased.filter((p) => p.timestamp >= cut);
-      const base = window[0]?.nav;
-      return {
-        key: `f${i}`,
-        name: titleCase(f.name),
-        color: COLORS[i % COLORS.length],
-        points: base > 0 ? window.map((p) => ({ timestamp: p.timestamp, value: (p.nav / base) * 100 })) : [],
-      };
+      const win = f.rebased.filter((p) => p.timestamp >= cut);
+      const base = win[0]?.nav;
+      const t0 = win[0]?.timestamp;
+      const points = [];
+      if (base > 0) {
+        for (const p of win) {
+          const ratio = p.nav / base;
+          if (!(ratio > 0)) continue;
+          if (chartAnnualised) {
+            const years = (p.timestamp - t0) / (86400 * 365);
+            if (years < 1) continue;
+            points.push({ timestamp: p.timestamp, value: (Math.pow(ratio, 1 / years) - 1) * 100 });
+          } else {
+            points.push({ timestamp: p.timestamp, value: ratio * 100 });
+          }
+        }
+      }
+      return { key: `f${i}`, name: titleCase(f.name), color: COLORS[i % COLORS.length], points };
     });
 
     // Union of dates: NAV is published on business days and AMCs skip different holidays,
@@ -99,16 +143,7 @@ export default function CompareMF() {
         label: new Date(r.timestamp * 1000).toLocaleDateString("en-GB", { month: "short", year: "2-digit" }),
       }));
     return { rows: merged, series: lines.filter((l) => l.points.length > 1) };
-  }, [funds, range]);
-
-  // A range wider than the shared window would draw the shared window and call it 10Y.
-  const fullSpan = useMemo(() => {
-    const withData = funds.filter((f) => f.rebased?.length > 1);
-    if (!withData.length) return 0;
-    const first = Math.min(...withData.map((f) => f.rebased[0].timestamp));
-    const last = Math.max(...withData.map((f) => f.rebased[f.rebased.length - 1].timestamp));
-    return (last - first) / 86400;
-  }, [funds]);
+  }, [funds, range, chartAnnualised]);
 
   if (picks.length < 2) {
     return (
@@ -137,11 +172,26 @@ export default function CompareMF() {
     );
   }
 
-  const annualised = mode === "cagr";
   const retOf = (f, key) => {
     const set = annualised ? f.returns?.cagr : f.returns?.absolute;
     const v = set?.[key];
     return v == null ? "—" : fmtPct(v, { annualised });
+  };
+
+  /**
+   * The "Since <date>" cell used to print the cumulative figure in BOTH modes, so picking
+   * CAGR gave a row reading "-4.00% p.a. · 7.43% p.a. · 7.20% p.a. · +155.56%" — three
+   * annualised numbers and one twenty-year total, side by side, with nothing saying which
+   * was which. Whoever read across that row compared 155.56 against 7.43.
+   *
+   * A total of -100% or worse cannot be annualised (the root of a negative), so it stays
+   * cumulative rather than rendering NaN.
+   */
+  const sinceOf = (f) => {
+    const r = f.windowReturn;
+    if (r == null) return "—";
+    const pa = annualised ? annualise(r, windowYears) : null;
+    return pa == null ? fmtPct(r, { sign: true }) : fmtPct(pa, { sign: true, annualised: true });
   };
 
   return (
@@ -191,6 +241,7 @@ export default function CompareMF() {
               <button
                 key={k}
                 type="button"
+                title={k === "cagr" ? "Annualised — p.a." : "Total change over the period"}
                 onClick={() => setMode(k)}
                 className={`px-2.5 py-1 text-xs font-medium transition ${
                   mode === k
@@ -210,9 +261,17 @@ export default function CompareMF() {
               <LineChart data={rows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" strokeOpacity={0.4} vertical={false} />
                 <XAxis dataKey="label" minTickGap={48} tick={{ fontSize: 11 }} />
-                <YAxis domain={["auto", "auto"]} tick={{ fontSize: 11 }} width={56} tickFormatter={(v) => `₹${v}`} />
+                <YAxis
+                  domain={["auto", "auto"]}
+                  tick={{ fontSize: 11 }}
+                  width={56}
+                  tickFormatter={(v) => (chartAnnualised ? `${v}%` : `₹${v}`)}
+                />
                 <Tooltip
-                  formatter={(v, n) => [`₹${Number(v).toFixed(2)}`, n]}
+                  formatter={(v, n) => [
+                    chartAnnualised ? `${Number(v).toFixed(2)}% p.a.` : `₹${Number(v).toFixed(2)}`,
+                    n,
+                  ]}
                   labelFormatter={(l) => l}
                   contentStyle={{ fontSize: 12 }}
                 />
@@ -232,7 +291,11 @@ export default function CompareMF() {
               </LineChart>
             </ResponsiveContainer>
             <p className="text-[11px] text-slate-400 mt-2">
-              Growth of ₹100 invested at the start of this window · {rows.length} points
+              {chartAnnualised
+                ? `Annualised return since the start of this window — the first year is not drawn, because annualising a few months is noise · ${rows.length} points`
+                : annualised
+                ? `Growth of ₹100 invested at the start of this window · ${rows.length} points — CAGR needs at least two years in view, so the table is annualised and this chart is not`
+                : `Growth of ₹100 invested at the start of this window · ${rows.length} points`}
             </p>
           </div>
         ) : (
@@ -289,9 +352,7 @@ export default function CompareMF() {
                 <td className="py-3 px-4 text-[var(--text-primary)]">{retOf(f, "1Y")}</td>
                 <td className="py-3 px-4 text-[var(--text-primary)]">{retOf(f, "3Y")}</td>
                 <td className="py-3 px-4 text-[var(--text-primary)]">{retOf(f, "5Y")}</td>
-                <td className="py-3 px-4 font-medium text-[var(--text-primary)]">
-                  {f.windowReturn == null ? "—" : fmtPct(f.windowReturn, { sign: true })}
-                </td>
+                <td className="py-3 px-4 font-medium text-[var(--text-primary)]">{sinceOf(f)}</td>
                 <td className="py-3 px-4 text-[var(--text-primary)]">{f.expense ? `${f.expense}%` : "—"}</td>
                 <td className="py-3 px-4 text-[var(--text-primary)]">{fmtAge(f.ageYears) || "—"}</td>
                 <td className="py-3 px-4 text-[var(--text-primary)]">{f.nav != null ? `₹${Number(f.nav).toFixed(2)}` : "—"}</td>

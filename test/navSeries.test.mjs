@@ -2,8 +2,9 @@
 //
 // This lived at src/components/chart/navSeries.test.mjs, where `npm test` (which globs
 // test/*.test.mjs) never ran it. Real coverage, silently not executing.
+import test from "node:test";
 import assert from "node:assert/strict";
-import { bucketSeries } from "../src/components/chart/navSeries.js";
+import { annualise, bucketSeries } from "../src/components/chart/navSeries.js";
 
 const DAY = 86400;
 const now = Math.floor(Date.UTC(2026, 5, 30) / 1000);
@@ -53,3 +54,33 @@ assert.equal(bucketSeries(series, "1M", "D", {}).length, 31, "empty span falls b
 assert.equal(bucketSeries(series, "1M", "D", null).length, 31, "null span falls back to range");
 
 console.log("navSeries date filter: all assertions passed");
+
+/**
+ * QA: toggling Absolute/CAGR in Compare funds changed the table but left the "Since
+ * <date>" column showing the cumulative figure, so a CAGR row read
+ * "-4.00% p.a. · 7.43% p.a. · 7.20% p.a. · +155.56%" — three annual rates and one
+ * twenty-year total, side by side, nothing marking which was which.
+ */
+test("annualise turns a cumulative return into the rate that compounds to it", () => {
+  // +155.56% over the ~20.5 years since 03 Apr 2006 is about 4.7% a year, not 155%.
+  const pa = annualise(155.56, 20.5);
+  assert.ok(pa > 4.5 && pa < 4.8, `expected ~4.7% p.a., got ${pa}`);
+
+  // Round-trips: compounding the answer back over the window returns the total.
+  const back = (Math.pow(1 + pa / 100, 20.5) - 1) * 100;
+  assert.ok(Math.abs(back - 155.56) < 0.01, `round-trip gave ${back}`);
+
+  // One year of anything annualises to itself.
+  assert.ok(Math.abs(annualise(-4, 1) - -4) < 1e-9);
+
+  // A loss still annualises, and stays a loss.
+  const loss = annualise(-50, 5);
+  assert.ok(loss < 0 && loss > -20, `expected a modest annual loss, got ${loss}`);
+});
+
+test("annualise refuses the cases that would render NaN", () => {
+  assert.equal(annualise(-100, 5), null, "a total wipeout has no annual rate");
+  assert.equal(annualise(-150, 5), null, "nor does a figure below -100%");
+  assert.equal(annualise(20, 0), null, "nor does a window of no length");
+  assert.equal(annualise(null, 5), null);
+});

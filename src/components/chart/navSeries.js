@@ -17,6 +17,20 @@ export function spanDays(series = []) {
 }
 
 /**
+ * A cumulative % turned into the annual rate that compounds to it.
+ *
+ * Returns null where the maths does not exist, rather than NaN: a total of -100% or worse is
+ * a root of zero or of a negative, and a window of no length divides by zero. Callers show
+ * the cumulative figure instead — which is what the compare table's "Since" column does.
+ */
+export function annualise(totalPct, years) {
+  if (totalPct == null || !(years > 0)) return null;
+  const growth = 1 + totalPct / 100;
+  if (!(growth > 0)) return null;
+  return (Math.pow(growth, 1 / years) - 1) * 100;
+}
+
+/**
  * Rebase a window to its first point.
  *
  * "absolute" = cumulative % change since the start of the window — the line starts at 0%.
