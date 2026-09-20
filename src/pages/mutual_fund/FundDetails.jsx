@@ -225,6 +225,9 @@ const fundamentals = [
   { label: "Sharpe", value: ratios?.sharpe },
   { label: "Sortino", value: ratios?.sortino },
   { label: "Max Drawdown", value: ratios?.maxDrawdown, suffix: "%" },
+  // Sits next to Max Drawdown because the two are easily confused and answer different
+  // questions: how bad a typical bad day is, versus the worst stretch of the whole year.
+  { label: "VaR (95%)", value: ratios?.var95, suffix: "%" },
   // Measured, not assumed: the backend computes both against a real index price series —
   // the scheme's own benchmark where BSE names one, otherwise the index SEBI prescribes for
   // its category. Which of the two it was is on the tooltip, so a category benchmark is
@@ -252,6 +255,7 @@ const advancedDefinitions = {
   "Sharpe": `Return above the risk-free rate${rf != null ? ` (${rf}%)` : ""} per unit of total volatility, over the last year. Higher is better risk-adjusted performance. It uses the average of the daily moves, so it will not match the compounded 1Y return exactly.`,
   "Sortino": `Same idea as Sharpe, but only falls below the risk-free rate${rf != null ? ` (${rf}%)` : ""} count as risk. It ignores upside swings.`,
   "Max Drawdown": "The worst peak-to-trough fall in NAV over the last year — how far the fund dropped before recovering.",
+  "VaR (95%)": "On its worst 1 day in 20, this fund fell at least this much. Taken from the days that actually happened over the last year, not from a bell curve — NAV moves have fatter tails than that. Max Drawdown is the worst single stretch; this is how bad an ordinary bad day gets.",
   Alpha: `Return earned beyond what this fund's market exposure alone would explain, measured against ${
     fundsList?.riskMetrics?.benchmark || "its benchmark"
   }${benchmarkOrigin}${fundsList?.riskMetrics?.benchmarkIsPriceIndex ? " (price index, so a TRI-based alpha would read slightly lower)" : ""}. Positive means the manager added value.`,
