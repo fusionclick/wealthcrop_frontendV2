@@ -158,6 +158,20 @@ test("a SIP is valued the way the portfolio values it, not by the registration r
   assert.match(src, /sip\.marketValue/, "the registration figure must remain as a fallback");
 });
 
+test("Manage SIPs values a holding the same way, not off the registration", () => {
+  // The same stale figure drove four numbers on this page — the summary total, the card's
+  // current value, its P&L and its return % — so it was wrong in four places at once.
+  // Fixing only the SIPs list page would have left this one disagreeing with the portfolio.
+  const src = fs.readFileSync("src/components/sip/ManageSipPage.jsx", "utf8");
+  assert.match(src, /getClientPortfolio/, "Manage SIPs must read the portfolio's valuation");
+  assert.match(
+    src,
+    /currentValue: live/,
+    "the live holding value must replace the registration's currentValue"
+  );
+  assert.match(src, /live > 0 \? .* : sip/, "a folio with no live value keeps the registration figure");
+});
+
 test("mapXspToSip carries what is needed to find the SIP's holding", () => {
   const sip = mapXspToSip({
     reg_no: "QASIP0001",

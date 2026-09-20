@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from "react";
 import { postApi, postApiWithToken } from "../../api/api";
 import { toastError, toastSuccess } from "../../utils/notifyCustom";
 import { useSelector } from "react-redux";
-import { nodeUrl, mapXspToSip, xspItems } from "../../utils/nodeApi";
+import { nodeUrl, mapXspToSip, xspItems, holdingMatchesScheme } from "../../utils/nodeApi";
 import { allowedDays, FALLBACK_SIP_DAYS, nextOccurrence, ordinal, smartDefaultDay } from "../../utils/sipDates";
 import OrderDisclaimers, { useDisclaimers } from "../mutual_fund/OrderDisclaimers";
 
@@ -46,10 +46,29 @@ const ManageSipPage = () => {
             },
           },
         };
-        const res = await postApiWithToken(url, payload);
+        const [res, portfolio] = await Promise.all([
+          postApiWithToken(url, payload),
+          postApiWithToken(nodeUrl("/getClientPortfolio"), { data: { ucc } }).catch(() => null),
+        ]);
         const items = xspItems(res);
         if (Array.isArray(items) && items.length) {
-          setSips(items.map((item, i) => mapXspToSip(item, i)));
+          // Value the units the way the portfolio values them. BSE's `current_value` on the
+          // registration is not the portfolio's figure for the same folio — on QA1000001 it
+          // said ₹29,450 against a live-priced ₹34,181 — and this page derives the summary
+          // total, the P&L and the return % from it, so a stale figure is wrong four times
+          // over. Overwritten once here rather than at each of those, and the registration
+          // figure still stands in for a folio the portfolio has not caught up with.
+          const holdings = Array.isArray(portfolio?.data?.holdings) ? portfolio.data.holdings : [];
+          setSips(
+            items.map((item, i) => {
+              const sip = mapXspToSip(item, i);
+              const held = holdings.find((h) =>
+                holdingMatchesScheme(h, { isin: sip.schemeIsin, code: sip.schemeCode })
+              );
+              const live = Number(held?.current_value);
+              return live > 0 ? { ...sip, currentValue: live, marketValue: live } : sip;
+            })
+          );
           // Fetch SIP transaction history for first active SIP
           const active = items.find((i) => (i.status || "").toUpperCase() === "ACTIVE") || items[0];
           if (active?.reg_no || active?.id) {
