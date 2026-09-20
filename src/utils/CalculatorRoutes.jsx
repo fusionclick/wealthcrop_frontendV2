@@ -17,6 +17,9 @@ import LTCGCalculator from "../pages/calculators/LTCGCalculator";
 import EightyCTracker from "../pages/calculators/EightyCTracker";
 import IncomeTaxCalculator from "../pages/calculators/IncomeTaxCalculator";
 import RentCalculator from "../pages/calculators/RentCalculator";
+import EpfCalculator from "../pages/calculators/EpfCalculator";
+import EmergencyFundCalculator from "../pages/calculators/EmergencyFundCalculator";
+import GoalBasedCalculator from "../pages/calculators/GoalBasedCalculator";
 
 
 export const calculatorRoutes = [
@@ -38,4 +41,8 @@ export const calculatorRoutes = [
   { path: "elss-calculator", element: <ELSSPlannerCalculator/> },
   { path: "ltcg-calculator", element: <LTCGCalculator/> },
   { path: "eightyC-calculator", element: <EightyCTracker/> },
+  // SRS pages 13-14 — the three planning tools the spec names.
+  { path: "epf-calculator", element: <EpfCalculator /> },
+  { path: "emergency-fund-calculator", element: <EmergencyFundCalculator /> },
+  { path: "goal-based-calculator", element: <GoalBasedCalculator /> },
 ];

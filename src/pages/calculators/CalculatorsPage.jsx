@@ -26,6 +26,24 @@ const calculators = [
     bg: "from-pink-100 to-pink-200",
   },
   {
+    name: "Goal-Based Calculator",
+    path: "/calculator/goal-based-calculator",
+    icon: PiggyBank,
+    bg: "from-violet-100 to-violet-200",
+  },
+  {
+    name: "Emergency Fund Calculator",
+    path: "/calculator/emergency-fund-calculator",
+    icon: WalletMinimal,
+    bg: "from-rose-100 to-rose-200",
+  },
+  {
+    name: "EPF Calculator",
+    path: "/calculator/epf-calculator",
+    icon: HandCoins,
+    bg: "from-teal-100 to-teal-200",
+  },
+  {
     name: "FD Calculator",
     path: "/calculator/fd-calculator",
     icon: Banknote,

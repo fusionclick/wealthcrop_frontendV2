@@ -53,13 +53,17 @@ export const sipSeries = ({ monthly, years, cagr }) => {
  * Goal aaj ki qeemat mein diya jata hai, is liye pehle use inflation par aage le jate hain;
  * warna inflation slider hilta hai aur natija wahi rehta hai.
  */
-export const sipForGoal = ({ goal, years, cagr, inflation = 0 }) => {
+export const sipForGoal = ({ goal, years, cagr, inflation = 0, current = 0 }) => {
   const yrs = Math.max(1, Math.round(Number(years) || 0));
   const target = Math.max(0, Number(goal) || 0) * Math.pow(1 + (Number(inflation) || 0) / 100, yrs);
   const n = yrs * 12;
   const r = (Number(cagr) || 0) / 100 / 12;
+  // What is already saved keeps compounding on its own, so only the shortfall needs a SIP.
+  // Defaults to 0, which leaves every existing caller's answer unchanged.
+  const currentFV = Math.max(0, Number(current) || 0) * Math.pow(1 + r, n);
+  const shortfall = Math.max(0, target - currentFV);
   // r = 0 par annuity formula 0/0 hai — us case mein goal barabar hisson mein bat jata hai.
-  const monthlySIP = r === 0 ? target / n : (target * r) / (Math.pow(1 + r, n) - 1);
+  const monthlySIP = r === 0 ? shortfall / n : (shortfall * r) / (Math.pow(1 + r, n) - 1);
 
   const series = sipSeries({ monthly: monthlySIP, years: yrs, cagr }).map((p) => ({
     year: p.year,
@@ -70,10 +74,69 @@ export const sipForGoal = ({ goal, years, cagr, inflation = 0 }) => {
   return {
     target: Math.round(target),
     monthlySIP: Math.round(monthlySIP),
+    currentFutureValue: Math.round(currentFV),
     totalInvested: Math.round(monthlySIP * n),
     estimatedGrowth: Math.round(target - monthlySIP * n),
     futureValue: Math.round(target),
     series,
+  };
+};
+
+/**
+ * EPF — employee + employer monthly contributions, interest credited yearly on the
+ * running balance (that is how EPFO does it: contributions accrue monthly, interest
+ * once a year).
+ *
+ * ponytail: employer's share is taken at face value from `employerPct`. In reality
+ * 8.33% of it is diverted to EPS (pension) and only the rest reaches EPF, so a user
+ * entering the statutory 12% here sees the un-split figure. Add the EPS split when
+ * someone needs a pension projection — it changes the answer, not the shape.
+ */
+export const epf = ({ basic, employeePct = 12, employerPct = 12, years, rate = 8.25 }) => {
+  const m = Math.max(0, Number(basic) || 0);
+  const yrs = Math.max(1, Math.round(Number(years) || 0));
+  const eeRate = Math.max(0, Number(employeePct) || 0) / 100;
+  const erRate = Math.max(0, Number(employerPct) || 0) / 100;
+  const r = Math.max(0, Number(rate) || 0) / 100;
+
+  const eeMonthly = m * eeRate;
+  const erMonthly = m * erRate;
+  let balance = 0;
+  for (let y = 0; y < yrs; y++) {
+    balance += (eeMonthly + erMonthly) * 12;
+    balance *= 1 + r;
+  }
+  const employee = eeMonthly * 12 * yrs;
+  const employer = erMonthly * 12 * yrs;
+  return {
+    employee: Math.round(employee),
+    employer: Math.round(employer),
+    interest: Math.round(balance - employee - employer),
+    total: Math.round(balance),
+  };
+};
+
+/**
+ * Emergency fund — how big it should be, and what it takes to get there.
+ *
+ * ponytail: `buildMonths` is how long the investor gives themselves to close the gap,
+ * because "monthly savings required" has no answer without a horizon and the SRS does
+ * not name one. Returns are ignored while building: a fund you may need next month
+ * should not be budgeted as if it compounds first.
+ */
+export const emergencyFund = ({ expenses, months = 6, current = 0, rate = 0, buildMonths = 12 }) => {
+  const need = Math.max(0, Number(expenses) || 0) * Math.max(1, Math.round(Number(months) || 0));
+  const have = Math.max(0, Number(current) || 0);
+  const gap = Math.max(0, need - have);
+  const build = Math.max(1, Math.round(Number(buildMonths) || 0));
+  const r = Math.max(0, Number(rate) || 0) / 100;
+  return {
+    required: Math.round(need),
+    shortfall: Math.round(gap),
+    monthlySaving: Math.round(gap / build),
+    // Only meaningful once the fund is built and parked somewhere.
+    annualIncomeIfInvested: Math.round(need * r),
+    funded: gap === 0,
   };
 };
 
