@@ -120,6 +120,35 @@ test("the same fund spelled differently is not flagged", () => {
 });
 
 /**
+ * QA round 3: "HDFC Flexi Cap is missing from the catalogue." It was not missing — it
+ * matched, and then got flagged and unticked because the statement writes "Flexi Cap" and
+ * BSE's master writes "FLEXICAP". Where a fund house puts the space is not a different fund.
+ */
+test("a space the two sources disagree about is not a different fund", () => {
+  const pairs = [
+    ["HDFC Flexi Cap Fund - Growth", "HDFC FLEXICAP FUND - DIRECT PLAN - GROWTH OPTION"],
+    ["HDFC Mid Cap Fund - Growth Option", "HDFC MIDCAP OPPORTUNITIES FUND - GROWTH"],
+    ["SBI Large and Mid Cap Fund", "SBI LARGE AND MIDCAP FUND REGULAR GROWTH"],
+  ];
+  for (const [scheme_name, matched_name] of pairs) {
+    assert.equal(nameDiffers({ scheme_name, matched_name }), false, `${scheme_name} vs ${matched_name}`);
+  }
+});
+
+test("a genuinely different fund is still flagged", () => {
+  // The whole reason the check exists: the ISIN resolved to something the statement never
+  // named, so the investor is about to start tracking a holding they may not own.
+  assert.equal(
+    nameDiffers({ scheme_name: "HDFC Liquid Fund - Growth", matched_name: "HDFC MID-CAP OPPORTUNITIES FUND - GROWTH" }),
+    true
+  );
+  assert.equal(
+    nameDiffers({ scheme_name: "Axis Bluechip Fund", matched_name: "SBI Small Cap Fund" }),
+    true
+  );
+});
+
+/**
  * QA: "the Axis ELSS NAV is being overridden — UI shows 96.57 instead of the statement's
  * 110.00". An import reproduces the document: units × the statement's NAV is what the CAS
  * says the holding was worth, so that figure is the one kept and the one saved. Today's

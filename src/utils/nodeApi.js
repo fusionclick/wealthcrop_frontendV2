@@ -338,8 +338,18 @@ export const nameDiffers = (row = {}) => {
   const statement = significantWords(row.scheme_name);
   const matched = significantWords(row.matched_name);
   if (!statement.size || !matched.size) return false;
-  // Same fund = every significant word on the statement also appears in the matched name.
-  for (const w of statement) if (!matched.has(w)) return true;
+  // Compared against the matched words RUN TOGETHER, not word by word. Whether a fund
+  // house writes "Flexi Cap" or "FLEXICAP", "Mid Cap" or "MIDCAP", "Large and Midcap" or
+  // "Large & Mid Cap" is a typesetting choice that changes with the source — BSE's master
+  // and an RTA's statement disagree on it constantly. Word-by-word made every one of those
+  // pairs look like two different funds, so a correctly matched holding arrived carrying a
+  // "statement calls this something else" warning AND unticked, which reads as the
+  // catalogue not having the fund at all.
+  //
+  // The case this exists for still fires: "HDFC Liquid" against "HDFC Mid Cap" has no
+  // "liquid" anywhere in "hdfcmidcap".
+  const blob = [...matched].join("");
+  for (const w of statement) if (!blob.includes(w)) return true;
   return false;
 };
 
