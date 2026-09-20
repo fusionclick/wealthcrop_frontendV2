@@ -38,9 +38,28 @@ test("ticket 22: submit is blocked until the required boxes are ticked", () => {
   }
 });
 
-test("ticket 22: a redemption is not gated", () => {
-  // Not an oversight — asserted so nobody "fixes" it later and locks an investor in.
-  assert.doesNotMatch(read("src/pages/mutual_fund/RedeemMF.jsx"), /useDisclaimers/);
+test("ticket 22: the SWP is gated, the one-off redemption is not", () => {
+  // The original rule here was "RedeemMF must not know about disclaimers at all", to stop
+  // anyone gating a sell and locking an investor in. That reason survives, but it is about
+  // the EXIT, not the page: ticket 22 names the SWP, and RedeemMF hosts both.
+  //
+  // So the notices are shown, and the gate applies only while the schedule is on.
+  // useDisclaimers fails closed, so gating the one-off redemption too would mean a
+  // /disclaimers outage traps the investor's money — which is the harm the old assertion
+  // was really protecting against.
+  const src = read("src/pages/mutual_fund/RedeemMF.jsx");
+  assert.match(src, /useDisclaimers\(\)/, "the SWP must show the disclaimers");
+  assert.match(src, /<OrderDisclaimers \{\.\.\.disc\} \/>/, "they must be rendered");
+  assert.match(
+    src,
+    /disabled=\{[\s\S]{0,300}?sched\.on && !disc\.ready/,
+    "the SWP must be gated on the acknowledgement"
+  );
+  assert.doesNotMatch(
+    src,
+    /disabled=\{[\s\S]{0,300}?\|\| !disc\.ready/,
+    "a one-off redemption must never be blocked by the disclaimer gate — it is the exit"
+  );
 });
 
 test("the text and the required list come from the server, not the bundle", () => {

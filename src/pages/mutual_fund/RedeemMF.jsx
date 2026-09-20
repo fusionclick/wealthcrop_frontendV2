@@ -116,8 +116,12 @@ export function RedeemForm({ holding, locked, onCancel, onSuccess }) {
   // Ticket 17: an SWP is this same withdrawal, repeated. The holding and its folio are
   // already picked above, so the only thing the investor adds is a schedule.
   const sched = useSxpSchedule("swp", holding);
-  // Ticket 22: a withdrawal shows the same statutory notices a purchase does, and the tick
-  // travels with the order — the server refuses either one without it.
+  // Ticket 22: the notices are shown on both, but only the SWP is gated on them.
+  //
+  // useDisclaimers fails closed — if /disclaimers cannot be reached nothing can be ticked
+  // and `ready` never becomes true. On a scheduled plan that is the right answer; on a
+  // one-off redemption it would mean an outage locks the investor out of their own money,
+  // so the exit is never blocked. The server draws the same line.
   const disc = useDisclaimers();
 
   const handleRedeem = async () => {
@@ -197,7 +201,7 @@ export function RedeemForm({ holding, locked, onCancel, onSuccess }) {
         <button
           type="button"
           onClick={handleRedeem}
-          disabled={submitting || (locked && !holding) || !sched.ready || !disc.ready}
+          disabled={submitting || (locked && !holding) || !sched.ready || (sched.on && !disc.ready)}
           className="flex-1 py-3 rounded-lg bg-red-600 text-white font-medium disabled:opacity-50"
         >
           {submitting ? "Processing…" : sched.on ? "Start SWP" : "Redeem"}
