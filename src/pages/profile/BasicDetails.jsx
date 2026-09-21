@@ -23,6 +23,7 @@ import { getApiWithToken, postApiWithToken } from "../../api/api";
 import { toastError, toastSuccess, toastWarn } from "../../utils/notifyCustom";
 import { formatDate } from "../../utils/format";
 import { isKycVerified } from "../../utils/kycVerdict";
+import SecondaryEmail from "./SecondaryEmail";
 
 
 const BasicDetails = () => {
@@ -261,6 +262,8 @@ const isKycDone = isKycVerified(userData?.kyc?.kyc_status)
                       </button>
                     </div>
     
+                    <SecondaryEmail userData={userData} refetch={refetch} />
+
                     {/* Marital Status */}
                     <div className="flex justify-between items-center">
                       <div>

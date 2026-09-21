@@ -25,6 +25,10 @@ const OrderEntryPage = ({
   const [changePct, setChangePct] = useState(Number(changePctProp) || 0);
   const [price, setPrice] = useState(Number(ltpProp) || 0);
   const [orderType, setOrderType] = useState("LIMIT");
+  // SRS FR 2.3. SL-M is a stop-loss MARKET order: it has a trigger but no limit price.
+  const marketPriced = orderType === "MARKET" || orderType === "SL-M";
+  const isStopLoss = orderType === "SL" || orderType === "SL-M";
+  const [trigger, setTrigger] = useState(0);
   const [product, setProduct] = useState("DELIVERY");
   const [validity] = useState("DAY");
   const [submitting, setSubmitting] = useState(false);
@@ -49,7 +53,7 @@ const OrderEntryPage = ({
             setLtp(nextLtp);
             setChangePct(nextPct);
             setChange((nextLtp * nextPct) / 100);
-            setPrice((prev) => (orderType === "MARKET" || !prev ? nextLtp : prev));
+            setPrice((prev) => (marketPriced || !prev ? nextLtp : prev));
           }
         })
         .catch(() => {});
@@ -63,7 +67,7 @@ const OrderEntryPage = ({
     };
   }, [symbol, orderType]);
 
-  const execPrice = orderType === "MARKET" ? ltp : price;
+  const execPrice = marketPriced ? ltp : price;
   const notionalValue = useMemo(() => quantity * execPrice, [quantity, execPrice]);
   const brokerage = useMemo(() => Math.min(20, notionalValue * 0.0003), [notionalValue]);
   const taxes = useMemo(() => notionalValue * 0.0005, [notionalValue]);
@@ -95,7 +99,11 @@ const OrderEntryPage = ({
       toastError("Enter quantity");
       return;
     }
-    if (orderType === "LIMIT" && !(price > 0)) {
+    if (isStopLoss && !(trigger > 0)) {
+      toastError("Enter trigger price");
+      return;
+    }
+    if (!marketPriced && !(price > 0)) {
       toastError("Enter limit price");
       return;
     }
@@ -108,7 +116,8 @@ const OrderEntryPage = ({
         quantity,
         order_type: orderType,
         product,
-        price: orderType === "MARKET" ? 0 : price,
+        price: marketPriced ? 0 : price,
+        trigger_price: isStopLoss ? trigger : 0,
         validity,
       });
 
@@ -306,7 +315,7 @@ const OrderEntryPage = ({
       </p>
 
       <div className="flex gap-1 bg-slate-50 dark:bg-[var(--gray-800)] rounded-xl p-1">
-        {['MARKET', 'LIMIT'].map((type) => (
+        {['MARKET', 'LIMIT', 'SL', 'SL-M'].map((type) => (
           <button
             key={type}
             onClick={() => setOrderType(type)}
@@ -384,7 +393,7 @@ const OrderEntryPage = ({
 
     <div>
       <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mb-1">
-        Price (₹) {orderType === 'MARKET' && '(market)'}
+        Price (₹) {marketPriced && '(market)'}
       </p>
 
       <div className="flex items-center rounded-xl border border-slate-200 dark:border-[var(--border-color)] bg-slate-50 dark:bg-[var(--gray-800)] px-3">
@@ -392,7 +401,7 @@ const OrderEntryPage = ({
           type="number"
           value={price}
           onChange={(e) => handlePriceChange(e.target.value)}
-          disabled={orderType === 'MARKET'}
+          disabled={marketPriced}
           className="w-full bg-transparent text-sm text-slate-900 dark:text-[var(--text-primary)] outline-none py-2"
         />
       </div>
@@ -401,6 +410,29 @@ const OrderEntryPage = ({
         LTP: ₹{(ltp || 0).toFixed(2)}
       </p>
     </div>
+
+    {isStopLoss && (
+      <div>
+        <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mb-1">Trigger price (₹)</p>
+        <div className="flex items-center rounded-xl border border-slate-200 dark:border-[var(--border-color)] bg-slate-50 dark:bg-[var(--gray-800)] px-3">
+          <input
+            type="number"
+            min="0"
+            aria-label="Trigger price"
+            value={trigger || ""}
+            onChange={(e) => setTrigger(Number(e.target.value) || 0)}
+            className="w-full bg-transparent text-sm text-slate-900 dark:text-[var(--text-primary)] outline-none py-2"
+          />
+        </div>
+        <p className="mt-1 text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">
+          {orderType === "SL-M"
+            ? "Sells or buys at market once the price touches the trigger."
+            : side === "SELL"
+            ? "Sell stop: trigger at or above your limit price."
+            : "Buy stop: trigger at or below your limit price."}
+        </p>
+      </div>
+    )}
   </div>
 
   {/* Footer */}
