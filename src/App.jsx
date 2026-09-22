@@ -54,6 +54,9 @@ import NFO from "./pages/NFO";
 import CalculatorsPage from "./pages/calculators/CalculatorsPage";
 import Goals from "./pages/Goals";
 import Advisor from "./pages/Advisor";
+import Community from "./pages/Community";
+import CommunityTopic from "./pages/CommunityTopic";
+import CoursePage from "./pages/CoursePage";
 import { calculatorRoutes } from "./utils/CalculatorRoutes";
 import ScrollToTopButton from "./utils/ScrollToTopButton";
 import IndicesDetails from "./pages/IndicesDetails";
@@ -505,6 +508,10 @@ useEffect(() => {
               {/* SRS §8.2 — goals, and §8 robo advisory. Both read the risk profile. */}
               <Route path="/goals" element={<Goals />} />
               <Route path="/advisor" element={<Advisor />} />
+              {/* SRS §10 — forum and Q&A. §11 — a course, with its quizzes. */}
+              <Route path="/community" element={<Community />} />
+              <Route path="/community/:id" element={<CommunityTopic />} />
+              <Route path="/learning-centre/course/:slug" element={<CoursePage />} />
               <Route
                 path="/mutual_fund/:isin/:code/buy"
                 element={<MutualFundInvestPage />}

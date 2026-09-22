@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 // dete hain — is liye page par tooti hui image ke placeholder nazar aate the. Ab repo ke
 // apne SVG bundle hote hain: dobara kabhi na tootein, aur kisi bahar wali service par
 // bharosa na karna pare.
+import CourseRail from "../components/learning/CourseRail";
 import learnHero from "../assets/invest.svg";
 import fundImg from "../assets/menu/fundMenu.svg";
 import stockImg from "../assets/menu/stockMenu.svg";
@@ -89,6 +90,10 @@ export default function LearningCenterPage() {
         className="w-80 drop-shadow-xl"
       />
     </div>
+
+    {/* SRS §11 — courses that can be completed, quizzed and badged. The written guides
+        below stay: an article is still the right shape for "read this once". */}
+    <CourseRail />
 
     {/* TOPIC SECTION */}
     <h2 className="text-3xl font-bold text-gray-800 mb-8 dark:text-white">

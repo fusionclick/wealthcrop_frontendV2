@@ -8,6 +8,10 @@ import {
   Landmark,
   Calculator,
   ArrowRight,
+  MessagesSquare,
+  Target,
+  Bot,
+  BarChart3,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import moreMenuImg from "../../assets/menu/moreMenu.svg";
@@ -141,6 +145,14 @@ const MoreMenu = ({ token }) => {
                     desc="Insights & articles."
                     onClick={() => navigate("/blogs")}
                   />
+
+                  {/* SRS §10 — the forum and Q&A had no way in from the app. */}
+                  <MenuItem
+                    icon={MessagesSquare}
+                    title="Community"
+                    desc="Ask an expert, talk to investors."
+                    onClick={() => navigate("/community")}
+                  />
                 </div>
 
                 {/* Account & Support */}
@@ -148,6 +160,28 @@ const MoreMenu = ({ token }) => {
                   <h3 className="font-semibold text-blue-950 dark:text-gray-100">
                     Account & Support
                   </h3>
+
+                  {/* SRS §8 / §8.2 / §11 — three new sections nothing linked to. */}
+                  <MenuItem
+                    icon={Bot}
+                    title="Advisor"
+                    desc="Get a plan in a few questions."
+                    onClick={() => navigate("/advisor")}
+                  />
+
+                  <MenuItem
+                    icon={Target}
+                    title="Goals"
+                    desc="Track what you are saving for."
+                    onClick={() => navigate("/goals")}
+                  />
+
+                  <MenuItem
+                    icon={BarChart3}
+                    title="Reports"
+                    desc="Statement, P&L, capital gains."
+                    onClick={() => navigate("/reports")}
+                  />
 
                   <MenuItem
                     icon={User}
