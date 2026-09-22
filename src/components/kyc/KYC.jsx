@@ -383,11 +383,14 @@ const callStepApi = async (step, data) => {
 };
 
 //! For document only
-const uploadDocument = async (type, file) => {
+const uploadDocument = async (type, file, meta = {}) => {
   try {
     const formData = new FormData();
     formData.append("type", type);
     formData.append("file", file);
+    // SRS p.3 — a secondary ID carries its number and which side this image is.
+    if (meta.document_number) formData.append("document_number", meta.document_number);
+    if (meta.side) formData.append("side", meta.side);
 
     const res = await fetch(`${import.meta.env.VITE_URL}/kyc/document`, {
       method: "POST",
@@ -1724,6 +1727,107 @@ function DocsStep({ data, onChange, errors = {}, uploadDocument }) {
   }}
 />
       </label>
+
+      {/* SRS page 3 — Secondary Identity Documents. */}
+      <SecondaryIdUpload uploadDocument={uploadDocument} />
+    </div>
+  );
+}
+
+/**
+ * SRS page 3 — "Users can upload photographs and details of secondary identity documents",
+ * with a document type, a document number, and front AND back where both sides carry
+ * information.
+ *
+ * A passport's back holds the address page and a Voter ID's back holds the address too, so
+ * the second side is offered for every type except the driving licence's single card face —
+ * and skipping it is allowed, because an investor who only has one side should not be stuck.
+ */
+function SecondaryIdUpload({ uploadDocument }) {
+  const [type, setType] = useState("voter_id");
+  const [number, setNumber] = useState("");
+  const [sides, setSides] = useState({});
+  const [busy, setBusy] = useState(false);
+
+  const TYPES = [
+    ["voter_id", "Voter ID"],
+    ["passport", "Passport"],
+    ["driving_licence", "Driving licence"],
+    ["aadhaar", "Aadhaar (second copy)"],
+  ];
+
+  const send = async (side, file) => {
+    if (!file) return;
+    if (!number.trim()) {
+      toastError("Enter the document number first.");
+      return;
+    }
+
+    setBusy(true);
+    const res = await uploadDocument(type, file, { document_number: number.trim(), side });
+    setBusy(false);
+
+    if (res?.status) setSides((prev) => ({ ...prev, [side]: file.name }));
+  };
+
+  const box =
+    "flex-1 flex items-center justify-between gap-2 border border-dashed rounded-xl p-3 cursor-pointer border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition";
+
+  return (
+    <div className="rounded-xl border border-gray-200 dark:border-white/10 p-4 space-y-3">
+      <div>
+        <p className="text-sm font-medium dark:text-white">
+          Another identity document <span className="font-normal text-gray-400">(optional)</span>
+        </p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          Voter ID, passport or driving licence — both sides where the back carries your address.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <select
+          value={type}
+          onChange={(e) => {
+            setType(e.target.value);
+            setSides({});
+          }}
+          aria-label="Document type"
+          className="border border-gray-300 dark:border-white/10 rounded-md px-2 py-1.5 text-sm bg-white dark:bg-white/5 dark:text-white"
+        >
+          {TYPES.map(([v, l]) => (
+            <option key={v} value={v}>
+              {l}
+            </option>
+          ))}
+        </select>
+
+        <input
+          value={number}
+          onChange={(e) => setNumber(e.target.value.toUpperCase())}
+          placeholder="Document number"
+          aria-label="Document number"
+          className="border border-gray-300 dark:border-white/10 rounded-md px-2 py-1.5 text-sm bg-white dark:bg-white/5 dark:text-white"
+        />
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-2">
+        {["front", "back"].map((side) => (
+          <label key={side} className={box}>
+            <span className="text-xs dark:text-white capitalize">
+              {side} side
+              {sides[side] && <span className="block text-[11px] text-green-600 truncate max-w-[160px]">{sides[side]}</span>}
+            </span>
+            <Upload size={16} className="dark:text-white" />
+            <input
+              type="file"
+              className="hidden"
+              disabled={busy}
+              accept="image/*,.pdf"
+              onChange={(e) => send(side, e.target.files[0])}
+            />
+          </label>
+        ))}
+      </div>
     </div>
   );
 }

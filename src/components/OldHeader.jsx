@@ -41,6 +41,7 @@ const token = localStorage.getItem("token"); // check login
 
 
 import useUnreadNotifications from "../hooks/useUnreadNotifications";
+import SwitchAccountModal from "./SwitchAccountModal";
 import MutualFundCarousel from "../carousel/MutualFundCarousel";
 import MutualFundsMenu from "./hovercomp/MutualFundsMenu";
 import StocksMenu from "./hovercomp/StocksMenu";
@@ -61,6 +62,8 @@ export default function OldHeader() {
   const navigate = useNavigate()
   // SRS FR 6.1 — the bell's dot used to be permanent decoration; this is the real count.
   const unreadCount = useUnreadNotifications(Boolean(token));
+  // The account chosen in the dropdown, waiting for re-authentication.
+  const [pendingAccount, setPendingAccount] = useState(null);
 
   // To Scroll open
   const [isScroll, setIsScroll] = useState(false);
@@ -125,7 +128,12 @@ export default function OldHeader() {
   }
 
 //! For switch account
-  const handleSwitch = (acc) => {
+  // SRS "Switch Accounts" step 3 — the system asks for re-authentication first. Picking an
+  // account now opens the confirm modal; only its callback performs the switch.
+  const handleSwitch = (acc) => setPendingAccount(acc);
+
+  const completeSwitch = (acc) => {
+  setPendingAccount(null);
   localStorage.setItem("currentAccount", JSON.stringify(acc));
 
   dispatch(login(acc.token));
@@ -613,6 +621,15 @@ const email = current?.email
 
       {/*  Global Search Popup */}
       {isSearchOpen && <SearchPopup onClose={() => setIsSearchOpen(false)} />}
+
+      {/* SRS "Switch Accounts" — re-authentication before the account changes. */}
+      {pendingAccount && (
+        <SwitchAccountModal
+          account={pendingAccount}
+          onCancel={() => setPendingAccount(null)}
+          onConfirmed={completeSwitch}
+        />
+      )}
     </>
   );
 }
