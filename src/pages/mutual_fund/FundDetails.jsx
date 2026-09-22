@@ -9,7 +9,7 @@ import MutualFundInvestPage from "./MutualFundInvestPage";
 import { RedeemForm } from "./RedeemMF";
 import Riskometer from "../../components/Riskometer";
 import FundBadges from "../../components/FundBadges";
-import { postApi, postApiWithToken } from "../../api/api";
+import { getApi, postApi, postApiWithToken } from "../../api/api";
 import { useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
 import FundDetailsPageSkeleton from "../../components/ui/skeleton/main/FundDetailsPageSkeleton";
@@ -52,6 +52,18 @@ const FundDetails = () => {
     queryFn: () => postApiWithToken(nodeUrl("/getClientPortfolio"), { data: { ucc } }, { silent: true }),
     select: (res) => (Array.isArray(res?.data?.holdings) ? res.data.holdings : []),
     enabled: !!ucc,
+  });
+
+  // SRS §11 — declared IDCW history. Uploaded by an admin from the AMC's declaration:
+  // nothing this platform reads publishes it, and inferring it from NAV drops would
+  // report a bad market day as a dividend. Empty is the normal answer for a growth plan.
+  const { data: dividends = [] } = useQuery({
+    queryKey: ["schemeDividends", isin, code],
+    queryFn: () =>
+      getApi(`${import.meta.env.VITE_URL}/scheme-dividends?isin=${encodeURIComponent(isin || "")}&code=${encodeURIComponent(code || "")}`),
+    select: (res) => (Array.isArray(res?.data) ? res.data : []),
+    enabled: Boolean(isin || code),
+    staleTime: 1000 * 60 * 30,
   });
 
   const schemeInfo = details?.data?.scheme_info;
@@ -1156,6 +1168,43 @@ const pctOf = (key) => {
               View the factsheet for {titleCase(fundsList?.name || "this scheme")} →
             </a>
           ) : null}
+        </div>
+      ) : null}
+
+      {/* SRS §11 — dividend history. Rendered only when declarations exist, so a growth
+          plan (which has none, correctly) shows nothing rather than an empty table. */}
+      {dividends.length > 0 ? (
+        <div className="bg-[var(--white-10)] border border-[var(--border-color)] shadow-lg rounded-2xl p-6 max-w-4xl mt-10">
+          <h2 className="text-2xl font-semibold mb-1 text-[var(--text-primary)]">Dividend History</h2>
+          <p className="text-xs text-[var(--text-secondary)] mb-4">
+            IDCW declared by the AMC. Past distributions are not a promise of future ones.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--border-color)] text-[var(--text-secondary)]">
+                  <th className="py-2 pr-4 text-left font-medium">Record date</th>
+                  <th className="py-2 pr-4 text-right font-medium">Per unit</th>
+                  <th className="py-2 pr-4 text-right font-medium">NAV</th>
+                  <th className="py-2 text-right font-medium">Type</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dividends.map((d) => (
+                  <tr key={d.record_date} className="border-b border-[var(--border-color)] last:border-0">
+                    <td className="py-2 pr-4 text-[var(--text-primary)]">{fmtDate(d.record_date)}</td>
+                    <td className="py-2 pr-4 text-right font-medium text-[var(--text-primary)]">
+                      ₹{Number(d.amount_per_unit).toFixed(4)}
+                    </td>
+                    <td className="py-2 pr-4 text-right text-[var(--text-secondary)]">
+                      {d.nav_on_record_date ? `₹${Number(d.nav_on_record_date).toFixed(4)}` : "—"}
+                    </td>
+                    <td className="py-2 text-right capitalize text-[var(--text-secondary)]">{d.kind}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : null}
 

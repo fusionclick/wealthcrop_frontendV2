@@ -9,13 +9,17 @@ import { useSelector } from "react-redux";
 import { laravelUrl, nodeUrl, mergePortfolio, fundBuyPath } from "../../utils/nodeApi";
 import { portfolioXirr } from "../../utils/xirr";
 import HoldingSheet from "../../components/mutual_fund/HoldingSheet";
-import { History } from "lucide-react";
+import PortfolioBar from "../../components/mutual_fund/PortfolioBar";
+import usePortfolios, { holdingKey } from "../../hooks/usePortfolios";
+import { History, Split } from "lucide-react";
 
 const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#6366f1"];
 const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 
 const DashBoardMF = () => {
   const [sortBy, setSortBy] = useState("name");
+  // FR 4.1 — which portfolio the list is filtered to. "all" is every holding.
+  const [portfolioFilter, setPortfolioFilter] = useState("all");
   const [openHolding, setOpenHolding] = useState(null);
   const navigate = useNavigate();
   const { data: investorData } = useSelector((state) => state.investorData);
@@ -79,14 +83,38 @@ const DashBoardMF = () => {
     return Object.entries(map).map(([name, value]) => ({ name, value }));
   }, [funds]);
 
+  // FR 4.1 — the investor's own groupings over the holdings already loaded above.
+  const { portfolios, byHolding, create, remove, assign } = usePortfolios(Boolean(ucc));
+
+  // Counts are over ALL funds, never the filtered list: a pill that only counted what is
+  // currently on screen would read 0 for every portfolio except the one selected.
+  const portfolioCounts = useMemo(() => {
+    const counts = { all: funds.length, unassigned: 0 };
+    for (const p of portfolios) counts[p.id] = 0;
+    for (const f of funds) {
+      const owner = byHolding.get(holdingKey(f));
+      if (owner) counts[owner.id] = (counts[owner.id] || 0) + 1;
+      else counts.unassigned += 1;
+    }
+    return counts;
+  }, [funds, portfolios, byHolding]);
+
+  const visibleFunds = useMemo(() => {
+    if (portfolioFilter === "all") return funds;
+    return funds.filter((f) => {
+      const owner = byHolding.get(holdingKey(f));
+      return portfolioFilter === "unassigned" ? !owner : owner?.id === portfolioFilter;
+    });
+  }, [funds, portfolioFilter, byHolding]);
+
   const sortedFunds = useMemo(() => {
-    return [...funds].sort((a, b) => {
+    return [...visibleFunds].sort((a, b) => {
       if (sortBy === "name") return (a.scheme_name || "").localeCompare(b.scheme_name || "");
       if (sortBy === "amount") return (Number(b.inv_amo) || 0) - (Number(a.inv_amo) || 0);
       if (sortBy === "returns") return (Number(b.ret_percentage) || 0) - (Number(a.ret_percentage) || 0);
       return 0;
     });
-  }, [funds, sortBy]);
+  }, [visibleFunds, sortBy]);
 
   const isLoading = loadingOrders || loadingBse;
 
@@ -206,7 +234,28 @@ const DashBoardMF = () => {
             >
               <History size={14} /> Order history
             </button>
+            {/* SRS §4 — Spread acts on a lump sum across the whole portfolio, not on one
+                fund, so unlike Redeem and Switch it does belong at this level. */}
+            <button
+              onClick={() => navigate("/mutual_fund/spread")}
+              className="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-white/10 hover:bg-slate-200 text-slate-700 dark:text-[var(--text-primary)] px-4 py-1.5 rounded-md text-xs font-medium"
+            >
+              <Split size={14} /> Spread a lump sum
+            </button>
           </div>
+
+          {/* FR 4.1 — filter the list to one portfolio. Holdings are filed from a
+              fund's own detail sheet, which is where the folio is already in hand. */}
+          <PortfolioBar
+            portfolios={portfolios}
+            counts={portfolioCounts}
+            selected={portfolioFilter}
+            onSelect={setPortfolioFilter}
+            onCreate={create}
+            onDelete={async (id) => {
+              if (await remove(id)) setPortfolioFilter("all");
+            }}
+          />
 
           <div className="flex justify-between items-center mb-2">
             <p className="text-sm font-semibold">Your Funds</p>
@@ -310,6 +359,9 @@ const DashBoardMF = () => {
             holding={openHolding}
             source="internal"
             onClose={() => setOpenHolding(null)}
+            portfolios={portfolios}
+            currentPortfolioId={openHolding ? byHolding.get(holdingKey(openHolding))?.id ?? null : null}
+            onAssignPortfolio={(id) => assign(id, holdingKey(openHolding))}
           />
         </>
       )}

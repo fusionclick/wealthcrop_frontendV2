@@ -192,6 +192,24 @@ const [docUploaded, setDocUploaded] = useState({
     };
   }, [kycData.pin]);
 
+  // SRS §3 — once a PAN is verified it stops being freely editable. The server is what
+  // enforces that (it refuses to move the value and raises a request instead); this only
+  // makes the form tell the truth about it rather than pretending the edit worked.
+  const panLocked = Boolean(userData?.profile?.pan_verified);
+  const [panChange, setPanChange] = useState(null);
+  useEffect(() => {
+    if (!panLocked) return;
+    let cancelled = false;
+    getApiWithToken(`${import.meta.env.VITE_URL}/kyc/pan-change`)
+      .then((res) => {
+        if (!cancelled) setPanChange(res?.data || null);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [panLocked]);
+
   // PAN → name / DOB / address, via the server-side lookup proxy. The provider key lives
   // in Laravel's .env and never reaches the browser; when no provider is configured the
   // route answers `data: null` and this quietly does nothing. Everything else on this
@@ -319,6 +337,8 @@ const stepApiConfig = {
       // of editing the form could change it.
       name: data.name,
       pan_number: data.pan,
+      // SRS §3 — carried only when the PAN is locked; the server ignores it otherwise.
+      pan_change_reason: data.panChangeReason,
       aadhaar_number: data.aadhar,
       dob: data.dob,
       gender: data.gender,
@@ -1020,7 +1040,7 @@ useEffect(() => {
               transition={{ duration: 0.2 }}
             >
               {/* {step === 0 && <PANStep data={kycData} onChange={update} />} */}
-              {step === 0 && <PersonalStep data={kycData} onChange={update} errors={fieldErrors} panLookupBusy={panLookupBusy} />}
+              {step === 0 && <PersonalStep data={kycData} onChange={update} errors={fieldErrors} panLookupBusy={panLookupBusy} panLocked={panLocked} panChange={panChange} />}
               {step === 1 && <BankStep data={kycData} onChange={update} errors={fieldErrors} customBank={customBank} setCustomBank={setCustomBank} setKycData={setKycData} />}
               {step === 2 && <DocsStep data={kycData} onChange={update} errors={fieldErrors} uploadDocument={uploadDocument} />}
               {step === 3 && <NomineeStep data={kycData} onChange={update} errors={fieldErrors} />}
@@ -1397,11 +1417,28 @@ function NomineeStep({ data, onChange, errors = {} }) {
   );
 }
 
-function PersonalStep({ data, onChange, errors = {}, panLookupBusy }) {
+function PersonalStep({ data, onChange, errors = {}, panLookupBusy, panLocked, panChange }) {
   const pan = readPan(data.pan);
   const nameWarning = panNameMismatch(data.pan, data.name);
+  const panPending = panChange?.state === "pending";
   return (
     <div className="space-y-3 p-1">
+      {/* SRS §3 — say why the field is locked and where the change went, rather than
+          letting an edit look accepted and silently not apply. */}
+      {panLocked && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-500/40 dark:bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+          {panPending ? (
+            <>Your PAN is verified. A change to <b>{panChange.requested_pan}</b> is waiting for our
+            team to approve — your current PAN stays active until then.</>
+          ) : panChange?.state === "rejected" ? (
+            <>Your PAN is verified and cannot be edited here. Your last change request was not
+            approved{panChange.review_note ? ` — ${panChange.review_note}` : ""}. Contact support to try again.</>
+          ) : (
+            <>Your PAN is verified, so it cannot be edited directly. Enter a new one and add a
+            reason — it will be sent to our team for approval.</>
+          )}
+        </div>
+      )}
       <h2 className="text-lg font-semibold dark:text-white">
         Personal Details
       </h2>
@@ -1442,6 +1479,17 @@ function PersonalStep({ data, onChange, errors = {}, panLookupBusy }) {
         onChange={(v) => onChange("pan", v.toUpperCase())}
         placeholder="ABCDE1234F"
       />
+      {/* Only asked for when a change actually needs consent — an admin reviewing the
+          queue has nothing to go on otherwise. */}
+      {panLocked && !panPending && (
+        <Field
+          label="Reason for changing PAN"
+          value={data.panChangeReason}
+          maxLength={200}
+          onChange={(v) => onChange("panChangeReason", v)}
+          placeholder="e.g. corrected a typo on my original PAN"
+        />
+      )}
          <Field
         label="Aadhar Number"
         value={data.aadhar}

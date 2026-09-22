@@ -47,6 +47,8 @@ const Profile = () => {
     { name: "Change Password", path: "change-password" },
     { name: "Change PIN", path: "change-pin" },
     { name: "Nominee Details", path: "nominee_details" },
+    // SRS "Compliance" — GDPR access, portability and erasure.
+    { name: "Your Data & Privacy", path: "data" },
   ];
 
     const [showAll, setShowAll] = useState(false)

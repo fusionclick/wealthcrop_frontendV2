@@ -31,6 +31,7 @@ import Positions from "./pages/stocks/Positions";
 import Orders from "./pages/stocks/Orders";
 import Watchlist from "./pages/stocks/Watchlist";
 import NomineeDetails from "./pages/profile/NomineeDetails";
+import DataRights from "./pages/profile/DataRights";
 import UserOrder from "./pages/profile/order/UserOrder";
 import Stocks from "./pages/profile/order/Stocks";
 import FutureandOptions from "./pages/profile/order/FutureandOptions";
@@ -93,6 +94,8 @@ import MutualFundInvestPage from "./pages/mutual_fund/MutualFundInvestPage";
 import SIPSetupPage from "./pages/mutual_fund/SIPSetupPage";
 import RedeemMF from "./pages/mutual_fund/RedeemMF";
 import SwitchMF from "./pages/mutual_fund/SwitchMF";
+import SpreadInvest from "./pages/mutual_fund/SpreadInvest";
+import Approvals from "./pages/Approvals";
 import ExploreFO from "./pages/future_&_options/ExploreFO";
 import PositionsFO from "./pages/future_&_options/PositionsFO";
 import OrdersFO from "./pages/future_&_options/OrdersFO";
@@ -439,6 +442,8 @@ useEffect(() => {
               <Route path="/mutual_fund/:isin/:code/sip" element={<SIPSetupPage />} />
               <Route path="/mutual_fund/redeem" element={<RedeemMF />} />
               <Route path="/mutual_fund/switch" element={<SwitchMF />} />
+              {/* SRS §4 — a lump sum split across funds, and optionally across time. */}
+              <Route path="/mutual_fund/spread" element={<SpreadInvest />} />
               {/* Fund comparison. A literal segment, so it must stay above /:isin/:code —
                   the dynamic pair would otherwise match "compare" as an ISIN. */}
               <Route path="/mutual_fund/compare" element={<CompareMF />} />
@@ -474,6 +479,8 @@ useEffect(() => {
                   <Route path="change-pin" element={<ChangePin />} />
                   <Route path="report-activity" element={<ReportActivity />} />
                   <Route path="nominee_details" element={<NomineeDetails />} />
+                  {/* SRS "Compliance" — GDPR access, portability and erasure. */}
+                  <Route path="data" element={<DataRights />} />
                   <Route path="account-forms" element={<AccountForm />} />
                 </Route>
               ) : (
@@ -493,6 +500,7 @@ useEffect(() => {
                     path="/profile/nominee_details"
                     element={<NomineeDetails />}
                   />
+                  <Route path="/profile/data" element={<DataRights />} />
                   <Route
                     path="/profile/account-forms"
                     element={<AccountForm />}
@@ -500,6 +508,8 @@ useEffect(() => {
                 </>
               )}
               <Route path="/reports" element={<Reports />} />
+              {/* SRS §4 — transactions held for authorisation. */}
+              <Route path="/user/approvals" element={<Approvals />} />
               <Route path="/user/balance" element={<Balance />} />
               <Route path="/user/balance/inr" element={<AddMoney />} />
               <Route path="/investments" element={<InvestmentOptions />} />

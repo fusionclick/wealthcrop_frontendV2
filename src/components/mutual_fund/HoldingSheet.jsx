@@ -30,7 +30,16 @@ const Row = ({ label, value }) =>
  * **Invest more** aur **Redeem**. External holding platform par nahi hai, is liye
  * uspar sirf Invest more dikhta hai — redeem wahin se hoga jahan se kharida tha.
  */
-export default function HoldingSheet({ holding, source = "internal", onClose, onRemove }) {
+export default function HoldingSheet({
+  holding,
+  source = "internal",
+  onClose,
+  onRemove,
+  // FR 4.1 — optional. A caller that does not pass these gets the sheet exactly as it was.
+  portfolios = [],
+  currentPortfolioId = null,
+  onAssignPortfolio,
+}) {
   const ref = useRef(null);
   const navigate = useNavigate();
 
@@ -134,6 +143,25 @@ export default function HoldingSheet({ holding, source = "internal", onClose, on
             )
           )}
         </div>
+        {/* FR 4.1 — file this holding into one of the investor's portfolios. It belongs
+            here rather than on the list: this is the only screen where the folio that
+            identifies the holding is already in hand. */}
+        {onAssignPortfolio && portfolios.length > 0 && (
+          <label className="mt-3 flex items-center justify-between gap-3">
+            <span className="text-xs text-slate-500 dark:text-[var(--text-secondary)]">Portfolio</span>
+            <select
+              value={currentPortfolioId ?? ""}
+              onChange={(e) => onAssignPortfolio(e.target.value ? Number(e.target.value) : null)}
+              className="rounded-lg border border-slate-300 dark:border-[var(--border-color)] bg-transparent px-2 py-1.5 text-xs dark:text-white"
+            >
+              <option value="">Unassigned</option>
+              {portfolios.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </label>
+        )}
+
         {/* Switch used to be a portfolio-level button on the investments page, which meant
             picking a fund, then picking it again in an empty dropdown. It belongs on the
             fund. Full width because it is the less common action of the three. */}

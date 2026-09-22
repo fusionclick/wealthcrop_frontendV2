@@ -12,6 +12,7 @@ import {
   Target,
   Bot,
   BarChart3,
+  ShieldCheck,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import moreMenuImg from "../../assets/menu/moreMenu.svg";
@@ -181,6 +182,13 @@ const MoreMenu = ({ token }) => {
                     title="Reports"
                     desc="Statement, P&L, capital gains."
                     onClick={() => navigate("/reports")}
+                  />
+
+                  <MenuItem
+                    icon={ShieldCheck}
+                    title="Approvals"
+                    desc="Transactions held for authorisation."
+                    onClick={() => navigate("/user/approvals")}
                   />
 
                   <MenuItem

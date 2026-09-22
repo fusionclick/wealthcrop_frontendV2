@@ -6,6 +6,7 @@ import { Bot, RotateCcw, Save, ThumbsDown, ThumbsUp, User2 } from "lucide-react"
 import { postApi, postApiWithToken } from "../api/api";
 import { fundBuyPath, nodeUrl } from "../utils/nodeApi";
 import { CHAT_STEPS, allocationFor, behaviourInsights, rationaleFor, sleevesFor } from "../utils/advisor";
+import { optimiseAroundGlidePath, mptRationale } from "../utils/mpt";
 import { toastSuccess } from "../utils/notifyCustom";
 
 /**
@@ -56,10 +57,23 @@ export default function Advisor() {
     () => allocationFor({ risk, lifeStage, horizonYears, tilt }),
     [risk, lifeStage, horizonYears, tilt]
   );
-  const sleeves = useMemo(() => sleevesFor(alloc, monthlyAmount, risk), [alloc, monthlyAmount, risk]);
+  // SRS §8 — Modern Portfolio Theory. The glide path above decides what this investor may
+  // hold; mean-variance optimisation decides where inside that band the money sits, by
+  // maximising return per unit of risk. Suitability still wins: the optimiser cannot move
+  // a sleeve more than 10 points from the allocation their profile allows.
+  const mpt = useMemo(() => optimiseAroundGlidePath(alloc, risk), [alloc, risk]);
+
+  // The optimised weights ARE the plan. Falling back to the glide path when the solver
+  // finds no feasible point means the screen still works rather than going blank.
+  const finalAlloc = mpt?.weights || alloc;
+
+  const sleeves = useMemo(() => sleevesFor(finalAlloc, monthlyAmount, risk), [finalAlloc, monthlyAmount, risk]);
   const rationale = useMemo(
-    () => rationaleFor({ risk, lifeStage, horizonYears, alloc }),
-    [risk, lifeStage, horizonYears, alloc]
+    () => [
+      ...rationaleFor({ risk, lifeStage, horizonYears, alloc: finalAlloc }),
+      ...mptRationale(mpt, alloc),
+    ],
+    [risk, lifeStage, horizonYears, finalAlloc, mpt, alloc]
   );
 
   // SRS §16.3 — behaviour read from the investor's own order history, nothing inferred.
@@ -113,7 +127,7 @@ export default function Advisor() {
       life_stage: lifeStage,
       horizon_years: horizonYears,
       monthly_amount: monthlyAmount,
-      allocation: alloc,
+      allocation: finalAlloc,
       sleeves,
       rationale,
       feedback,
@@ -195,7 +209,7 @@ export default function Advisor() {
                   )}
                 </div>
                 <p className="text-xs text-slate-500 dark:text-[#94a3b8]">
-                  Equity {alloc.equity}% · Debt {alloc.debt}% · Gold {alloc.gold}% · Cash {alloc.cash}%
+                  Equity {finalAlloc.equity}% · Debt {finalAlloc.debt}% · Gold {finalAlloc.gold}% · Cash {finalAlloc.cash}%
                 </p>
 
                 <table className="w-full text-sm">
@@ -237,6 +251,16 @@ export default function Advisor() {
                   </button>
                 </div>
               </div>
+
+              {/* SRS §8 — the two numbers MPT exists to produce. Shown next to the split
+                  so "why this and not something bolder" has an answer on screen. */}
+              {mpt && (
+                <div className="ml-10 mb-2 flex flex-wrap gap-4 text-xs text-slate-500 dark:text-[#94a3b8]">
+                  <span>Expected return <b className="text-slate-800 dark:text-white">{(mpt.ret * 100).toFixed(1)}%</b></span>
+                  <span>Volatility <b className="text-slate-800 dark:text-white">{(mpt.vol * 100).toFixed(1)}%</b></span>
+                  <span>Sharpe <b className="text-slate-800 dark:text-white">{mpt.sharpe.toFixed(2)}</b></span>
+                </div>
+              )}
 
               <Bubble side="bot">Why this split:</Bubble>
               <ul className="ml-10 space-y-1 text-sm text-slate-600 dark:text-[#94a3b8] list-disc list-inside">
