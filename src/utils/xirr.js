@@ -95,7 +95,9 @@ const INFLOW = /redeem|redemption|sell|withdraw|swp|switch[\s_-]*out|stp[\s_-]*o
 // units while XIRR refused the money that bought them, and an account whose orders are all
 // ACCEPTED got a blank rate next to a populated holdings list. Both sides have to agree on
 // what "settled" means.
-const SETTLED = /allot|accept|success|complet|paid|executed?/i;
+// Exported because the capital-gains report matches lots off the same order rows: two
+// definitions of "settled" would mean XIRR and the tax report counting different orders.
+export const SETTLED = /allot|accept|success|complet|paid|executed?/i;
 
 /**
  * BSE reports the transaction as a CODE, not a word.

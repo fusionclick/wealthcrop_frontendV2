@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
 import { Bot, RotateCcw, Save, ThumbsDown, ThumbsUp, User2 } from "lucide-react";
-import { getApiWithToken, postApi, postApiWithToken } from "../api/api";
+import { postApi, postApiWithToken } from "../api/api";
 import { fundBuyPath, nodeUrl } from "../utils/nodeApi";
 import { CHAT_STEPS, allocationFor, behaviourInsights, rationaleFor, sleevesFor } from "../utils/advisor";
 import { toastSuccess } from "../utils/notifyCustom";

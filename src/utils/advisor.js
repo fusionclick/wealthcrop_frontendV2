@@ -109,7 +109,7 @@ export function sleevesFor(alloc, monthlyAmount = 0, risk = "Moderate") {
 
 /** SRS §8 "Rationale and Insights" — why this, in plain sentences. */
 export function rationaleFor({ risk, lifeStage, horizonYears, alloc, goalName }) {
-  const stageLabel = (LIFE_STAGES.find(([k]) => k === lifeStage) || [, "your stage"])[1].split(" — ")[0];
+  const stageLabel = (LIFE_STAGES.find(([k]) => k === lifeStage) || ["", "your stage"])[1].split(" — ")[0];
   const lines = [
     `You answered as ${risk.toLowerCase()}, and ${stageLabel.toLowerCase()} portfolios are built around ${
       alloc.equity >= 60 ? "growth" : alloc.equity >= 35 ? "a balance of growth and stability" : "capital protection and income"
