@@ -16,6 +16,13 @@ export const fetchKotakStatus = () =>
 export const saveKotakCredentials = (payload) =>
   postApiWithToken(`${base}/portfolio/stocks/kotak-credentials`, payload);
 
+// FR 2.1 — the brokers other than Kotak. { broker, access_token, client_id?, api_key? }
+export const saveBrokerCredentials = (payload) =>
+  postApiWithToken(`${base}/portfolio/stocks/broker-credentials`, payload);
+
+export const useKotakBroker = () =>
+  postApiWithToken(`${base}/portfolio/stocks/broker/use-kotak`, {});
+
 export const syncStockPortfolio = () =>
   postApiWithToken(`${base}/portfolio/stocks/sync`, {});
 

@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import {
   fetchKotakStatus,
+  saveBrokerCredentials,
   saveKotakCredentials,
   syncStockPortfolio,
+  useKotakBroker,
 } from "../../api/portfolioApi";
 import { toastError, toastSuccess } from "../../utils/notifyCustom";
 
@@ -21,20 +23,68 @@ const KotakLinkForm = ({ onLinked, forceOpen = false, compact = false }) => {
   });
   const [saving, setSaving] = useState(false);
 
+  // FR 2.1 — Kotak is the default, not the only one. The catalogue comes from the server so
+  // a broker added there appears here without a frontend change.
+  const [catalogue, setCatalogue] = useState([]);
+  const [broker, setBroker] = useState("kotak");
+  const [other, setOther] = useState({ access_token: "", client_id: "", api_key: "" });
+
   const set = (key) => (e) => setValues((v) => ({ ...v, [key]: e.target.value }));
+  const setOtherField = (key) => (e) => setOther((v) => ({ ...v, [key]: e.target.value }));
 
   useEffect(() => {
     if (forceOpen) setShow(true);
   }, [forceOpen]);
 
   useEffect(() => {
-    if (forceOpen) return;
     fetchKotakStatus()
       .then((res) => {
-        if (res?.data && !res.data.linked) setShow(true);
+        if (!res?.data) return;
+        setCatalogue(res.data.brokers || []);
+        if (res.data.broker) setBroker(res.data.broker);
+        if (!forceOpen && !res.data.linked) setShow(true);
       })
       .catch(() => {});
   }, [forceOpen]);
+
+  // Selecting Kotak is itself the switch back — there is nothing to collect, the investor's
+  // Kotak credentials are already stored under their own columns.
+  const pickBroker = async (key) => {
+    setBroker(key);
+    if (key !== "kotak") return;
+    const res = await useKotakBroker();
+    if (res?.status) {
+      toastSuccess(res.message || "Switched to Kotak Neo");
+      onLinked?.();
+    }
+  };
+
+  const handleSaveOther = async (e) => {
+    e.preventDefault();
+    if (!other.access_token.trim()) {
+      toastError("Access token is required");
+      return;
+    }
+
+    setSaving(true);
+    const res = await saveBrokerCredentials({
+      broker,
+      access_token: other.access_token.trim(),
+      client_id: other.client_id.trim(),
+      api_key: other.api_key.trim(),
+    });
+    setSaving(false);
+
+    if (!res?.status) {
+      toastError(res?.message || "Could not link that account");
+      return;
+    }
+
+    toastSuccess(res.message);
+    // Still missing a required field: keep the form open, the message says which.
+    if (!res.missing?.length) setShow(false);
+    onLinked?.();
+  };
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -82,17 +132,88 @@ const KotakLinkForm = ({ onLinked, forceOpen = false, compact = false }) => {
 
   return (
     <form
-      onSubmit={handleSave}
+      onSubmit={broker === "kotak" ? handleSave : handleSaveOther}
       className={`w-full space-y-3 text-left ${
         compact ? "" : "mt-4 max-w-sm p-4 rounded-lg border border-teal-200 bg-teal-50/50 dark:border-teal-800 dark:bg-teal-950/20"
       }`}
     >
       {!compact && (
         <p className="text-sm font-medium text-blue-950 dark:text-[var(--text-primary)]">
-          Link your Kotak Neo account
+          Link your broking account
         </p>
       )}
 
+      {catalogue.length > 1 && (
+        <div>
+          <label className="block text-xs mb-1 text-gray-600 dark:text-[var(--text-secondary)]">
+            Broker
+          </label>
+          <select
+            value={broker}
+            onChange={(e) => pickBroker(e.target.value)}
+            className={field}
+          >
+            {catalogue.map((b) => (
+              <option key={b.key} value={b.key}>
+                {b.label}
+                {b.default ? " (default)" : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {broker !== "kotak" ? (
+        <>
+          <div>
+            <label className="block text-xs mb-1 text-gray-600 dark:text-[var(--text-secondary)]">
+              Access token <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="password"
+              autoComplete="off"
+              placeholder="From your broker's developer console"
+              value={other.access_token}
+              onChange={setOtherField("access_token")}
+              className={field}
+            />
+          </div>
+          <div>
+            <label className="block text-xs mb-1 text-gray-600 dark:text-[var(--text-secondary)]">
+              Client ID
+            </label>
+            <input
+              type="text"
+              autoComplete="off"
+              placeholder="Your client code with this broker"
+              value={other.client_id}
+              onChange={setOtherField("client_id")}
+              className={field}
+            />
+          </div>
+          <div>
+            <label className="block text-xs mb-1 text-gray-600 dark:text-[var(--text-secondary)]">
+              API key
+            </label>
+            <input
+              type="password"
+              autoComplete="off"
+              placeholder="Only if your broker issues one"
+              value={other.api_key}
+              onChange={setOtherField("api_key")}
+              className={field}
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={saving}
+            className="w-full bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white py-2 rounded-md text-sm font-medium transition"
+          >
+            {saving ? "Linking…" : "Save & continue"}
+          </button>
+        </>
+      ) : (
+      <>
       <div>
         <label className="block text-xs mb-1 text-gray-600 dark:text-[var(--text-secondary)]">
           Access token <span className="text-red-500">*</span>
@@ -167,6 +288,8 @@ const KotakLinkForm = ({ onLinked, forceOpen = false, compact = false }) => {
       >
         {saving ? "Linking…" : "Save & continue"}
       </button>
+      </>
+      )}
     </form>
   );
 };
