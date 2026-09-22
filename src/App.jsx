@@ -52,6 +52,8 @@ import FundDetails from "./pages/mutual_fund/FundDetails";
 // import StockDetails from "./components/StockDetails";
 import NFO from "./pages/NFO";
 import CalculatorsPage from "./pages/calculators/CalculatorsPage";
+import Goals from "./pages/Goals";
+import Advisor from "./pages/Advisor";
 import { calculatorRoutes } from "./utils/CalculatorRoutes";
 import ScrollToTopButton from "./utils/ScrollToTopButton";
 import IndicesDetails from "./pages/IndicesDetails";
@@ -500,6 +502,9 @@ useEffect(() => {
               <Route path="/investments" element={<InvestmentOptions />} />
               <Route path="/portfolio" element={<Portfolio />} />
               <Route path="/risk" element={<RiskProfilingPage />} />
+              {/* SRS §8.2 — goals, and §8 robo advisory. Both read the risk profile. */}
+              <Route path="/goals" element={<Goals />} />
+              <Route path="/advisor" element={<Advisor />} />
               <Route
                 path="/mutual_fund/:isin/:code/buy"
                 element={<MutualFundInvestPage />}

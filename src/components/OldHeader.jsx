@@ -40,6 +40,7 @@ import {
 const token = localStorage.getItem("token"); // check login
 
 
+import useUnreadNotifications from "../hooks/useUnreadNotifications";
 import MutualFundCarousel from "../carousel/MutualFundCarousel";
 import MutualFundsMenu from "./hovercomp/MutualFundsMenu";
 import StocksMenu from "./hovercomp/StocksMenu";
@@ -58,6 +59,8 @@ export default function OldHeader() {
   const { token } = useSelector((state) => state.auth);
   const location = useLocation();
   const navigate = useNavigate()
+  // SRS FR 6.1 — the bell's dot used to be permanent decoration; this is the real count.
+  const unreadCount = useUnreadNotifications(Boolean(token));
 
   // To Scroll open
   const [isScroll, setIsScroll] = useState(false);
@@ -238,7 +241,11 @@ const email = current?.email
         <>
           <Link to="/notifications" className="text-[var(--text-primary)] hover:text-[var(--accent)] transition relative">
             <HiBell className="text-2xl" />
-            <span className="absolute top-0 right-0 w-2 h-2 bg-red-600 rounded-full"></span>
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 flex items-center justify-center bg-red-600 text-white text-[10px] font-bold rounded-full">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
           </Link>
 
           <div className="relative group">
