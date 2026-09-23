@@ -2,6 +2,7 @@
 // (Attractive sections + copyright moved to last + extended sections only)
 import { Link } from "react-router-dom";
 import logo from "../assets/logo.png";
+import DistributorIdentity from "./DistributorIdentity";
 
 const Footer = () => {
   // ponytail: /stocks/:name goes straight to fetchStockDetails(symbol), so the link has to
@@ -204,6 +205,9 @@ const Section = ({ title, list, basePath }) => (
       list={calculators}
       basePath="/calculator"
     />
+
+    {/* AMFI §1.A — MANDATORY ON EVERY SCREEN. See DistributorIdentity for the size rule. */}
+    <DistributorIdentity className="pt-6 border-t border-gray-300 dark:border-white/10" />
 
     {/* DISCLAIMER */}
     <div

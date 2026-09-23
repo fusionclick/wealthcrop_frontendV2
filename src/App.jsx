@@ -6,6 +6,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import Footer from "./components/Footer";
+import DistributorIdentity from "./components/DistributorIdentity";
 import Home from "./pages/Home";
 import Portfolio from "./pages/Portfolio";
 import Profile from "./pages/Profile";
@@ -37,6 +38,7 @@ import Stocks from "./pages/profile/order/Stocks";
 import FutureandOptions from "./pages/profile/order/FutureandOptions";
 import MutualFundOrder from "./pages/profile/order/MutualFundOrder";
 import Support from "./pages/Support";
+import Grievance from "./pages/Grievance";
 import Reports from "./pages/Reports";
 import Balance from "./pages/Balance";
 import AddMoney from "./pages/AddMoney";
@@ -561,6 +563,20 @@ useEffect(() => {
                 visitor seedha /login par phenk diya jata tha. */}
             <Route path="/support" element={<Support />} />
 
+            {/* §4.4 — the grievance module. Behind ProtectRoute because a complaint is filed
+                against an account: an anonymous one cannot be traced to an order, answered,
+                or counted in SEBI's monthly grievance report. */}
+            <Route
+              path="/support/complaint"
+              element={
+                // ProtectRoute redirects whenever `user` is falsy, so omitting the prop
+                // would send every signed-in investor to /login as well.
+                <ProtectRoute user={token}>
+                  <Grievance />
+                </ProtectRoute>
+              }
+            />
+
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Register />} />
             <Route path="/verify-otp" element={<VerifyOtp />} />
@@ -653,7 +669,15 @@ useEffect(() => {
       </main>
 
       {/* ================= FOOTER ================= */}
-      {!CHROME_FREE_ROUTES.some((p) => pathname.startsWith(p)) && <Footer />}
+      {/* AMFI §1.A requires the distributor identity on EVERY screen. The onboarding routes
+          deliberately drop the whole footer to stay in one viewport, so they get the line on
+          its own rather than an exemption — signup and KYC are exactly where an investor is
+          deciding who they are dealing with. */}
+      {CHROME_FREE_ROUTES.some((p) => pathname.startsWith(p)) ? (
+        <DistributorIdentity className="px-4 pb-6 text-center" />
+      ) : (
+        <Footer />
+      )}
 
       {/*  BOTTOM SPACER (mobile only, matches BottomHeader height) */}
       {token && <div className="h-[72px] lg:hidden" />}

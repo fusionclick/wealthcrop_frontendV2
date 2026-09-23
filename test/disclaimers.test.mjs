@@ -22,7 +22,10 @@ test("ticket 22: every buying flow shows the disclaimers", () => {
   for (const file of BUYING_FLOWS) {
     const src = read(file);
     assert.match(src, /useDisclaimers\(\)/, `${file} does not load the disclaimers`);
-    assert.match(src, /<OrderDisclaimers \{\.\.\.disc\} \/>/, `${file} does not render them`);
+    // Matched on the spread, not on the exact tag: §1.B added per-scheme document and
+    // commission links as extra props, and pinning the literal one-line form made a screen
+    // that shows MORE disclosure look like one that shows none.
+    assert.match(src, /<OrderDisclaimers[\s\S]{0,200}\{\.\.\.disc\}/, `${file} does not render them`);
   }
 });
 

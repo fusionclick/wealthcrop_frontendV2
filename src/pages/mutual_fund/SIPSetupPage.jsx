@@ -7,6 +7,12 @@ import { nodeUrl, validateInvestorReady, buildMandatePayload } from "../../utils
 import { titleCase } from "../../utils/schemeName";
 import { allowedDays, FALLBACK_SIP_DAYS, iso, nextOccurrence, ordinal, smartDefaultDay } from "../../utils/sipDates";
 import OrderDisclaimers, { useDisclaimers } from "../../components/mutual_fund/OrderDisclaimers";
+import EnachAuthorization from "../../components/mutual_fund/EnachAuthorization";
+
+// The ceiling the server enforces (MANDATE_MAX_LIMIT). Shown, not chosen: the screen must
+// display the same number the backend will accept, or the investor authorises one thing and
+// the bank is told another.
+const MANDATE_MAX_LIMIT = 100000;
 
 // BSE counts installments, not an end date; the server derives the count the same way.
 // Showing it here means the investor sees exactly what is being registered.
@@ -101,6 +107,25 @@ const SIPSetupPage = () => {
   // Ticket 22: a SIP is a purchase instruction repeated, so it carries the same
   // acknowledgement. The server refuses /xspRegister without it.
   const disc = useDisclaimers();
+  // Shown only after the SIP itself is registered, so declining the mandate never costs the
+  // investor the SIP.
+  const [showEnach, setShowEnach] = useState(false);
+  const [enachBusy, setEnachBusy] = useState(false);
+
+  const authoriseMandate = async () => {
+    setEnachBusy(true);
+    try {
+      const mandateUrl = nodeUrl(import.meta.env.VITE_MANDATE_REGISTRATION || "/mandate_register/upi-autopay");
+      const payload = buildMandatePayload(investorData?.kyc?.ucc_code, investorData, MANDATE_MAX_LIMIT);
+      // The server refuses anything without this; it is the record that the investor was
+      // shown the limit and pressed the button.
+      await postApiWithToken(mandateUrl, { ...payload, authorized: true });
+      toastSuccess("Auto-debit authorised.");
+    } finally {
+      setEnachBusy(false);
+      navigate("/mutual_fund/manage-sip");
+    }
+  };
 
   // Once the scheme's real dates arrive, re-pick. Only when the day in hand is not one the
   // scheme accepts — an investor who already chose a valid date keeps it.
@@ -165,12 +190,10 @@ const SIPSetupPage = () => {
       const res = await postApiWithToken(url, payload);
       if (res) {
         toastSuccess("SIP registered successfully!");
-        // Auto-register UPI mandate for SIP debits
-        try {
-          const mandateUrl = nodeUrl(import.meta.env.VITE_MANDATE_REGISTRATION || "/mandate_register/upi-autopay");
-          await postApiWithToken(mandateUrl, buildMandatePayload(investorData?.kyc?.ucc_code, investorData, amount));
-        } catch (_) { /* mandate optional */ }
-        navigate("/mutual_fund/manage-sip");
+        // The e-NACH mandate used to be fired here, silently, inside an empty catch: a
+        // standing bank authorisation created as a side effect of buying, with the limit
+        // never shown. §2 row 5 requires an explicit act, so the investor is asked.
+        setShowEnach(true);
       }
     } catch (err) {
       toastError(err?.message || "SIP registration failed. Please try again.");
@@ -178,6 +201,28 @@ const SIPSetupPage = () => {
       setLoading(false);
     }
   };
+
+  // The mandate step stands on its own screen rather than as an overlay on a form that is
+  // already submitted: an authorisation the investor can half-read behind a dimmed form is
+  // the shape §3.A is warning about.
+  if (showEnach) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-[var(--app-bg)] flex justify-center items-start p-6">
+        <div className="w-full max-w-lg bg-white dark:bg-[var(--card-bg)] rounded-2xl shadow-lg p-8 space-y-4 dark:border dark:border-[var(--border-color)]">
+          <p className="text-sm text-[var(--text-secondary)]">
+            Your SIP in {titleCase(fund.name) || "this fund"} is registered.
+          </p>
+          <EnachAuthorization
+            sipAmount={amount}
+            maxLimit={MANDATE_MAX_LIMIT}
+            busy={enachBusy}
+            onAuthorize={authoriseMandate}
+            onSkip={() => navigate("/mutual_fund/manage-sip")}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[var(--app-bg)] flex justify-center items-start p-6">
@@ -327,7 +372,11 @@ const SIPSetupPage = () => {
           </div>
         )}
 
-        <OrderDisclaimers {...disc} />
+        <OrderDisclaimers
+          {...disc}
+          schemeDocsUrl={details?.factsheetUrl || ""}
+          schemeName={titleCase(fund.name) || ""}
+        />
 
         <div className="flex gap-3">
           <button

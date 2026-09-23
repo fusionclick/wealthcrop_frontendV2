@@ -28,7 +28,9 @@ const InflationCalculator = () => {
     },
     {
       q: "Why should I calculate inflation?",
-      a: "Inflation reduces purchasing power, so knowing future prices helps in budgeting and financial planning.",
+      // "financial planning" is a SEBI-registered activity this entity is not registered for
+      // (AMFI §3.B). An MFD may help someone budget for a goal; it may not call that planning.
+      a: "Inflation reduces purchasing power, so knowing future prices helps you budget and set realistic goals.",
     },
     {
       q: "What inflation rate should I use?",

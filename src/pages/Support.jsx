@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import React, { useState } from "react";
 import { Mail, ChevronDown } from "lucide-react";
 
@@ -150,13 +151,20 @@ const Support = () => {
       Our team is always ready to assist you with any issue.
     </p>
 
-    {/* Pehle "Raise a Ticket" tha — na iska koi onClick tha, na koi ticketing system
-        mojood hai. Jo cheez waqai chalti hai usi par bhej rahe hain. */}
-    <a
-      href="mailto:support@wealthcrop.co?subject=Help%20request"
+    {/* §4.4 — there IS a ticketing system now. A complaint raised here gets a reference
+        and a recorded response time; the mailto: next to it stays for general questions,
+        which are not complaints and should not clutter the grievance register. */}
+    <Link
+      to="/support/complaint"
       className="inline-block mt-4 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-medium transition"
     >
-      Email our team
+      Raise a complaint
+    </Link>
+    <a
+      href="mailto:support@wealthcrop.co?subject=Help%20request"
+      className="inline-block mt-4 ml-3 text-blue-700 dark:text-blue-400 text-sm font-medium underline underline-offset-2"
+    >
+      Or email us a general question
     </a>
   </div>
 </div>

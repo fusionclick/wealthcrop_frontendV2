@@ -684,11 +684,9 @@ useEffect(() => {
         pendingUcc.current = { ucc: clientCode, dp_id, client_id };
         const synced = await sendUcc(clientCode, dp_id, client_id);
         if (isKycVerified(synced?.kyc_status)) {
-          // mandateCreation() is NOT called here any more — see the note on the function.
-          // It registered a UPI AutoPay mandate at BSE from a hardcoded test fixture
-          // (someone else's VPA, a fixed ₹15,000, a distributor ARN that is not ours)
-          // against a real investor's UCC. A mandate is a payment authorisation; it belongs
+          // No mandate is registered here. A mandate is a payment authorisation; it belongs
           // to SIP setup with the investor's own VPA, not to an automatic KYC side effect.
+          // The fixture that used to do it is deleted — see the note further down this file.
           toastSuccess("KYC verified by BSE. Please sign in to continue.");
           finishKyc();
         }
@@ -754,68 +752,14 @@ const retryUcc = async () => {
 };
 
 
-            const mandateCreation = async (ucc) => {
-            
-              const payload = {
-                data: {
-                  member: "91010",
-                  investor: {
-                    ucc,
-                  },
-                  mem_details: {
-                    euin: "E234123",
-                    sub_br_arn: "ARN-873456",
-                    sub_br_code: "",
-                  },
-                  // mem_mandate_info: {
-                  // member_mandate_id: "MM123456789",
-                  // mandate_status_date: "2024-02-12T10:30:00Z",
-                  // umrn_number: "UMRN987654321",
-                  // utility_code: "UTL000123",
-                  // sponsor_code: "SPN456789"
-                  // },
-                  investor_bank_details: {
-                    ifsc: userData?.bank_accounts?.[0]?.ifsc_code,
-                    no: userData?.bank_accounts?.[0]?.account_number || "123456789012",
-                    type: "CB",
-                    name: userData?.bank_accounts?.[0]?.bank_name,
-                    branch: "BHARUCH",
-                    // ifsc: "SBIN0011856",
-                    //   no: "40584578524",
-                    //   type: "SB",
-                    //   name: "State Bank of India",
-                    //   branch: "BHARUCH",
-                    vpa: ["tanmoy@sbi"],
-                  },
-                  amount: 15000,
-                  start_date: "2026-07-08",
-                  valid_till: "2035-11-19",
-                  reg_date: "2026-06-11",
-                  type: "U",
-                  redirect_url: "",
-                  mode: "DD",
-                  frequency: "AS AND WHEN PRESENTED",
-                  request_type: "REGISTRATION",
-                },
-              };
-
-
-            const url = nodeUrl(import.meta.env.VITE_MANDATE_REGISTRATION || "/mandate_register/upi-autopay");
-            try {
-
-              const res = await postApiWithToken(url, payload)
-
-              
-
-              // if(res?.status === 200 || res?.status === true){
-              //   toastSuccess(res?.message)
-              // }
-              
-            } catch (error) {
-              console.log(error?.message);
-              
-            }
-          }
+// The mandateCreation() fixture that used to sit here has been DELETED, not just
+// unhooked. It built a BSE UPI-AutoPay registration out of hardcoded values: EUIN
+// "E234123" and ARN-873456 (neither of which belongs to this distributor), a stranger's
+// VPA, a bank account number fallback of 123456789012, and a flat ₹15,000. It was already
+// unreachable, but the strings still shipped in the bundle, and dead payload builders get
+// re-enabled. The real mandate path is buildMandatePayload() in utils/nodeApi.js, which
+// reads the investor's own bank details; the distributor block is now built server-side
+// by Backend/src/mf/euin.js and can no longer be set from the browser at all.
 
   // Laravel stores the UCC, asks BSE for the verdict and answers { kyc_status, bse }.
   /**
