@@ -284,9 +284,17 @@ const ExploreMF = () => {
           {/* Was a link straight to /mutual_fund/sip-setup, which passes no fund — so the
               setup page sent BSE an empty src_scheme and every SIP registration failed.
               A SIP starts from a fund, so send them to the list. */}
+          {/* This card asks exactly the question the robo advisor answers, and /advisor
+              had no entry point anywhere a signed-in investor could see. */}
+          <Link
+            to="/advisor"
+            className="mt-4 px-5 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium"
+          >
+            Ask the Advisor
+          </Link>
           <a
             href="#all-funds"
-            className="mt-4 px-5 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium"
+            className="mt-2 text-sm font-medium text-emerald-700 dark:text-emerald-400 hover:underline"
           >
             Browse funds to SIP
           </a>

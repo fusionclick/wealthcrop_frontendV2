@@ -15,6 +15,8 @@ import {
   FileText,
   Headphones,
   BarChart3,
+  Bot,
+  Target,
   LogOut,
   Settings,
   Sun,
@@ -398,11 +400,43 @@ const email = current?.email
       <ChevronRight size={18} className="text-gray-400 dark:text-gray-500" />
     </Link>
 
+    {/* Advisor and Goals only had a link from MoreMenu, which renders for logged-OUT
+        visitors only - so a signed-in investor had no way into either. */}
+    <Link
+      to="/advisor"
+      className="
+        flex items-center justify-between px-4 py-2
+        text-gray-800 dark:text-gray-200
+        hover:bg-gray-50 dark:hover:bg-gray-800
+        transition"
+    >
+      <div className="flex items-center gap-3">
+        <Bot size={18} className="dark:text-gray-300" />
+        <span>Advisor</span>
+      </div>
+      <ChevronRight size={18} className="text-gray-400 dark:text-gray-500" />
+    </Link>
+
+    <Link
+      to="/goals"
+      className="
+        flex items-center justify-between px-4 py-2
+        text-gray-800 dark:text-gray-200
+        hover:bg-gray-50 dark:hover:bg-gray-800
+        transition"
+    >
+      <div className="flex items-center gap-3">
+        <Target size={18} className="dark:text-gray-300" />
+        <span>Goals</span>
+      </div>
+      <ChevronRight size={18} className="text-gray-400 dark:text-gray-500" />
+    </Link>
+
     <Link
       to="/reports"
       className="
-        flex items-center justify-between px-4 py-2 
-        text-gray-800 dark:text-gray-200 
+        flex items-center justify-between px-4 py-2
+        text-gray-800 dark:text-gray-200
         hover:bg-gray-50 dark:hover:bg-gray-800
         transition"
     >
