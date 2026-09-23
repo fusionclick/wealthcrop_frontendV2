@@ -219,5 +219,7 @@ test("category rank is shown with the size of the field it came from", () => {
   // A bare "3" could be out of anything. The backend sends categoryPeers for this reason.
   const code = readCode("../src/pages/mutual_fund/FundDetails.jsx");
   assert.ok(/categoryPeers/.test(code), "the peer count is never read");
-  assert.ok(/Ranked against all/.test(code), "the rank table does not say what it ranks against");
+  assert.ok(/rankedOf/.test(code), "each rank must print the count it was drawn from");
+  assert.ok(/Ranked within/.test(code), "the rank table does not say what it ranks against");
+  assert.equal(/Ranked against all {fundsList.categoryPeers}/.test(code), false, "the caption claims the whole category was ranked");
 });

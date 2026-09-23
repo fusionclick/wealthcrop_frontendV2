@@ -92,8 +92,11 @@ const FundDetails = () => {
       holdingsAsOf: extra.holdingsAsOf || null,
       categoryAvg: extra.categoryAvg || {},
       rank: extra.rank || {},
-      // A rank means nothing without the size of the field it was drawn from.
+      // A rank means nothing without the size of the field it was drawn from — and that is
+      // rankedOf, per period, not the size of the category: for the first hour after a
+      // backend restart most of the category has no trailing return yet.
       categoryPeers: extra.categoryPeers ?? null,
+      rankedOf: extra.rankedOf || {},
       categoryLabel: extra.categoryLabel || null,
       advancedRatios: schemeInfo?.advancedRatios || extra.advancedRatios,
       // Everything BSE does not publish, filled in by the backend's enrichment layer, plus
@@ -1270,7 +1273,10 @@ const pctOf = (key) => {
         {["1Y", "3Y", "5Y", "10Y", "ALL"].map((k) => (
           <td key={k} className="py-3 px-4">
             {fundsList?.rank?.[k] != null ? (
-              <span className="bg-emerald-500/15 text-emerald-400 px-3 py-1 rounded-full font-bold">{fundsList.rank[k]}</span>
+              <span className="bg-emerald-500/15 text-emerald-400 px-3 py-1 rounded-full font-bold whitespace-nowrap">
+                {fundsList.rank[k]}
+                {fundsList?.rankedOf?.[k] ? ` of ${fundsList.rankedOf[k]}` : ""}
+              </span>
             ) : "NA"}
           </td>
         ))}
@@ -1279,9 +1285,10 @@ const pctOf = (key) => {
   </table>
   {fundsList?.categoryPeers ? (
     <p className="px-4 pb-4 pt-2 text-xs text-[var(--text-secondary)]">
-      Ranked against all {fundsList.categoryPeers} schemes in
-      {" "}{fundsList.categoryLabel || "this category"}, on the same trailing-return feed for
-      every fund. 10Y is not published for the category, so it carries no rank.
+      Ranked within {fundsList.categoryLabel || "this category"} ({fundsList.categoryPeers}{" "}
+      schemes), against every fund in it that reports the period — each rank prints its own
+      count. Measured on the same trailing-return feed for all of them. 10Y is not published
+      for the category, so it carries no rank.
     </p>
   ) : null}
 </div>
