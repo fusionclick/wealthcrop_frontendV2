@@ -17,6 +17,7 @@ import {
   BarChart3,
   Bot,
   Target,
+  ShieldCheck,
   LogOut,
   Settings,
   Sun,
@@ -443,6 +444,21 @@ const email = current?.email
       <div className="flex items-center gap-3">
         <BarChart3 size={18} className="dark:text-gray-300" />
         <span>Reports</span>
+      </div>
+      <ChevronRight size={18} className="text-gray-400 dark:text-gray-500" />
+    </Link>
+
+    <Link
+      to="/user/approvals"
+      className="
+        flex items-center justify-between px-4 py-2
+        text-gray-800 dark:text-gray-200
+        hover:bg-gray-50 dark:hover:bg-gray-800
+        transition"
+    >
+      <div className="flex items-center gap-3">
+        <ShieldCheck size={18} className="dark:text-gray-300" />
+        <span>Approvals</span>
       </div>
       <ChevronRight size={18} className="text-gray-400 dark:text-gray-500" />
     </Link>
