@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { titleCase, fmtPct, fmtAge, fmtDate, displayIdentifier } from "../src/utils/schemeName.js";
+import { titleCase, fmtPct, fmtAge, fmtDate, displayIdentifier, fmtRatio, fmtExitLoad } from "../src/utils/schemeName.js";
 import { RANGES, spanDays, toReturnSeries, bucketSeries } from "../src/components/chart/navSeries.js";
 
 const read = (p) => fs.readFileSync(new URL(p, import.meta.url), "utf8");
@@ -168,4 +168,56 @@ test("ticket 11: Explore asks the server to filter and rank, not just this page"
   }
   // Sort changes must reset paging, or page 7 of the old order is requested in the new one.
   assert.ok(/setPage\(0\);\s*setSort/.test(code), "changing the sort must reset to page 1");
+});
+
+// ---------------------------------------------------------------------------
+// Client re-review, 2026-09-24. Five things the spec asks for that were still
+// wrong on production, each found by reading the live site rather than the code.
+// ---------------------------------------------------------------------------
+
+test("the NAV ticker Title Cases scheme names like every other surface", () => {
+  // The ticker is the first fund text on the page and was the one place still rendering
+  // BSE's shouted name, so the client's very first impression contradicted the ticket.
+  const code = readCode("../src/carousel/MutualFundCarousel.jsx");
+  assert.ok(/titleCase\(/.test(code), "the ticker still renders the raw BSE name");
+  assert.equal(/label:\s*f\.name\b/.test(code), false, "an un-cased fund label is back");
+});
+
+test("expense ratio and exit load carry their units", () => {
+  // Live read "Expense Ratio 0.69" and "Exit Load 0" — a percentage with no % and a zero
+  // that reads like a missing value.
+  assert.equal(fmtRatio("0.69"), "0.69%");
+  assert.equal(fmtRatio(1.75), "1.75%");
+  assert.equal(fmtRatio(null), "—");
+
+  // Zero exit load is a fact about the fund, not an absent field.
+  assert.equal(fmtExitLoad("0"), "Nil");
+  assert.equal(fmtExitLoad(0), "Nil");
+  assert.equal(fmtExitLoad("1"), "1%");
+  assert.equal(fmtExitLoad(null), null, "unknown must stay unknown so the page can say so");
+  // BSE also sends prose in this field; it must survive untouched.
+  assert.equal(fmtExitLoad("1% if redeemed within 365 days"), "1% if redeemed within 365 days");
+});
+
+test("the fund page prints no bare ratio", () => {
+  const code = readCode("../src/pages/mutual_fund/FundDetails.jsx");
+  assert.equal(/\{fundsList\.expense\}/.test(code), false, "expense is rendered without a unit");
+  assert.equal(/\{fundsList\?\.exitLoad\s*\|\|/.test(code), false, "exit load is rendered without a unit");
+});
+
+test("no Roman Urdu reaches an end user", () => {
+  // The 404 page told every visitor "par koi page nahi hai." This app has no Urdu locale;
+  // the string was a working note that shipped.
+  const code = readCode("../src/components/ErrorPage.jsx");
+  for (const phrase of ["nahi hai", "koi page", "mojood"]) {
+    assert.equal(code.includes(phrase), false, `ErrorPage still shows users "${phrase}"`);
+  }
+  assert.ok(/There is no page at/.test(code), "the English replacement is missing");
+});
+
+test("category rank is shown with the size of the field it came from", () => {
+  // A bare "3" could be out of anything. The backend sends categoryPeers for this reason.
+  const code = readCode("../src/pages/mutual_fund/FundDetails.jsx");
+  assert.ok(/categoryPeers/.test(code), "the peer count is never read");
+  assert.ok(/Ranked against all/.test(code), "the rank table does not say what it ranks against");
 });

@@ -32,8 +32,8 @@ const ErrorPage = ({ message, notFound }) => {
     <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed mb-6">
       {notFound ? (
         <>
-          <span className="break-all font-medium">{location.pathname}</span>{" "}
-          par koi page nahi hai.
+          There is no page at{" "}
+          <span className="break-all font-medium">{location.pathname}</span>.
         </>
       ) : (
         errorMessage ||

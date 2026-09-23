@@ -88,6 +88,35 @@ export function fmtPct(value, { annualised = false, sign = false, dp = 2 } = {})
   return annualised ? `${body} p.a.` : body;
 }
 
+/**
+ * Expense ratio and exit load. Both arrive as bare numbers ("0.69", "0") and were printed
+ * exactly like that: a percentage with no % beside it, and an exit load of zero shown as the
+ * digit 0.
+ *
+ * Zero is a real answer for both, so neither may fall through to the unknown branch — an exit
+ * load of 0 means the investor pays nothing to leave, which is a fact, not a missing field.
+ */
+// Only a value that is ENTIRELY a number is one. Stripping the non-digits out of BSE's prose
+// ("1% if redeemed within 365 days") instead produced "1365%", which is not a wrong format,
+// it is a wrong charge — so the whole string has to parse, or none of it does.
+const asNumber = (value) => {
+  const s = String(value).trim().replace(/%$/, "").trim();
+  return /^-?\d+(\.\d+)?$/.test(s) ? Number(s) : null;
+};
+
+export function fmtRatio(value) {
+  if (value == null || value === "") return "—";
+  const n = asNumber(value);
+  return n == null ? String(value) : `${n}%`;
+}
+
+export function fmtExitLoad(value) {
+  if (value == null || value === "") return null;
+  const n = asNumber(value);
+  if (n == null) return String(value);
+  return n === 0 ? "Nil" : `${n}%`;
+}
+
 /** Fund age as a sentence, from whichever of the two dates we have. */
 export function fmtAge(years) {
   if (years == null || Number.isNaN(Number(years))) return null;

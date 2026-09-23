@@ -15,7 +15,7 @@ import { useSelector } from "react-redux";
 import FundDetailsPageSkeleton from "../../components/ui/skeleton/main/FundDetailsPageSkeleton";
 import { fundSipPath, holdingMatchesScheme, isMfSaved, nodeUrl, toggleMfWatchlist } from "../../utils/nodeApi";
 import { toastSuccess } from "../../utils/notifyCustom";
-import { titleCase, fmtAge, fmtDate } from "../../utils/schemeName";
+import { titleCase, fmtAge, fmtDate, fmtRatio, fmtExitLoad } from "../../utils/schemeName";
 
 const fmtPct = (v) => (v == null || Number.isNaN(Number(v)) ? "—" : `${Number(v).toFixed(2)}%`);
 const inr = (v) => (v == null || Number.isNaN(Number(v)) ? "—" : `₹${Number(v).toLocaleString("en-IN")}`);
@@ -92,6 +92,9 @@ const FundDetails = () => {
       holdingsAsOf: extra.holdingsAsOf || null,
       categoryAvg: extra.categoryAvg || {},
       rank: extra.rank || {},
+      // A rank means nothing without the size of the field it was drawn from.
+      categoryPeers: extra.categoryPeers ?? null,
+      categoryLabel: extra.categoryLabel || null,
       advancedRatios: schemeInfo?.advancedRatios || extra.advancedRatios,
       // Everything BSE does not publish, filled in by the backend's enrichment layer, plus
       // the per-transaction rulebook BSE DOES publish (lumpsum[] / systematic[]).
@@ -525,7 +528,7 @@ const pctOf = (key) => {
         Expense Ratio
       </p>
       <p className="text-lg font-semibold text-[var(--text-primary)]">
-        {fundsList.expense}
+        {fmtRatio(fundsList.expense)}
       </p>
     </div>
     ) : null}
@@ -1274,6 +1277,13 @@ const pctOf = (key) => {
       </tr>
     </tbody>
   </table>
+  {fundsList?.categoryPeers ? (
+    <p className="px-4 pb-4 pt-2 text-xs text-[var(--text-secondary)]">
+      Ranked against all {fundsList.categoryPeers} schemes in
+      {" "}{fundsList.categoryLabel || "this category"}, on the same trailing-return feed for
+      every fund. 10Y is not published for the category, so it carries no rank.
+    </p>
+  ) : null}
 </div>
 
 
@@ -1306,7 +1316,7 @@ const pctOf = (key) => {
       Expense Ratio
     </p>
     <p className="text-[var(--text-primary)] mt-1">
-      {fundsList?.expense != null ? String(fundsList.expense) : "—"}
+      {fmtRatio(fundsList?.expense)}
     </p>
     <p className="text-[var(--text-secondary)] text-sm mt-1">
       Inclusive of GST
@@ -1325,7 +1335,7 @@ const pctOf = (key) => {
       Exit Load
     </p>
     <p className="text-[var(--text-secondary)] text-sm mt-1">
-      {fundsList?.exitLoad || "Not disclosed by the exchange."}
+      {fmtExitLoad(fundsList?.exitLoad) || "Not disclosed by the exchange."}
     </p>
   </div>
 

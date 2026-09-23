@@ -5,6 +5,7 @@ import { MdOutlineArrowDropDown, MdOutlineArrowDropUp } from "react-icons/md";
 import { postApi } from "../api/api";
 import { fetchFno, fetchStockList } from "../api/marketApi";
 import { nodeUrl } from "../utils/nodeApi";
+import { titleCase } from "../utils/schemeName";
 
 function tickerMode(pathname = "") {
   const p = pathname.toLowerCase();
@@ -54,7 +55,9 @@ function MutualFundCarousel() {
       const rows = fundData?.data?.lists ?? [];
       return rows.slice(0, 25).map((f, i) => ({
         key: f.scheme_isin || f.scheme_bse_code || i,
-        label: f.name,
+        // BSE shouts every scheme name. The ticker is the first fund text on the page and was
+        // the one surface still rendering it raw.
+        label: titleCase(f.name),
         value: Number(f.nav || 0).toFixed(2),
         change: Number(f.returns?.["1Y"] ?? 0),
         href: f.scheme_isin && f.scheme_bse_code
