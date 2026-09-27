@@ -24,6 +24,7 @@ import { toastError, toastSuccess, toastWarn } from "../../utils/notifyCustom";
 import { formatDate } from "../../utils/format";
 import { isKycVerified } from "../../utils/kycVerdict";
 import SecondaryEmail from "./SecondaryEmail";
+import KycDetails from "./KycDetails";
 
 
 const BasicDetails = () => {
@@ -263,6 +264,11 @@ const isKycDone = isKycVerified(userData?.kyc?.kyc_status)
                     </div>
     
                     <SecondaryEmail userData={userData} refetch={refetch} />
+
+                    {/* SRS §3 — PAN / city / occupation after KYC. Until this existed the
+                        investor had no way back to these fields once KYC passed, and the
+                        PAN-change approval queue behind them was never reachable. */}
+                    <KycDetails userData={userData} refetch={refetch} />
 
                     {/* Marital Status */}
                     <div className="flex justify-between items-center">

@@ -19,8 +19,6 @@ import { toastError, toastSuccess } from "../../utils/notifyCustom";
 import { useQuery } from "@tanstack/react-query";
 import {banks} from "../../utils/bank"
 import { useNavigate } from "react-router-dom";
-import { useDispatch } from "react-redux";
-import { logout } from "../../redux/authenticationSlice";
 import { nodeUrl, laravelUrl } from "../../utils/nodeApi";
 import { validateKycStep } from "../../utils/FormSchema";
 import { PAN_REGEX, bankFromIfsc, lookupPincode, panNameMismatch, readPan } from "../../utils/kycAutofill";
@@ -57,7 +55,6 @@ const [uccErrors, setUccErrors] = useState([]);
 const [retryTick, setRetryTick] = useState(0);
 
 const navigate = useNavigate()
-const dispatch = useDispatch()
 
 
 const current = JSON.parse(localStorage.getItem("currentAccount"))
@@ -815,12 +812,14 @@ useEffect(() => {
 // sendUcc()
 },[])
 
-// Signup journey ends here. The flow is signup -> otp -> kyc -> login -> dashboard, so
-// hand over to /login instead of dropping the user straight on the dashboard.
+// Signup journey ends here. This used to drop the redux session and hand over to /login, so
+// an investor who had just verified an OTP and filled in their whole KYC was asked to sign
+// in again — SRS §2 says verifying the OTP logs you in, with no second login. The session
+// from /verify-otp is kept and the investor lands on the dashboard; clearing pin_expiry
+// still makes the PIN screen the first thing they meet, which is where the PIN gets set.
 const finishKyc = () => {
   localStorage.removeItem("pin_expiry");
-  dispatch(logout());
-  navigate("/login", { replace: true });
+  navigate("/", { replace: true });
 };
 
 // "Check again": Laravel re-asks BSE (via Node) and rewrites kyc_status itself.

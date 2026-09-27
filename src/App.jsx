@@ -289,6 +289,14 @@ const StockDetails = lazy(() => import("./components/StockDetails"));
 
   const { pathname } = useLocation();
   const { token } = useSelector((state) => state.auth);
+
+  // SRS §15.2 — routes that render investor data had NO route-level gate at all: a logged
+  // out visitor reached the page and only the API refused, which left the form or shell on
+  // screen. One guard here rather than a token check inside every page.
+  //
+  // Deliberately a function returning an element, not a component: a component declared in
+  // this scope is a new type on every render, which would remount the whole page under it.
+  const guard = (element) => (token ? element : <Navigate to="/login" replace />);
     // const [baskets] = useState(basketsData); // static for now
   const [baskets, setBaskets] = useState([]);
 
@@ -482,7 +490,7 @@ useEffect(() => {
                   <Route path="report-activity" element={<ReportActivity />} />
                   <Route path="nominee_details" element={<NomineeDetails />} />
                   {/* SRS "Compliance" — GDPR access, portability and erasure. */}
-                  <Route path="data" element={<DataRights />} />
+                  <Route path="data" element={guard(<DataRights />)} />
                   <Route path="account-forms" element={<AccountForm />} />
                 </Route>
               ) : (
@@ -502,24 +510,24 @@ useEffect(() => {
                     path="/profile/nominee_details"
                     element={<NomineeDetails />}
                   />
-                  <Route path="/profile/data" element={<DataRights />} />
+                  <Route path="/profile/data" element={guard(<DataRights />)} />
                   <Route
                     path="/profile/account-forms"
                     element={<AccountForm />}
                   />
                 </>
               )}
-              <Route path="/reports" element={<Reports />} />
+              <Route path="/reports" element={guard(<Reports />)} />
               {/* SRS §4 — transactions held for authorisation. */}
-              <Route path="/user/approvals" element={<Approvals />} />
+              <Route path="/user/approvals" element={guard(<Approvals />)} />
               <Route path="/user/balance" element={<Balance />} />
               <Route path="/user/balance/inr" element={<AddMoney />} />
               <Route path="/investments" element={<InvestmentOptions />} />
-              <Route path="/portfolio" element={<Portfolio />} />
-              <Route path="/risk" element={<RiskProfilingPage />} />
+              <Route path="/portfolio" element={guard(<Portfolio />)} />
+              <Route path="/risk" element={guard(<RiskProfilingPage />)} />
               {/* SRS §8.2 — goals, and §8 robo advisory. Both read the risk profile. */}
-              <Route path="/goals" element={<Goals />} />
-              <Route path="/advisor" element={<Advisor />} />
+              <Route path="/goals" element={guard(<Goals />)} />
+              <Route path="/advisor" element={guard(<Advisor />)} />
               {/* SRS §10 — forum and Q&A. §11 — a course, with its quizzes. */}
               <Route path="/community" element={<Community />} />
               <Route path="/community/:id" element={<CommunityTopic />} />
@@ -654,7 +662,7 @@ useEffect(() => {
             {/* Calculators */}
             <Route path="/calculators" element={<CalculatorsPage />} />
             {/* <Route path="/kyc" element={<VideoKYC />} /> */}
-            <Route path="/kyc" element={<KYC />} />
+            <Route path="/kyc" element={guard(<KYC />)} />
 
             {calculatorRoutes.map((route, i) => (
               <Route
