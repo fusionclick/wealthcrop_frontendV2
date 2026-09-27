@@ -49,10 +49,8 @@ test("toasts come from react-hot-toast only", () => {
 
 test("the password rule accepts every password its own message describes", async () => {
   const { formSchema, resetPasswordSchema } = await import("../src/utils/FormSchema.js");
-  // phone is part of the signup schema since 2026-09-27 (SRS §2 / QA 1.1); it is fixed
-  // here so this test keeps measuring the password rule and nothing else.
   const check = (password) =>
-    formSchema.safeParse({ username: "a", email: "a@b.com", phone: "9876543210", password });
+    formSchema.safeParse({ username: "a", email: "a@b.com", password });
 
   // Reported from the live signup form: this satisfies the printed rule in every respect
   // and was still rejected, because "." was not one of the six symbols the regex counted
@@ -91,26 +89,20 @@ test("the password rule accepts every password its own message describes", async
   assert.doesNotMatch(read("src/utils/FormSchema.js"), /\[A-Za-z\d@\$!%\*\?&\]\{6,\}/);
 });
 
-// SRS §2 (QA 1.1) — the signup form did not ask for a phone number at all, and the server
-// accepted a registration without one.
-test("signup collects a phone number, on both sides of the wire", async () => {
+// Removed 2026-09-28 on the client's call: signup collects no phone number at all. There is
+// no SMS gateway, so a number that can never be verified was dead weight on the card.
+test("signup asks for no phone number", async () => {
   const { formSchema } = await import("../src/utils/FormSchema.js");
-  const signup = (phone) =>
-    formSchema.safeParse({ username: "a", email: "a@b.com", phone, password: "Johndoe1234." });
-
-  assert.equal(signup("9876543210").success, true);
-  assert.equal(signup("").success, false, "phone is required");
-  assert.equal(signup("98765").success, false, "10 digits or nothing");
-  assert.equal(signup("1234567890").success, false, "Indian mobiles start 6-9");
-  assert.equal(signup("98765432101").success, false, "11 digits is not a mobile number");
-
-  // The field has to be on the card, and the value has to reach the server — Register
-  // posts the whole form object, so the input's name is the contract.
-  assert.match(read("src/auth/Register.jsx"), /\{\.\.\.register\("phone"\)\}/);
-  const auth = read("../admin_php/app/Http/Controllers/Api/AuthController.php");
-  assert.match(auth, /'phone'\s*=>\s*'required\|digits:10\|unique:users,phone'/);
-  // Recorded, never asserted: there is no SMS gateway, so it must not claim verified.
-  assert.match(auth, /'is_phone_verified'\s*=>\s*false/);
+  assert.equal(
+    formSchema.safeParse({ username: "a", email: "a@b.com", password: "Johndoe1234." }).success,
+    true,
+    "a signup with no phone must pass"
+  );
+  assert.doesNotMatch(read("src/auth/Register.jsx"), /register\("phone"\)/);
+  assert.doesNotMatch(
+    read("../admin_php/app/Http/Controllers/Api/AuthController.php"),
+    /'phone'\s*=>/
+  );
 });
 
 // SRS §15.2 (QA 2.6) — /kyc and the other investor-data routes had no route-level gate,

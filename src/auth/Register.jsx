@@ -26,7 +26,6 @@ export default function Register() {
     defaultValues: {
       username: "",
       email: "",
-      phone: "",
       password: "",
     },
   });
@@ -117,28 +116,6 @@ export default function Register() {
               {errors.email && (
                 <p className="text-red-600 text-sm mt-1">
                   {errors.email.message}
-                </p>
-              )}
-            </div>
-
-            {/* Phone — SRS §2. Recorded now; it cannot be verified until an SMS gateway
-                exists, so the form does not claim that it will be. */}
-            <div>
-              <label className="block text-sm font-medium text-blue-950 dark:text-gray-200 mb-1">
-                Mobile number
-              </label>
-              <input
-                type="tel"
-                inputMode="numeric"
-                maxLength={10}
-                {...register("phone")}
-                placeholder="10-digit mobile number"
-                className="w-full border border-gray-300 dark:border-white/10 bg-white dark:bg-white/5 rounded-lg px-4 py-2 text-sm
-                focus:outline-none focus:ring-1 focus:ring-blue-700 text-blue-950 dark:text-gray-100 placeholder:text-gray-400"
-              />
-              {errors.phone && (
-                <p className="text-red-600 text-sm mt-1">
-                  {errors.phone.message}
                 </p>
               )}
             </div>

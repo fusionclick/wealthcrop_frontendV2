@@ -32,11 +32,6 @@ const PASSWORD_RULE = z
 export const formSchema = z.object({
   username: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email address"),
-  // SRS §2 asks for the phone number at signup. Ten digits, Indian mobile range — the
-  // server enforces the same rule and rejects a number already on another account.
-  phone: z
-    .string()
-    .regex(/^[6-9]\d{9}$/, "Enter a valid 10-digit Indian mobile number"),
   password: PASSWORD_RULE,
 });
 
