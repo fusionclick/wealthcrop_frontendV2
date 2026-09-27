@@ -11,6 +11,8 @@ import { postApi } from "../api/api";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import LoginPinModal from "../utils/LoginPinModal";
 import ForgotPassword from "../components/ForgotPassword";
+import { saveSession } from "../utils/session";
+import GoogleSignInButton from "../components/GoogleSignInButton";
 
 function LoginPage() {
   const [loginMode, setLoginMode] = useState("password"); // "password" | "otp"
@@ -35,6 +37,19 @@ function LoginPage() {
   useEffect(() => {
     setForgotPassword(false);
   }, [location.key]);
+
+  // Same handler Register.jsx uses. /auth/google already logs an existing email into its
+  // own account rather than creating a second one - the button was simply never put on the
+  // login screen, so "Continue with Google" existed only for people signing up.
+  const handleGoogle = async (credential) => {
+    if (!credential) return;
+    const res = await postApi(`${import.meta.env.VITE_URL}/auth/google`, { credential });
+    if (res?.status === true) {
+      saveSession(res, dispatch);
+      toastSuccess(res?.message || "Signed in with Google");
+      navigate("/");
+    }
+  };
 
   // react-hook-form
   const { register, handleSubmit, formState: { errors }, setValue, reset, trigger } = useForm({
@@ -358,6 +373,8 @@ if (!otpSent) {
           ? "Verify OTP"
           : "Send OTP"}
       </button>
+
+      <GoogleSignInButton onCredential={handleGoogle} />
     </form>
 
     {/* Footer */}
