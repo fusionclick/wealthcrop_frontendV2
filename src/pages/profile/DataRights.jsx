@@ -111,6 +111,19 @@ export default function DataRights() {
           exactly what was removed.
         </p>
 
+        {/* A refusal is a banner, not a branch.
+            It used to be a rung in the same if/else chain as the button, so once a request
+            had been refused the chain stopped here and "Request erasure" never rendered
+            again — the investor was told no and given no way to ask a second time. The
+            server never had that restriction: requestErasure only blocks while a request is
+            still pending, so the refusal is shown above and the button below still works. */}
+        {request?.status === "refused" && (
+          <div className="text-sm rounded-lg p-3 mb-3 bg-gray-50 dark:bg-[var(--white-5)] text-gray-700 dark:text-[var(--text-secondary)]">
+            Your last request was not granted.
+            {request.review_note ? ` Reason: ${request.review_note}` : ""} You can ask again below.
+          </div>
+        )}
+
         {pending ? (
           <div className="flex items-start gap-2 text-sm rounded-lg p-3 bg-amber-50 dark:bg-[var(--white-5)] text-amber-900 dark:text-[var(--text-secondary)]">
             <ShieldCheck className="w-4 h-4 mt-0.5 shrink-0" />
@@ -118,11 +131,6 @@ export default function DataRights() {
               Your erasure request is with our compliance team. We will write to you when
               it has been reviewed.
             </span>
-          </div>
-        ) : request?.status === "refused" ? (
-          <div className="text-sm rounded-lg p-3 bg-gray-50 dark:bg-[var(--white-5)] text-gray-700 dark:text-[var(--text-secondary)]">
-            Your last request was not granted.
-            {request.review_note ? ` Reason: ${request.review_note}` : ""}
           </div>
         ) : request?.status === "completed" ? (
           <div className="text-sm rounded-lg p-3 bg-gray-50 dark:bg-[var(--white-5)] text-gray-700 dark:text-[var(--text-secondary)]">

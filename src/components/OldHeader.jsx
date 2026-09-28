@@ -269,10 +269,11 @@ const email = current?.email
                   {/* Dropdown */}
                  <div
   className="
-    absolute -right-2.5 top-full mt-1 w-80 
-    bg-white dark:bg-gray-800 
+    absolute -right-2.5 top-full mt-1 w-80
+    max-h-[calc(100vh-6rem)] flex flex-col overflow-hidden
+    bg-white dark:bg-gray-800
     text-gray-900 dark:text-gray-200
-    rounded-xl shadow-xl 
+    rounded-xl shadow-xl
     border border-gray-100 dark:border-gray-700
     opacity-0 invisible group-hover:opacity-100 group-hover:visible group-hover:translate-y-1
     transition-all duration-300 ease-out z-50"
@@ -369,8 +370,11 @@ const email = current?.email
     <ChevronRight size={18} className="text-gray-400 dark:text-gray-500" />
   </Link>
 
-  {/* Links */}
-  <div className="py-2 space-y-1">
+  {/* Links — the only part that scrolls, so Log out below stays on screen.
+      Adding Calculators, Learning Centre and Community made this list long enough to push
+      the footer past the bottom of the viewport, and the whole menu had no height cap, so
+      there was nothing to scroll and Log out simply could not be reached. */}
+  <div className="py-2 space-y-1 flex-1 min-h-0 overflow-y-auto">
     <Link
       to="/user/order/stocks"
       className="
@@ -425,9 +429,9 @@ const email = current?.email
     ))}
   </div>
 
-  {/* Footer */}
+  {/* Footer — shrink-0 so Log out is never the thing that gets squeezed out. */}
   <div
-    className="flex items-center justify-between px-4 py-3 
+    className="shrink-0 flex items-center justify-between px-4 py-3
                border-t border-gray-100 dark:border-gray-700"
   >
     <button

@@ -50,3 +50,24 @@ test("the logged-out mega-menu is still the logged-out one", () => {
   const more = read("src/components/hovercomp/MoreMenu.jsx");
   assert.match(more, /!token/, "MoreMenu is gated to signed-out visitors by design");
 });
+
+// The account menu grew from 4 entries to 7 and ran off the bottom of the screen: the
+// container had no height cap, so there was nothing to scroll and Log out — which lives in
+// the footer below the links — simply could not be reached. Reported as "logout ka button
+// chup gaya".
+//
+// Pinning the footer rather than scrolling the whole menu: Log out is the one control you
+// must never have to hunt for, least of all on a shared machine.
+test("the account menu caps its height and scrolls the links, not the logout footer", () => {
+  const src = read("src/components/OldHeader.jsx");
+
+  // The panel is bounded and lays its sections out in a column.
+  assert.match(src, /max-h-\[calc\(100vh-6rem\)\] flex flex-col overflow-hidden/);
+
+  // Only the link list scrolls. min-h-0 matters: without it a flex child refuses to shrink
+  // below its content and the overflow never engages.
+  assert.match(src, /\{\/\* Links[\s\S]*?className="py-2 space-y-1 flex-1 min-h-0 overflow-y-auto"/);
+
+  // And the footer holding Log out cannot be squeezed out.
+  assert.match(src, /shrink-0 flex items-center justify-between px-4 py-3/);
+});
