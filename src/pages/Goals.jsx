@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
-import { Target, Plus, Trash2, TrendingUp, Wallet } from "lucide-react";
-import { deleteApiWithToken, getApiWithToken, postApiWithToken } from "../api/api";
+import { Target, Plus, Pencil, Trash2, TrendingUp, Wallet } from "lucide-react";
+import { deleteApiWithToken, getApiWithToken, postApiWithToken, putApiWithToken } from "../api/api";
 import { laravelUrl, nodeUrl, mergePortfolio } from "../utils/nodeApi";
 import { toastError, toastSuccess } from "../utils/notifyCustom";
 
@@ -46,6 +46,8 @@ export default function Goals() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(BLANK);
   const [busy, setBusy] = useState(false);
+  // null = the form is creating; a goal id = it is editing that goal (PUT, not POST).
+  const [editingId, setEditingId] = useState(null);
 
   const { data: investorData } = useSelector((state) => state.investorData);
   const ucc = investorData?.kyc?.ucc_code;
@@ -88,23 +90,53 @@ export default function Goals() {
     if (!(Number(form.target_amount) > 0)) return toastError("Enter the amount you need.");
     if (!form.target_date) return toastError("Pick the date you need it by.");
 
-    setBusy(true);
-    const res = await postApiWithToken(api("/goals"), {
+    const payload = {
       ...form,
       name: form.name.trim(),
       target_amount: Number(form.target_amount),
       monthly_contribution: Number(form.monthly_contribution || 0),
       saved_amount: Number(form.saved_amount || 0),
       expected_return: Number(form.expected_return || 12),
-    });
+    };
+
+    setBusy(true);
+    const res = editingId
+      ? await putApiWithToken(api(`/goals/${editingId}`), payload)
+      : await postApiWithToken(api("/goals"), payload);
     setBusy(false);
 
     if (res?.status) {
-      setGoals((prev) => [...prev, res.data]);
-      setForm(BLANK);
-      setShowForm(false);
-      toastSuccess("Goal saved");
+      // The server recomputes progress, the projection and the required monthly on every
+      // save, so the edited card is replaced wholesale rather than patched field by field.
+      setGoals((prev) =>
+        editingId ? prev.map((g) => (g.id === editingId ? res.data : g)) : [...prev, res.data]
+      );
+      closeForm();
+      toastSuccess(editingId ? "Goal updated" : "Goal saved");
     }
+  };
+
+  const closeForm = () => {
+    setForm(BLANK);
+    setEditingId(null);
+    setShowForm(false);
+  };
+
+  const startEdit = (goal) => {
+    setForm({
+      name: goal.name ?? "",
+      type: goal.type ?? "custom",
+      target_amount: goal.target_amount ?? "",
+      // <input type="date"> only accepts YYYY-MM-DD; the API sends a full timestamp.
+      target_date: String(goal.target_date || "").slice(0, 10),
+      priority: goal.priority ?? "medium",
+      monthly_contribution: goal.monthly_contribution ?? "",
+      saved_amount: goal.saved_amount ?? "",
+      expected_return: goal.expected_return ?? 12,
+    });
+    setEditingId(goal.id);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const contribute = async (goal, amount, mode = "add") => {
@@ -134,7 +166,7 @@ export default function Goals() {
             </p>
           </div>
           <button
-            onClick={() => setShowForm((s) => !s)}
+            onClick={() => (showForm ? closeForm() : setShowForm(true))}
             className="inline-flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-2 rounded-md"
           >
             <Plus size={14} /> New goal
@@ -191,10 +223,15 @@ export default function Goals() {
               <input type="number" step="0.5" value={form.expected_return} onChange={(e) => setForm({ ...form, expected_return: e.target.value })} className={field} />
             </label>
 
-            <div className="md:col-span-3">
+            <div className="md:col-span-3 flex items-center gap-2">
               <button type="submit" disabled={busy} className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-md disabled:opacity-50">
-                {busy ? "Saving…" : "Save goal"}
+                {busy ? "Saving…" : editingId ? "Update goal" : "Save goal"}
               </button>
+              {editingId && (
+                <button type="button" onClick={closeForm} className="text-xs font-semibold text-slate-500 hover:text-slate-700 px-3 py-2">
+                  Cancel
+                </button>
+              )}
             </div>
           </form>
         )}
@@ -221,6 +258,7 @@ export default function Goals() {
                 goal={g}
                 portfolioValue={portfolioValue}
                 onContribute={contribute}
+                onEdit={startEdit}
                 onRemove={remove}
               />
             ))}
@@ -231,7 +269,7 @@ export default function Goals() {
   );
 }
 
-function GoalCard({ goal, portfolioValue, onContribute, onRemove }) {
+function GoalCard({ goal, portfolioValue, onContribute, onEdit, onRemove }) {
   const [amount, setAmount] = useState("");
   const pct = Number(goal.progress_pct || 0);
 
@@ -310,7 +348,17 @@ function GoalCard({ goal, portfolioValue, onContribute, onRemove }) {
           </button>
         )}
 
-        <button type="button" onClick={() => onRemove(goal.id)} aria-label="Delete goal" className="ml-auto text-slate-400 hover:text-rose-600">
+        <button
+          type="button"
+          onClick={() => onEdit(goal)}
+          aria-label={`Edit ${goal.name}`}
+          title="Edit this goal"
+          className="ml-auto text-slate-400 hover:text-blue-600"
+        >
+          <Pencil size={15} />
+        </button>
+
+        <button type="button" onClick={() => onRemove(goal.id)} aria-label="Delete goal" className="text-slate-400 hover:text-rose-600">
           <Trash2 size={15} />
         </button>
       </div>
