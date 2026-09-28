@@ -15,16 +15,27 @@ export default function CourseRail() {
   const navigate = useNavigate();
   const [courses, setCourses] = useState([]);
   const [badges, setBadges] = useState([]);
+  // "idle" = signed out, nothing to ask for. Distinguishing loaded-but-empty from
+  // never-loaded is the whole point — see the comment on the render guard below.
+  const [state, setState] = useState("loading");
 
   useEffect(() => {
     let alive = true;
 
     (async () => {
-      if (!localStorage.getItem("token")) return;
-      const res = await getApiWithToken(`${import.meta.env.VITE_URL}/learning/courses`);
-      if (!alive) return;
-      setCourses(res?.data?.data ?? []);
-      setBadges(res?.data?.badges ?? []);
+      if (!localStorage.getItem("token")) {
+        if (alive) setState("idle");
+        return;
+      }
+      try {
+        const res = await getApiWithToken(`${import.meta.env.VITE_URL}/learning/courses`);
+        if (!alive) return;
+        setCourses(res?.data?.data ?? []);
+        setBadges(res?.data?.badges ?? []);
+        setState("ready");
+      } catch {
+        if (alive) setState("error");
+      }
     })();
 
     return () => {
@@ -32,7 +43,40 @@ export default function CourseRail() {
     };
   }, []);
 
-  if (!courses.length) return null;
+  if (state === "idle") return null;
+
+  /**
+   * QA 12.1-12.7 came in as "no course", "no feature exist" — for a feature that was built
+   * end to end, tested, and simply had an empty `courses` table on the box QA used. This
+   * component returned null on an empty list, so an unseeded database and an unbuilt feature
+   * looked exactly the same, and seven test items were filed against working code.
+   *
+   * Never render nothing again: say which of the three it is.
+   */
+  if (state === "loading") {
+    return <p className="mb-14 text-sm text-gray-500 dark:text-gray-400">Loading courses…</p>;
+  }
+
+  if (state === "error") {
+    return (
+      <p className="mb-14 text-sm text-red-600 dark:text-red-400">
+        Courses could not be loaded. This is a connection problem, not an empty catalogue — try a refresh.
+      </p>
+    );
+  }
+
+  if (!courses.length) {
+    return (
+      <div className="mb-14 rounded-2xl border border-blue-100 dark:border-white/10 p-5">
+        <h2 className="text-xl font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+          <GraduationCap className="text-blue-600" size={20} /> Courses
+        </h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          No courses have been published yet. The written guides below are available now.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="mb-14">

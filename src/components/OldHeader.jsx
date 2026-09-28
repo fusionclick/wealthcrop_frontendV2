@@ -37,8 +37,8 @@ import {
   BookOpen,
   Lightbulb,
 } from "lucide-react";
-
-
+// Shared with the Profile page, which is the only signed-in surface on mobile.
+import { ACCOUNT_LINKS } from "../utils/accountLinks";
 
 const token = localStorage.getItem("token"); // check login
 
@@ -401,67 +401,28 @@ const email = current?.email
       <ChevronRight size={18} className="text-gray-400 dark:text-gray-500" />
     </Link>
 
-    {/* Advisor and Goals only had a link from MoreMenu, which renders for logged-OUT
-        visitors only - so a signed-in investor had no way into either. */}
-    <Link
-      to="/advisor"
-      className="
-        flex items-center justify-between px-4 py-2
-        text-gray-800 dark:text-gray-200
-        hover:bg-gray-50 dark:hover:bg-gray-800
-        transition"
-    >
-      <div className="flex items-center gap-3">
-        <Bot size={18} className="dark:text-gray-300" />
-        <span>Advisor</span>
-      </div>
-      <ChevronRight size={18} className="text-gray-400 dark:text-gray-500" />
-    </Link>
-
-    <Link
-      to="/goals"
-      className="
-        flex items-center justify-between px-4 py-2
-        text-gray-800 dark:text-gray-200
-        hover:bg-gray-50 dark:hover:bg-gray-800
-        transition"
-    >
-      <div className="flex items-center gap-3">
-        <Target size={18} className="dark:text-gray-300" />
-        <span>Goals</span>
-      </div>
-      <ChevronRight size={18} className="text-gray-400 dark:text-gray-500" />
-    </Link>
-
-    <Link
-      to="/reports"
-      className="
-        flex items-center justify-between px-4 py-2
-        text-gray-800 dark:text-gray-200
-        hover:bg-gray-50 dark:hover:bg-gray-800
-        transition"
-    >
-      <div className="flex items-center gap-3">
-        <BarChart3 size={18} className="dark:text-gray-300" />
-        <span>Reports</span>
-      </div>
-      <ChevronRight size={18} className="text-gray-400 dark:text-gray-500" />
-    </Link>
-
-    <Link
-      to="/user/approvals"
-      className="
-        flex items-center justify-between px-4 py-2
-        text-gray-800 dark:text-gray-200
-        hover:bg-gray-50 dark:hover:bg-gray-800
-        transition"
-    >
-      <div className="flex items-center gap-3">
-        <ShieldCheck size={18} className="dark:text-gray-300" />
-        <span>Approvals</span>
-      </div>
-      <ChevronRight size={18} className="text-gray-400 dark:text-gray-500" />
-    </Link>
+    {/* Everything below is reachable ONLY from here once you are signed in.
+        MoreMenu holds the same links but is rendered `{!token && <MoreMenu/>}` (and gated
+        `!token` internally as well), so every one of these was invisible the moment an
+        investor logged in. QA reported it three separate times — Advisor/Goals, then
+        Calculators (10.1), then Community (11.1) — all one missing menu. */}
+    {ACCOUNT_LINKS.map(({ to, label, Icon }) => (
+      <Link
+        key={to}
+        to={to}
+        className="
+          flex items-center justify-between px-4 py-2
+          text-gray-800 dark:text-gray-200
+          hover:bg-gray-50 dark:hover:bg-gray-800
+          transition"
+      >
+        <div className="flex items-center gap-3">
+          <Icon size={18} className="dark:text-gray-300" />
+          <span>{label}</span>
+        </div>
+        <ChevronRight size={18} className="text-gray-400 dark:text-gray-500" />
+      </Link>
+    ))}
   </div>
 
   {/* Footer */}

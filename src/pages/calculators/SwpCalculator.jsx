@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { clampNum, num, annuityFactor } from "../../utils/calcSafe";
 
 const SwpCalculator = () => {
   const [initialInvestment, setInitialInvestment] = useState("");
@@ -46,13 +47,14 @@ const SwpCalculator = () => {
   const calculateSWP = () => {
     if (!validateInputs()) return;
 
-    const P = Number(initialInvestment);
-    const W = Number(monthlyWithdrawal);
-    const r = Number(expectedRate) / 100 / 12;
-    const n = Number(years) * 12;
+    const P = Math.max(0, num(initialInvestment));
+    const W = Math.max(0, num(monthlyWithdrawal));
+    const r = clampNum(expectedRate, 0, 100, 0) / 100 / 12;
+    const n = clampNum(years, 0, 100, 0) * 12;
 
     const futureValue = P * Math.pow(1 + r, n);
-    const withdrawalsValue = W * ((Math.pow(1 + r, n) - 1) / r);
+    // r = 0 is n withdrawals of W, not Infinity.
+    const withdrawalsValue = W * annuityFactor(r, n);
     const finalBalance = futureValue - withdrawalsValue;
 
     setResult({

@@ -27,6 +27,7 @@ import { canRetakeRiskProfile } from "../utils/riskLock";
 // fetchUser below has always called this without importing it, so it threw a ReferenceError
 // on every run and userData stayed permanently undefined on this screen.
 import { getApiWithToken } from "../api/api";
+import { ACCOUNT_LINKS } from "../utils/accountLinks";
 
 const Profile = () => {
 
@@ -381,6 +382,24 @@ const email = current?.email
                 <span>{item.label}</span>
               </Link>
             ))}
+
+            {/* App renders `{(!token || isLg) && <OldHeader/>}`, so below 1024px a signed-in
+                investor has no header and this page — reached from BottomHeader's Profile tab
+                — is the only way into any of these. Same list the desktop dropdown uses. */}
+            <div className="mt-1 border-t border-gray-100 dark:border-slate-700 pt-1">
+              {ACCOUNT_LINKS.map(({ to, label, Icon }) => (
+                <Link
+                  key={to}
+                  to={to}
+                  className="flex items-center gap-3 px-4 py-2
+                             text-gray-800 dark:text-gray-200
+                             hover:bg-gray-50 dark:hover:bg-slate-800"
+                >
+                  <Icon size={18} />
+                  <span>{label}</span>
+                </Link>
+              ))}
+            </div>
           </div>
 
           {/* FOOTER */}

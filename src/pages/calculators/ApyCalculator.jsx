@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { clampNum, num, annuityFactor } from "../../utils/calcSafe";
 
 const ApyCalculator = () => {
   const navigate = useNavigate();
@@ -25,12 +26,14 @@ const ApyCalculator = () => {
   const calculateAPY = () => {
     if (!validateInputs()) return;
 
-    const P = Number(monthlyContribution);
-    const r = Number(interestRate) / 100 / 12;
-    const n = Number(years) * 12;
+    const P = Math.max(0, num(monthlyContribution));
+    const r = clampNum(interestRate, 0, 100, 0) / 100 / 12;
+    // QA 10.3 — years drives an exponent; 100 is past any real product and keeps it finite.
+    const n = clampNum(years, 0, 100, 0) * 12;
 
     // Compound interest with monthly contribution formula
-    const maturity = P * ((Math.pow(1 + r, n) - 1) / r);
+    // annuityFactor returns n when r is 0, instead of dividing by zero.
+    const maturity = P * annuityFactor(r, n);
     const totalDeposit = P * n;
     const interestEarned = maturity - totalDeposit;
 

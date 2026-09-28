@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { clampNum, num, annuityFactor, finiteOr } from "../../utils/calcSafe";
 
 const EducationCalculator = () => {
   const [currentCost, setCurrentCost] = useState("");
@@ -12,12 +13,16 @@ const EducationCalculator = () => {
   const navigate = useNavigate();
 
   const calculateEducationGoal = () => {
-    if (!currentCost || !yearsLeft || !inflationRate || !expectedReturn) return;
+    // 0% inflation and 0% return are both legitimate answers, so they cannot be part of
+    // the "is it filled in" test — `!inflationRate` rejected 0 as though it were blank.
+    if (!currentCost || !yearsLeft) return;
 
-    const costNow = Number(currentCost);
-    const years = Number(yearsLeft);
-    const infl = Number(inflationRate) / 100;
-    const ret = Number(expectedReturn) / 100;
+    const costNow = Math.max(0, num(currentCost));
+    // QA 10.3 — years drives (1 + infl) ^ years; unbounded it overflows to Infinity and the
+    // SIP comes out NaN.
+    const years = clampNum(yearsLeft, 1, 100, 1);
+    const infl = clampNum(inflationRate, 0, 100, 0) / 100;
+    const ret = clampNum(expectedReturn, 0, 100, 0) / 100;
 
     // Future cost of education
     const futureCost = costNow * Math.pow(1 + infl, years);
@@ -26,12 +31,11 @@ const EducationCalculator = () => {
     const monthlyRate = ret / 12;
     const months = years * 12;
 
-    let sip = 0;
-    if (monthlyRate > 0) {
-      sip = (futureCost * monthlyRate) / (Math.pow(1 + monthlyRate, months) - 1);
-    } else {
-      sip = futureCost / months;
-    }
+    // annuityFactor is ((1+r)^n - 1)/r and returns n when r is 0, so the two branches this
+    // used to have — and the divide-by-zero the second one hid — collapse into one.
+    const factor = annuityFactor(monthlyRate, months);
+    let sip = factor > 0 ? futureCost / factor : 0;
+    sip = finiteOr(sip, 0);
 
     setResult({
       futureCost: futureCost.toFixed(0),

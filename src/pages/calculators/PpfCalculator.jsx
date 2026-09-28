@@ -1,5 +1,10 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { clampNum, num, annuityFactor, finiteOr } from "../../utils/calcSafe";
+
+// QA 10.3 — the loop below is bounded by a typed field. Without a ceiling, "999999999"
+// years is a billion iterations and the tab dies before anything can be rendered.
+const MAX_YEARS = 100;
 
 const PpfCalculator = () => {
   const navigate = useNavigate();
@@ -11,8 +16,11 @@ const PpfCalculator = () => {
   const [result, setResult] = useState(null);
   const [openFAQ, setOpenFAQ] = useState(null);
 
+  // 0 is a legitimate interest rate, so it cannot be part of the "did you fill it in" test
+  // — `!interestRate` rejected 0% as if the field were blank. Only the deposit and the term
+  // are genuinely required.
   const validate = () => {
-    if (!yearlyInvestment || !interestRate || !years) {
+    if (!yearlyInvestment || !years) {
       alert("Please fill all fields!");
       return false;
     }
@@ -22,20 +30,20 @@ const PpfCalculator = () => {
   const calculatePPF = () => {
     if (!validate()) return;
 
-    let balance = 0;
-    const r = interestRate / 100;
+    const deposit = Math.max(0, num(yearlyInvestment));
+    const n = clampNum(years, 1, MAX_YEARS, 1);
+    const r = clampNum(interestRate, 0, 100, 0) / 100;
 
-    for (let i = 1; i <= years; i++) {
-      balance = (balance + Number(yearlyInvestment)) * (1 + r);
-    }
-
-    const totalDeposit = Number(yearlyInvestment) * years;
-    const interestEarned = balance - totalDeposit;
+    // Each year's deposit compounds for the years remaining after it: the annuity factor is
+    // the closed form of the loop this used to run, so there is nothing left to iterate and
+    // nothing for a large input to iterate over. r = 0 returns n, not Infinity.
+    const balance = deposit * annuityFactor(r, n) * (1 + r);
+    const totalDeposit = deposit * n;
 
     setResult({
-      balance: balance.toFixed(0),
-      totalDeposit: totalDeposit.toFixed(0),
-      interestEarned: interestEarned.toFixed(0),
+      balance: finiteOr(balance),
+      totalDeposit: finiteOr(totalDeposit),
+      interestEarned: finiteOr(balance - totalDeposit),
     });
   };
 
@@ -103,6 +111,7 @@ const PpfCalculator = () => {
             </label>
             <input
               type="number"
+              min="0"
               value={yearlyInvestment}
               onChange={(e) => setYearlyInvestment(e.target.value)}
               placeholder="Ex: 50,000"
@@ -122,6 +131,9 @@ const PpfCalculator = () => {
             </label>
             <input
               type="number"
+              min="0"
+              max="100"
+              step="0.1"
               value={interestRate}
               onChange={(e) => setInterestRate(e.target.value)}
               placeholder="Ex: 7.1"
@@ -141,6 +153,8 @@ const PpfCalculator = () => {
             </label>
             <input
               type="number"
+              min="1"
+              max={MAX_YEARS}
               value={years}
               onChange={(e) => setYears(e.target.value)}
               placeholder="Ex: 15"
@@ -181,17 +195,19 @@ const PpfCalculator = () => {
 
         {result ? (
           <div className="bg-white/20 dark:bg-black/30 rounded-xl p-4 shadow-lg backdrop-blur-sm">
+            {/* A dash, not ₹0 — zero is a claim about the investor's money, and a wrong
+                number that looks plausible is worse than an obvious blank. */}
             <p className="text-lg">
-              <strong>Maturity Amount:</strong> ₹
-              {Number(result.balance).toLocaleString()}
+              <strong>Maturity Amount:</strong>{" "}
+              {result.balance === null ? "—" : `₹${Math.round(result.balance).toLocaleString("en-IN")}`}
             </p>
             <p className="text-lg mt-2">
-              <strong>Total Deposit:</strong> ₹
-              {Number(result.totalDeposit).toLocaleString()}
+              <strong>Total Deposit:</strong>{" "}
+              {result.totalDeposit === null ? "—" : `₹${Math.round(result.totalDeposit).toLocaleString("en-IN")}`}
             </p>
             <p className="text-lg mt-2">
-              <strong>Interest Earned:</strong> ₹
-              {Number(result.interestEarned).toLocaleString()}
+              <strong>Interest Earned:</strong>{" "}
+              {result.interestEarned === null ? "—" : `₹${Math.round(result.interestEarned).toLocaleString("en-IN")}`}
             </p>
           </div>
         ) : (

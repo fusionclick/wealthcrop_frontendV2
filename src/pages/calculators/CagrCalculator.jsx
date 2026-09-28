@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { clampNum, num, finiteOr } from "../../utils/calcSafe";
 // import cagrImg from "../../assets/calculators/cagr.png"; // change path
 
 const CagrCalculator = () => {
@@ -14,11 +15,18 @@ const CagrCalculator = () => {
   const calculateCAGR = () => {
     if (!initialValue || !finalValue || !years) return;
 
-    const cagr =
-      (Math.pow(finalValue / initialValue, 1 / years) - 1) * 100;
+    const start = num(initialValue);
+    const end = num(finalValue);
+    // QA 10.3 — `years` sits in the exponent as 1/years, so a fractional term like 0.0001
+    // becomes a 10,000 power and overflows to Infinity. One year is the smallest CAGR that
+    // means anything anyway.
+    const n = clampNum(years, 1, 100, 1);
+    if (start <= 0) return;
+
+    const cagr = finiteOr(((end / start) ** (1 / n) - 1) * 100);
 
     setResult({
-      cagr: cagr.toFixed(2),
+      cagr: cagr === null ? null : cagr.toFixed(2),
     });
   };
 
