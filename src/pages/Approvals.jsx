@@ -34,7 +34,11 @@ export default function Approvals() {
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["orderApprovals"],
     queryFn: () => getApiWithToken(`${import.meta.env.VITE_URL}/order-approvals`),
-    select: (res) => res?.data || [],
+    // getApiWithToken hands back the axios response, so the rows are TWO levels down:
+    // res.data is the {status, data} envelope. Reading one level took the envelope itself,
+    // and an object has no .length, so the empty check fell through to rows.map() and this
+    // page crashed on every load that actually reached the server.
+    select: (res) => (Array.isArray(res?.data?.data) ? res.data.data : []),
   });
 
   return (

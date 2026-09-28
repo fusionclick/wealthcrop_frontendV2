@@ -28,7 +28,10 @@ export default function usePortfolios(enabled = true) {
   const { data: portfolios = [], isLoading } = useQuery({
     queryKey: ["portfolios"],
     queryFn: () => getApiWithToken(base()),
-    select: (res) => res?.data || [],
+    // Two levels: getApiWithToken returns the axios response and the endpoint answers
+    // {status, data}. Taking one level yielded the envelope, and `for (const p of ...)`
+    // below threw "not iterable" — which is what took the whole investments page down.
+    select: (res) => (Array.isArray(res?.data?.data) ? res.data.data : []),
     enabled,
   });
 

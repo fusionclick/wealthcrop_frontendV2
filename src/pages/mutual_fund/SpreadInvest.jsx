@@ -88,7 +88,7 @@ export default function SpreadInvest() {
   const { data: spreads = [], refetch: refetchSpreads } = useQuery({
     queryKey: ["spreads"],
     queryFn: () => getApiWithToken(`${import.meta.env.VITE_URL}/spreads`),
-    select: (res) => res?.data || [],
+    select: (res) => (Array.isArray(res?.data?.data) ? res.data.data : []),
   });
 
   // A submitted plan has to be openable later, not only while this page is still mounted
@@ -98,7 +98,7 @@ export default function SpreadInvest() {
   const { data: openPlan } = useQuery({
     queryKey: ["spread", openId],
     queryFn: () => getApiWithToken(`${import.meta.env.VITE_URL}/spreads/${openId}`),
-    select: (res) => res?.data || null,
+    select: (res) => res?.data?.data ?? null,
     enabled: !!openId,
   });
 

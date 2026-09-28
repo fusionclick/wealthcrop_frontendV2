@@ -1449,9 +1449,14 @@ pt-5 p-4
               onClick={closeModal}
               className="fixed inset-0 z-50 flex items-start lg:items-center justify-center bg-black/50 pt-5 p-4"
             >
+              {/* max-h + overflow-y-auto, matching the buy modal above. Without them this
+                  panel grows past the viewport and there is nothing to scroll: the five
+                  disclosure checkboxes alone are taller than a laptop screen once the
+                  units estimate and the lock-in notice are in, so Redeem and Cancel sat
+                  below the fold and were unreachable. */}
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-lg bg-white dark:bg-[var(--card-bg)] rounded-2xl shadow-2xl p-6 relative dark:border border-[var(--border-color)]"
+                className="w-full max-w-lg max-h-[86vh] lg:max-h-[90vh] overflow-y-auto bg-white dark:bg-[var(--card-bg)] rounded-2xl shadow-2xl p-6 relative dark:border border-[var(--border-color)]"
               >
                 <button
                   onClick={closeModal}
