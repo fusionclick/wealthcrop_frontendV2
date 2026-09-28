@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
-import { History } from "lucide-react";
+import { History, RefreshCw } from "lucide-react";
 import { postApiWithToken } from "../../api/api";
-import { nodeUrl } from "../../utils/nodeApi";
+import { nodeUrl, orderIsFinal } from "../../utils/nodeApi";
 
 /**
  * Every order this UCC has placed, whatever happened to it.
@@ -44,11 +44,21 @@ const OrdersMF = () => {
   const { data: investorData } = useSelector((state) => state.investorData);
   const ucc = investorData?.kyc?.ucc_code;
 
-  const { data: orders = [], isLoading, isError, refetch } = useQuery({
+  const { data: orders = [], isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ["mfOrderHistory", ucc],
     queryFn: () => postApiWithToken(nodeUrl("/orderHistory"), { ucc }),
     select: (res) => (Array.isArray(res?.data?.orders) ? res.data.orders : []),
     enabled: !!ucc,
+    // QA 3.4 — a page left open never re-read status, so an order that BSE allotted ten
+    // minutes ago still showed as pending until the investor navigated away and back.
+    //
+    // Polls only while something can still change: once every row is allotted, rejected or
+    // cancelled there is no news left to fetch, and polling a settled list would be load
+    // for nothing. `select` has not run yet here, so the raw response shape is read.
+    refetchInterval: (query) => {
+      const rows = query.state.data?.data?.orders;
+      return Array.isArray(rows) && rows.some((o) => !orderIsFinal(o.status)) ? 60_000 : false;
+    },
   });
 
   if (!ucc) {
@@ -72,6 +82,18 @@ const OrdersMF = () => {
       <div className="flex items-center gap-2 mb-1">
         <History size={18} className="text-slate-600 dark:text-[var(--text-secondary)]" />
         <h1 className="text-lg font-semibold text-slate-900 dark:text-[var(--text-primary)]">Order history</h1>
+        {/* The poll above covers a page left open; this is for the investor who wants an
+            answer now rather than at the next minute boundary. */}
+        <button
+          type="button"
+          onClick={() => refetch()}
+          disabled={isFetching}
+          title="Check BSE for updated statuses"
+          className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-[var(--text-secondary)] disabled:opacity-50"
+        >
+          <RefreshCw size={13} className={isFetching ? "animate-spin" : ""} />
+          {isFetching ? "Checking…" : "Refresh"}
+        </button>
       </div>
       <p className="text-xs text-slate-500 dark:text-[var(--text-secondary)] mb-5">
         Every purchase, redemption and switch on this account — including the ones that did not go through.

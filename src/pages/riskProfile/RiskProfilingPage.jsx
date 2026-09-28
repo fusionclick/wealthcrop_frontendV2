@@ -1,9 +1,9 @@
 // RiskProfilingPage.jsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ProgressBar from "./ProgressBar";
 import { riskQuestions } from "./riskQuestions";
 import axios from "axios";
-import { postApiWithToken } from "../../api/api";
+import { getApiWithToken, postApiWithToken } from "../../api/api";
 import { toastSuccess } from "../../utils/notifyCustom";
 import { useNavigate } from "react-router-dom";
 
@@ -12,8 +12,18 @@ const RiskProfilingPage = () => {
   const [answers, setAnswers] = useState({});
   const [result, setResult] = useState(null); // { score, category }
   const [submitting, setSubmitting] = useState(false);
+  const [lock, setLock] = useState(null); // null = abhi pooch rahe hain
 
   const navigate = useNavigate()
+
+  // Server 6 mahine se pehle retake nahi deta. Pehle ye sirf Submit ke 403 se pata chalta
+  // tha — yaani nau sawal bharne ke baad. Ab wohi jawab shuru mein maang lete hain.
+  // Request nakaam ho to `{}` rakho: sawal dikhte rahen, faisla POST par server karega.
+  useEffect(() => {
+    getApiWithToken(`${import.meta.env.VITE_URL}/risk/profile`).then((res) =>
+      setLock(res?.data?.data || {})
+    );
+  }, []);
 
   const question = riskQuestions[currentQ];
 
@@ -79,6 +89,56 @@ const RiskProfilingPage = () => {
   };
 
   const categoryColor = { Conservative: "text-blue-600", Moderate: "text-amber-600", Aggressive: "text-red-600" };
+
+  if (!lock) {
+    return (
+      <div className="min-h-screen flex justify-center items-center p-6 bg-gray-50 dark:bg-[var(--app-bg)]">
+        <p className="text-gray-500 dark:text-[var(--text-secondary)]">Checking your risk profile…</p>
+      </div>
+    );
+  }
+
+  if (lock.locked) {
+    return (
+      <div className="min-h-screen flex justify-center items-center p-6 bg-gray-50 dark:bg-[var(--app-bg)]">
+        <div className="w-full max-w-md rounded-2xl shadow-lg p-8 bg-white dark:bg-[var(--card-bg)] dark:border dark:border-[var(--border-color)] text-center space-y-4">
+          <div className="text-5xl">🔒</div>
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-[var(--text-primary)]">Risk Profile Locked</h2>
+          <p className="text-gray-500 dark:text-[var(--text-secondary)]">
+            {lock.message || "You can retake the risk profiler after 6 months."}
+          </p>
+
+          {/* Locked ka matlab profile chhup jana nahi — jo chal raha hai wo parhna zaroori hai. */}
+          {lock.current_profile && (
+            <div className="rounded-xl p-4 space-y-1 bg-gray-50 dark:bg-[var(--white-5)] text-left">
+              <p className="text-lg font-semibold text-center">
+                Profile: <span className={categoryColor[lock.current_profile] || "text-gray-700"}>{lock.current_profile}</span>
+              </p>
+              {lock.score != null && (
+                <p className="text-gray-500 dark:text-[var(--text-secondary)]">Score: <span className="font-semibold text-gray-800 dark:text-[var(--text-primary)]">{lock.score}</span></p>
+              )}
+              {lock.meaning && (
+                <p className="text-sm text-gray-500 dark:text-[var(--text-secondary)]">{lock.meaning}</p>
+              )}
+              {lock.profiled_at && (
+                <p className="text-xs text-gray-500">Taken on: {lock.profiled_at}</p>
+              )}
+              {lock.next_allowed_at && (
+                <p className="text-xs text-gray-500">Retake allowed from: {lock.next_allowed_at}</p>
+              )}
+            </div>
+          )}
+
+          <button
+            onClick={() => navigate("/profile/basic")}
+            className="mt-4 w-full px-6 py-3 rounded-lg bg-blue-600 text-white font-medium dark:bg-blue-500"
+          >
+            Back to Profile
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (result) {
     return (

@@ -15,8 +15,16 @@ import { SXP_LABEL } from "../../utils/sxp";
  * wording is SIP's from top to bottom. A withdrawal plan only ever needs two things — what
  * is running, and a way to stop it — so this is that, and the SIP page stays untouched.
  *
- * ponytail: no pause/modify here. BSE can pause an SWP, but nobody asked for it; add it
- * when someone does.
+ * ponytail: no pause here. BSE can pause an SWP, but nobody asked for it; add it when
+ * someone does.
+ *
+ * QA 3.10 asked for register and modify on this page too. Register is just the start form,
+ * so it is now a header button instead of only appearing on the empty state. Modify is not
+ * a thing BSE offers for an SWP or an STP — `modifyXsp` exists but is SIP-only, and its
+ * mechanism is register-then-cancel. So "Change" here hands the start form this plan's
+ * values plus its reg_no, and the form cancels the old registration only AFTER the new one
+ * is confirmed. That ordering is deliberate: the worst case is two visible plans the
+ * investor can cancel, not zero plans and a withdrawal that silently stopped.
  */
 const ManageSxpPage = ({ type = "swp" }) => {
   const navigate = useNavigate();
@@ -48,6 +56,24 @@ const ManageSxpPage = ({ type = "swp" }) => {
     };
   }, [ucc, type]);
 
+  const startPath = type === "swp" ? "/mutual_fund/redeem" : "/mutual_fund/switch";
+
+  // Register, or replace an existing plan. `replaceRegNo` tells the start form to retire
+  // this registration once the replacement is live.
+  const goToStart = (row) =>
+    navigate(startPath, {
+      state: row
+        ? {
+            isin: row.schemeIsin,
+            code: row.schemeCode,
+            scheme_bse_code: row.schemeCode,
+            folio: row.folio,
+            replaceRegNo: row.reg_no || row.id,
+            prefillAmount: row.sipAmount,
+          }
+        : undefined,
+    });
+
   const cancel = async (row) => {
     setCancelling(row.id);
     // The server owns reason_cd and reads sxp_type off the registration itself, and refuses
@@ -74,24 +100,26 @@ const ManageSxpPage = ({ type = "swp" }) => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[var(--app-bg)] flex justify-center items-start p-6">
       <div className="w-full max-w-2xl bg-white dark:bg-[var(--card-bg)] rounded-2xl shadow-lg p-8 space-y-6 dark:border dark:border-[var(--border-color)]">
-        <div>
-          <h1 className="text-xl font-bold text-gray-800 dark:text-[var(--text-primary)]">Manage {what}</h1>
-          <p className="text-sm text-gray-500 dark:text-[var(--text-secondary)] mt-1">
-            {type === "swp"
-              ? "Withdrawals scheduled out of your holdings."
-              : "Transfers scheduled from one fund into another."}
-          </p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-bold text-gray-800 dark:text-[var(--text-primary)]">Manage {what}</h1>
+            <p className="text-sm text-gray-500 dark:text-[var(--text-secondary)] mt-1">
+              {type === "swp"
+                ? "Withdrawals scheduled out of your holdings."
+                : "Transfers scheduled from one fund into another."}
+            </p>
+          </div>
+          <button
+            onClick={() => goToStart(null)}
+            className="shrink-0 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium"
+          >
+            Start a {what}
+          </button>
         </div>
 
         {rows.length === 0 ? (
           <div className="text-center py-10 text-gray-500 dark:text-[var(--text-secondary)]">
             <p>No {what} running.</p>
-            <button
-              onClick={() => navigate(type === "swp" ? "/mutual_fund/redeem" : "/mutual_fund/switch")}
-              className="mt-4 px-5 py-2 bg-blue-600 text-white rounded-lg text-sm"
-            >
-              Start a {what}
-            </button>
           </div>
         ) : (
           <div className="space-y-3">
@@ -120,13 +148,22 @@ const ManageSxpPage = ({ type = "swp" }) => {
                 </div>
 
                 {row.status === "ACTIVE" && (
-                  <button
-                    onClick={() => cancel(row)}
-                    disabled={cancelling === row.id}
-                    className="mt-3 text-sm font-medium text-red-600 disabled:opacity-50"
-                  >
-                    {cancelling === row.id ? "Cancelling…" : `Cancel ${what}`}
-                  </button>
+                  <div className="mt-3 flex items-center gap-4">
+                    <button
+                      onClick={() => goToStart(row)}
+                      className="text-sm font-medium text-blue-600"
+                      title={`Start a replacement ${what}; this one is cancelled once the new one is confirmed`}
+                    >
+                      Change {what}
+                    </button>
+                    <button
+                      onClick={() => cancel(row)}
+                      disabled={cancelling === row.id}
+                      className="text-sm font-medium text-red-600 disabled:opacity-50"
+                    >
+                      {cancelling === row.id ? "Cancelling…" : `Cancel ${what}`}
+                    </button>
+                  </div>
                 )}
               </div>
             ))}

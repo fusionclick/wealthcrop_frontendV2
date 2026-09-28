@@ -65,7 +65,7 @@ const isStocksActive = location.pathname.startsWith("/user/mutual_fund");
               Hinglish ones on the page. */}
           <MenuItem
             icon={BarChart2}
-            title="Internal Portfolio"
+            title="My Investments"
             desc="Funds bought on this platform."
             onClick={() => navigate("/user/mutual_fund/investments")}
           />

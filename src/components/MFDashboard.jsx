@@ -34,7 +34,10 @@ const MFDashboard = () => {
 
  const topTabs = [
   { name: "Explore", link: "explore" },
-  { name: "Internal Portfolio", link: "investments" },
+  // QA 5.5 — "Internal Portfolio" is our word for it, not the investor's: nobody looking
+  // for their own funds thinks to open it, so the portfolios bar and Spread inside never
+  // got found. The route is /investments, the label now says the same thing.
+  { name: "My Investments", link: "investments" },
   { name: "External Portfolio", link: "external" },
   { name: "Combined Portfolio", link: "combined" },
   { name: "SIPs", link: "sip" },

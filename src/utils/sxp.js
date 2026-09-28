@@ -64,3 +64,32 @@ export function sxpIntentError({ type, source, destCode, amount, schedule }) {
   if (schedule.startDayInvalid) return `This scheme does not start a ${what} on that date.`;
   return null;
 }
+
+/**
+ * QA 3.10 — "modify" for an SWP or an STP, which BSE does not offer as an operation.
+ *
+ * Changing a plan means registering the replacement and then retiring the old one, in that
+ * order. If the retire fails the investor is told plainly that BOTH are running, because
+ * the alternative — cancelling first — risks ending up with no plan at all when the
+ * registration is the half that fails.
+ *
+ * Returns the message to show. `null` means the replacement is clean and the caller's own
+ * success toast is the right one.
+ */
+export async function retireReplacedPlan({ type, regNo, cancelXsp }) {
+  if (!regNo) return null;
+  const what = SXP_LABEL[type] || "plan";
+  // try/catch rather than `.catch()`: a cancel that throws synchronously still has to count
+  // as "could not cancel", not crash the success path and leave the investor told nothing.
+  let res = null;
+  try {
+    res = await cancelXsp(regNo);
+  } catch {
+    res = null;
+  }
+  if (!res) {
+    return `The new ${what} is registered, but the old one could NOT be cancelled — both are running. `
+      + `Cancel the old one from Manage ${what}.`;
+  }
+  return null;
+}

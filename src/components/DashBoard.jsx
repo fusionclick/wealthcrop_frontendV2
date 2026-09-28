@@ -168,7 +168,7 @@ const Dashboard = () => {
     {/* ponytail: tabs aur indices ke beech MF portfolio shortcuts */}
     <div className="flex flex-wrap gap-2 px-10 pb-3">
       {[
-        { name: "Internal Portfolio", to: "/user/mutual_fund/investments" },
+        { name: "My Investments", to: "/user/mutual_fund/investments" },
         { name: "External Portfolio", to: "/user/mutual_fund/external" },
         { name: "Combine Portfolio", to: "/user/mutual_fund/combined" },
       ].map((b) => (
@@ -263,7 +263,7 @@ const Dashboard = () => {
 </div>
     <div className="flex gap-2 mt-2 overflow-x-auto scrollbar-hide px-1">
       {[
-        { name: "Internal Portfolio", to: "/user/mutual_fund/investments" },
+        { name: "My Investments", to: "/user/mutual_fund/investments" },
         { name: "External Portfolio", to: "/user/mutual_fund/external" },
         { name: "Combine Portfolio", to: "/user/mutual_fund/combined" },
       ].map((b) => (

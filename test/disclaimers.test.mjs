@@ -41,28 +41,53 @@ test("ticket 22: submit is blocked until the required boxes are ticked", () => {
   }
 });
 
-test("ticket 22: the SWP is gated, the one-off redemption is not", () => {
-  // The original rule here was "RedeemMF must not know about disclaimers at all", to stop
-  // anyone gating a sell and locking an investor in. That reason survives, but it is about
-  // the EXIT, not the page: ticket 22 names the SWP, and RedeemMF hosts both.
-  //
-  // So the notices are shown, and the gate applies only while the schedule is on.
-  // useDisclaimers fails closed, so gating the one-off redemption too would mean a
-  // /disclaimers outage traps the investor's money — which is the harm the old assertion
-  // was really protecting against.
+// Rewritten 2026-09-28 (QA 3.7). This used to assert that a one-off redemption was NEVER
+// gated on the disclaimers. The reason was sound — useDisclaimers fails closed, so a
+// /disclaimers outage would have trapped an investor's own money behind boxes that could
+// never be ticked — but the consequence was that on the normal path the boxes could simply
+// be ignored, which is exactly what QA reported: "without checking any box of disclaimer I
+// could still redeem".
+//
+// The gate now keys off whether there is anything to tick rather than off the order type:
+// a non-empty `required` means the list loaded and must be acknowledged; `[]` (fetch
+// failed, or nothing required) and `null` (loading, or a hung request) never block the exit.
+// That satisfies QA on the normal path and keeps the outage escape hatch intact.
+test("ticket 22 / QA 3.7: the disclaimer gate binds when the notices loaded, and never traps the exit", () => {
   const src = read("src/pages/mutual_fund/RedeemMF.jsx");
-  assert.match(src, /useDisclaimers\(\)/, "the SWP must show the disclaimers");
+  assert.match(src, /useDisclaimers\(\)/, "the disclaimers must be read");
   assert.match(src, /<OrderDisclaimers \{\.\.\.disc\} \/>/, "they must be rendered");
+
+  // The gate is a non-empty required list plus an incomplete acknowledgement — nothing else.
   assert.match(
     src,
-    /disabled=\{[\s\S]{0,300}?sched\.on && !disc\.ready/,
-    "the SWP must be gated on the acknowledgement"
+    /const mustAck =\s*Array\.isArray\(disc\.required\) && disc\.required\.length > 0 && !disc\.ready/,
+    "the gate must be conditional on the notices having actually arrived"
   );
+  assert.match(src, /disabled=\{[\s\S]{0,300}?mustAck/, "the submit button must honour it");
+
+  // The old unconditional forms must not come back: `!disc.ready` on its own re-introduces
+  // the outage lockout, and `sched.on && !disc.ready` re-introduces the ignorable boxes.
   assert.doesNotMatch(
     src,
     /disabled=\{[\s\S]{0,300}?\|\| !disc\.ready/,
-    "a one-off redemption must never be blocked by the disclaimer gate — it is the exit"
+    "an unconditional !disc.ready traps the exit when /disclaimers is down"
   );
+  assert.doesNotMatch(
+    src,
+    /disabled=\{[\s\S]{0,300}?sched\.on && !disc\.ready/,
+    "gating only the SWP leaves the one-off redemption's boxes ignorable"
+  );
+});
+
+// QA 3.7 — "if I am redeeming 1000 Rs there is no mention how many units".
+test("a redemption says roughly how many units it will sell", () => {
+  const src = read("src/pages/mutual_fund/RedeemMF.jsx");
+  // Reuses the existing helpers rather than a second copy of the arithmetic.
+  assert.match(src, /unitsFor\(redeemAmount, navUsable \? navNow : null\)/);
+  assert.match(src, /navLooksPlausible\(/, "a stale or wrong-scheme NAV must suppress the estimate");
+  assert.match(src, /units at today's NAV/, "the figure must be shown to the investor");
+  // It is an estimate: allotment happens at the NAV on the execution date.
+  assert.match(src, /exact units are set by the NAV on the day the order executes/);
 });
 
 test("the text and the required list come from the server, not the bundle", () => {

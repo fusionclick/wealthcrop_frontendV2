@@ -29,6 +29,16 @@ const SIPSetupPage = () => {
   // refresh and cannot be linked or bookmarked. /mutual_fund/:isin/:code/sip survives both,
   // so fall back to fetching the scheme from the URL.
   const [fund, setFund] = useState(location.state?.fund || {});
+
+  // QA 3.5 — the bare /mutual_fund/sip-setup route can carry no scheme at all: no router
+  // state (a reload drops it) and no :isin/:code to recover one from. The page used to
+  // render anyway and register a SIP with an empty src_scheme, which BSE rejects. Nothing
+  // can be set up without a fund, so send them to pick one rather than fail at submit.
+  const hasScheme = !!(location.state?.fund || isin || code);
+  useEffect(() => {
+    if (!hasScheme) navigate("/user/mutual_fund/explore", { replace: true });
+  }, [hasScheme, navigate]);
+
   useEffect(() => {
     if (fund.scheme_bse_code || (!isin && !code)) return;
     postApi(nodeUrl(import.meta.env.VITE_GET_ALL_FUNDS || "/master-scheme-list"), {

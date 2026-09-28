@@ -283,7 +283,9 @@ function Alerts({ alerts, setAlerts, reload }) {
         </button>
 
         <p className="text-[11px] text-slate-400 mt-2">
-          Prices are checked every 30 minutes while the market is open. An alert fires once, then switches itself off.
+          The symbol is checked against NSE before the alert is saved, so a typo comes back as an error instead of an
+          alert that never fires. Prices are checked every 30 minutes while the market is open. An alert fires once,
+          then switches itself off.
         </p>
       </form>
 

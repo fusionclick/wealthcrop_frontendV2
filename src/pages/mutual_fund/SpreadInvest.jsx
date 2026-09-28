@@ -91,6 +91,17 @@ export default function SpreadInvest() {
     select: (res) => res?.data || [],
   });
 
+  // A submitted plan has to be openable later, not only while this page is still mounted
+  // after the submit — the outcome of each leg lives on the server, and re-reading the one
+  // plan is how a failure is still legible tomorrow.
+  const [openId, setOpenId] = useState(null);
+  const { data: openPlan } = useQuery({
+    queryKey: ["spread", openId],
+    queryFn: () => getApiWithToken(`${import.meta.env.VITE_URL}/spreads/${openId}`),
+    select: (res) => res?.data || null,
+    enabled: !!openId,
+  });
+
   const source = holdings.find((h) => holdingLabel(h) === srcText);
 
   // An immediate spread is a one-off; keeping an instalment count on it would show a
@@ -110,6 +121,14 @@ export default function SpreadInvest() {
   const dates = useMemo(
     () => (staggered ? instalmentDates(startDate, effectiveInstalments, frequency) : [startDate]),
     [staggered, startDate, effectiveInstalments, frequency]
+  );
+
+  // What actually leaves on each date: every fund's instalment for that date, added up.
+  // Kept in paise and added as integers so the column shown to the investor adds back to
+  // the lump sum — the split itself is already paisa-exact in utils/spread.js.
+  const schedulePaise = useMemo(
+    () => dates.map((_, i) => legs.reduce((s, leg) => s + Math.round((leg.instalments?.[i] || 0) * 100), 0)),
+    [dates, legs]
   );
 
   const addFund = (fund) => {
@@ -235,10 +254,20 @@ export default function SpreadInvest() {
   };
 
   const cancel = async (id) => {
+    // Cancelling stops the app tracking the plan. Anything BSE has already registered keeps
+    // running until it is cancelled where it lives, so say that before the click, not after.
+    const ok = window.confirm(
+      "Cancel this spread plan?\n\n" +
+        "Instructions already registered with BSE are NOT cancelled with the plan — " +
+        "cancel those from Manage SIPs."
+    );
+    if (!ok) return;
+
     try {
       const res = await deleteApiWithToken(`${import.meta.env.VITE_URL}/spreads/${id}`);
       toastSuccess(res?.message || "Spread cancelled.");
       refetchSpreads();
+      queryClient.invalidateQueries({ queryKey: ["spread", id] });
     } catch (e) {
       toastError(e?.message || "Could not cancel the spread.");
     }
@@ -420,10 +449,28 @@ export default function SpreadInvest() {
             </ul>
           )}
 
+          {/* The dates themselves, not "× 12": an instalment plan the investor cannot read
+              off a calendar is a plan they cannot check against their bank. */}
           {staggered && picked.length > 0 && errors.length === 0 && (
-            <p className="text-[11px] text-gray-500 dark:text-[var(--text-secondary)]">
-              First transfer {dates[0]}, last {dates[dates.length - 1]}.
-            </p>
+            <div className="rounded-xl border border-gray-200 dark:border-[var(--border-color)] p-3">
+              <div className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-300">Transfer schedule</div>
+              <table className="w-full text-[11px] text-gray-500 dark:text-[var(--text-secondary)]">
+                <tbody>
+                  {dates.map((d, i) => (
+                    <tr key={i}>
+                      <td className="py-0.5">{d}</td>
+                      <td className="py-0.5 text-right">{money(schedulePaise[i] / 100)}</td>
+                    </tr>
+                  ))}
+                  <tr className="font-medium text-gray-900 dark:text-[var(--text-primary)]">
+                    <td className="border-t border-gray-200 dark:border-[var(--border-color)] pt-1">Total</td>
+                    <td className="border-t border-gray-200 dark:border-[var(--border-color)] pt-1 text-right">
+                      {money(schedulePaise.reduce((a, b) => a + b, 0) / 100)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           )}
 
           <OrderDisclaimers {...disc} />
@@ -455,13 +502,49 @@ export default function SpreadInvest() {
                     {s.failed > 0 && <span className="text-red-500"> · {s.failed} failed</span>}
                     {s.instalments > 1 && <> · {s.instalments} instalments</>}
                   </div>
-                  {s.legs.some((l) => l.error) && (
+                  {openId !== s.id && s.legs.some((l) => l.error) && (
                     <ul className="mt-2 space-y-0.5 text-[11px] text-red-600 dark:text-red-400">
                       {s.legs.filter((l) => l.error).map((l) => (
                         <li key={l.id}>{l.scheme_name || l.scheme_code}: {l.error}</li>
                       ))}
                     </ul>
                   )}
+                  {/* The list's own copy of the legs until the re-read lands, so opening a
+                      plan never blinks empty. */}
+                  {openId === s.id && (
+                    <div className="mt-2 space-y-1">
+                      {(openPlan?.id === s.id ? openPlan.legs : s.legs).map((l) => (
+                        <div key={l.id} className="rounded-lg bg-gray-50 dark:bg-white/5 px-2 py-1.5">
+                          <div className="flex flex-wrap items-baseline justify-between gap-2">
+                            <span className="min-w-0 flex-1 truncate text-[11px] text-gray-700 dark:text-[var(--text-primary)]">
+                              {l.scheme_name || l.scheme_code} · {money(l.per_instalment)}
+                              {s.instalments > 1 && <> × {s.instalments}</>}
+                            </span>
+                            <span
+                              className={`text-[11px] uppercase tracking-wide ${
+                                l.status === "failed"
+                                  ? "text-red-500"
+                                  : l.status === "placed"
+                                  ? "text-green-600 dark:text-green-400"
+                                  : "text-gray-500"
+                              }`}
+                            >
+                              {l.status}
+                            </span>
+                          </div>
+                          {l.error && <div className="text-[11px] text-red-600 dark:text-red-400">{l.error}</div>}
+                          {l.reference && <div className="text-[11px] text-gray-500">Ref {l.reference}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setOpenId(openId === s.id ? null : s.id)}
+                    className="mt-2 mr-3 text-xs text-blue-600 hover:underline"
+                  >
+                    {openId === s.id ? "Hide fund status" : "Show fund status"}
+                  </button>
                   {s.status !== "cancelled" && (
                     <button onClick={() => cancel(s.id)} className="mt-2 text-xs text-red-500 hover:underline">
                       Cancel plan

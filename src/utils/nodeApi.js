@@ -589,3 +589,31 @@ export const buildMandatePayload = (ucc, investorData, amount = 5000) => ({
     request_type: "REGISTRATION",
   },
 });
+
+/**
+ * QA 3.4 — is this order's status one BSE can still change?
+ *
+ * Allotted, rejected and cancelled are terminal; everything else (pending, awaiting
+ * payment, in process) can still move. Used to decide whether an order list is worth
+ * re-reading, and to stop a settled list polling BSE forever for news that cannot come.
+ *
+ * Unknown/blank counts as NOT final: an order whose status we cannot read is exactly the
+ * one worth asking about again.
+ */
+export const orderIsFinal = (status) => /ALLOT|REJECT|CANCEL|FAIL/.test(String(status || "").toUpperCase());
+
+/**
+ * The live BSE status for a stored order row, matched on the BSE order id.
+ *
+ * The Laravel table records `status: 'pending'` when the order is placed and only the
+ * payment callback ever writes to it again, so a stored row goes stale the moment BSE
+ * allots or rejects. BSE's own order history is the truth; this overlays it rather than
+ * keeping a second copy in sync.
+ */
+export const withLiveOrderStatus = (rows = [], liveOrders = []) => {
+  const live = new Map(liveOrders.filter((o) => o?.id != null).map((o) => [String(o.id), o]));
+  return rows.map((r) => {
+    const hit = live.get(String(r.bse_order_id ?? ""));
+    return hit?.status ? { ...r, status: hit.status, remarks: hit.remarks || r.remarks } : r;
+  });
+};

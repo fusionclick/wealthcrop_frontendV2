@@ -3,6 +3,7 @@
 // only thing between a bad intent and a BSE round trip. So they get checked directly.
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { buildSxpIntent, sxpIntentError, SXP_BUCKET } from "../src/utils/sxp.js";
 import { installmentCount } from "../src/utils/sipDates.js";
 
@@ -44,4 +45,45 @@ test("sxpIntentError blocks the things BSE would reject", () => {
   // STP into the same fund it comes out of is a no-op BSE refuses.
   assert.match(sxpIntentError({ type: "stp", source: src, destCode: "119551", amount: 2000, schedule: sched }), /same/i);
   assert.match(sxpIntentError({ type: "stp", source: src, destCode: "", amount: 2000, schedule: sched }), /destination/i);
+});
+
+// QA 3.10 — the test plan asks for register, modify and cancel on manage-swp/manage-stp.
+// BSE offers no modify for either, so "Change" registers the replacement and then retires
+// the old registration. The ORDER matters: cancelling first risks ending up with no plan at
+// all if the registration is the half that fails.
+test("retireReplacedPlan reports both plans running rather than losing one", async () => {
+  const { retireReplacedPlan } = await import("../src/utils/sxp.js");
+
+  // Nothing to replace: a plain registration must not be told anything.
+  assert.equal(await retireReplacedPlan({ type: "swp", regNo: null, cancelXsp: () => { throw new Error("must not be called"); } }), null);
+
+  // Clean replacement: the caller's own success message stands.
+  let asked = null;
+  assert.equal(
+    await retireReplacedPlan({ type: "swp", regNo: "R123", cancelXsp: (r) => { asked = r; return { status: true }; } }),
+    null
+  );
+  assert.equal(asked, "R123", "the old registration number must be the one cancelled");
+
+  // The dangerous case: the new plan is live and the old one would not die. The investor
+  // has to be told, by name, that two are running — silence here means a double withdrawal.
+  for (const failing of [() => null, () => Promise.reject(new Error("BSE down"))]) {
+    const msg = await retireReplacedPlan({ type: "stp", regNo: "R9", cancelXsp: failing });
+    assert.match(msg, /both are running/i);
+    assert.match(msg, /STP/, "the message must name the plan type");
+  }
+});
+
+test("manage-swp/stp can register and change, not only cancel", () => {
+  const src = readFileSync("src/components/sip/ManageSxpPage.jsx", "utf8");
+  // Register is no longer hidden behind the empty state.
+  assert.match(src, /Start a \{what\}/);
+  assert.doesNotMatch(src, /No \{what\} running\.[\s\S]{0,200}?Start a \{what\}/, "register must not be empty-state only");
+  // Change hands the plan's own values to the start form, with its reg_no to retire.
+  assert.match(src, /replaceRegNo: row\.reg_no \|\| row\.id/);
+  assert.match(src, /Change \{what\}/);
+  // Both start forms honour it.
+  for (const f of ["src/pages/mutual_fund/RedeemMF.jsx", "src/pages/mutual_fund/SwitchMF.jsx"]) {
+    assert.match(readFileSync(f, "utf8"), /retireReplacedPlan\(/, `${f} must retire the replaced plan`);
+  }
 });

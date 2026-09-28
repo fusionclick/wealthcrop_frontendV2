@@ -9,6 +9,7 @@ import Combo from "../../components/ui/Combo";
 import FundDashboardSkeleton from "../../components/ui/skeleton/main/FundDashboardSkeleton";
 import HoldingSheet from "../../components/mutual_fund/HoldingSheet";
 import CasImport from "../../components/mutual_fund/CasImport";
+import usePortfolios, { holdingKey } from "../../hooks/usePortfolios";
 
 const EXTERNAL_URL = () => laravelUrl(import.meta.env.VITE_EXTERNAL_MF || "/portfolio/mf/external");
 const money = (n) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
@@ -52,6 +53,13 @@ const ExternalMF = () => {
     mutationFn: (id) => deleteApiWithToken(`${EXTERNAL_URL()}/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["externalMf"] }),
   });
+
+  // FR 4.1 / QA 5.7 — the same portfolios the investments tab files BSE folios into. A CAS
+  // or hand-added holding is named `ext:<external_mf_holdings.id>` (usePortfolios.js:22,
+  // and the server only accepts `bse:…|…` or `ext:<digits>`), so the id has to be the row's
+  // own id — the one Remove already deletes by.
+  const { portfolios, byHolding, assign } = usePortfolios();
+  const extKey = (row) => holdingKey(row, "external");
 
   const navOf = (row) =>
     liveNav({ scheme_isin: row.scheme_isin, scheme_bse_code: row.scheme_bse_code, nav: row.nav }, navs);
@@ -381,6 +389,9 @@ const ExternalMF = () => {
           removeMutation.mutate(h.id);
           setOpenHolding(null);
         }}
+        portfolios={portfolios}
+        currentPortfolioId={openHolding ? byHolding.get(extKey(openHolding))?.id ?? null : null}
+        onAssignPortfolio={(id) => assign(id, extKey(openHolding))}
       />
     </div>
   );

@@ -1,13 +1,36 @@
 import React, { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useSelector } from "react-redux";
 import emptymutual from "../../../assets/emptymutual.svg";
-import { getApiWithToken } from "../../../api/api";
+import { getApiWithToken, postApiWithToken } from "../../../api/api";
 import { useNavigate } from "react-router-dom";
-import { laravelUrl } from "../../../utils/nodeApi";
+import { laravelUrl, nodeUrl, withLiveOrderStatus } from "../../../utils/nodeApi";
 
+/**
+ * QA 3.4 — this table showed every order as "Pending" forever.
+ *
+ * The rows come from the Laravel table, where BseOrderController writes `status: 'pending'`
+ * at placement and only the payment callback ever writes again — so an order BSE allotted
+ * or rejected still reads pending here. There is no BSE→DB sync job, and adding one would
+ * mean a second copy of the truth to keep correct.
+ *
+ * So the stored rows are overlaid with BSE's own order history instead, under the SAME
+ * react-query key the MF order-history page uses: if the investor has already been there
+ * the statuses come out of cache and cost nothing.
+ */
 const MutualFundOrder = () => {
   const [funds, setFunds] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { data: investorData } = useSelector((state) => state.investorData);
+  const ucc = investorData?.kyc?.ucc_code;
+
+  const { data: liveOrders = [] } = useQuery({
+    queryKey: ["mfOrderHistory", ucc],
+    queryFn: () => postApiWithToken(nodeUrl("/orderHistory"), { ucc }),
+    select: (res) => (Array.isArray(res?.data?.orders) ? res.data.orders : []),
+    enabled: !!ucc,
+  });
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -25,6 +48,10 @@ const MutualFundOrder = () => {
     fetchOrders();
   }, []);
 
+  // BSE unreachable leaves `liveOrders` empty, and then the stored status stands rather
+  // than every row blanking out.
+  const rows = withLiveOrderStatus(funds, liveOrders);
+
   if (loading) {
     return (
       <div className="bg-white dark:bg-[var(--card-bg)] min-h-[400px] rounded-xl shadow-sm p-6 flex items-center justify-center text-gray-400">
@@ -35,7 +62,7 @@ const MutualFundOrder = () => {
 
   return (
     <div className="bg-white min-h-[400px] rounded-xl shadow-sm p-6 dark:bg-[var(--card-bg)]">
-      {funds.length === 0 ? (
+      {rows.length === 0 ? (
         <div className="flex flex-col items-center justify-center min-h-[350px] text-center px-6 dark:bg-[var(--card-bg)]">
           <img src={emptymutual} alt="No Mutual Funds" className="w-56 md:w-64 lg:w-80 mb-4 object-contain" />
           <h2 className="text-2xl font-semibold text-blue-950 dark:text-[var(--text-primary)]">No Mutual Fund Orders</h2>
@@ -67,7 +94,7 @@ const MutualFundOrder = () => {
               </tr>
             </thead>
             <tbody>
-              {funds.map((fund, idx) => (
+              {rows.map((fund, idx) => (
                 <tr key={idx} className="border-t transition hover:bg-gray-50 dark:border-[var(--border-color)] dark:hover:bg-[var(--white-5)]">
                   <td className="px-4 py-2 font-medium whitespace-nowrap text-blue-950 dark:text-[var(--text-primary)]">
                     {fund.scheme_name || "—"}

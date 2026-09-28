@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { allocationFor, sleevesFor, rationaleFor, behaviourInsights } from "../src/utils/advisor.js";
 
 const sum = (a) => a.equity + a.debt + a.gold + a.cash;
@@ -86,4 +87,32 @@ test("behavioural insights only report what the orders actually show", () => {
   const sipper = behaviourInsights([{ order_type: "sip" }, { order_type: "sip" }]);
   assert.ok(sipper.some((i) => i.tag === "Invests on a schedule"));
   assert.ok(!sipper.some((i) => i.tag === "Redeems often"));
+});
+
+// SRS §8 (QA 8.9) — a saved plan could not be reopened: /advice was POST-only on this
+// screen, so GET /advice shipped with no caller and the advice history was unreachable.
+test("past plans are listed with their date and reopened inside the advisor", () => {
+  const advisor = readFileSync("src/pages/Advisor.jsx", "utf8");
+
+  // The dead read endpoint now has its caller, and it is a GET.
+  assert.match(advisor, /getApiWithToken\(api\("\/advice"\)\)/);
+  assert.match(advisor, /queryKey: \["adviceHistory"\]/);
+
+  // Each entry carries the date the advice was actually given, and reopens that row.
+  assert.match(advisor, /\{planDate\(h\.created_at\)\}/);
+  assert.match(advisor, /onClick=\{\(\) => setViewing\(h\)\}/);
+
+  // The reopened plan is labelled as history, not mistaken for today's recommendation,
+  // and shows what was saved rather than the live allocation.
+  assert.match(advisor, /Past plan · saved \{planDate\(viewing\.created_at\)\}/);
+  assert.match(advisor, /This is not live advice/);
+  assert.match(advisor, /\(viewing\.sleeves \|\| \[\]\)\.map/);
+
+  // A missing basis says so. Rendering it as 0% would claim the market went nowhere.
+  assert.match(advisor, /viewing\.market_change_pct == null/);
+  assert.match(advisor, /No comparison available for this plan/);
+  assert.match(advisor, /not this plan's own return/);
+
+  // Start over still only clears the live conversation.
+  assert.match(advisor, /const restart = \(\) => \{\s*setAnswers\(\{\}\)/);
 });

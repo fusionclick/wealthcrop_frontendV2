@@ -23,6 +23,10 @@ import ThemeToggle from "../utils/ThemeToggle";
 import { useQuery } from "@tanstack/react-query";
 import { formatDate } from "../utils/format";
 import { toastWarn } from "../utils/notifyCustom";
+import { canRetakeRiskProfile } from "../utils/riskLock";
+// fetchUser below has always called this without importing it, so it threw a ReferenceError
+// on every run and userData stayed permanently undefined on this screen.
+import { getApiWithToken } from "../api/api";
 
 const Profile = () => {
 
@@ -82,10 +86,9 @@ const Profile = () => {
 
 
    const redirectRiskProfile = () => {
-  
-        const isReUpdate = userData?.risk_profile?.updated_at < Date.now() 
-        if(!isReUpdate) return toastWarn(`You can update after ${formatDate(userData?.risk_profile?.next_allowed_at)} `)
-      
+
+        if(!canRetakeRiskProfile(userData?.risk_profile)) return toastWarn(`You can update after ${formatDate(userData?.risk_profile?.next_allowed_at)} `)
+
       navigate("/risk")
     }
 
@@ -196,7 +199,7 @@ const email = current?.email
                   </p>
 
                   <button
-                    onClick={() => navigate("/risk")}
+                    onClick={() => redirectRiskProfile()}
                     className="mt-3 w-full text-sm py-2 rounded-lg
                                bg-yellow-600 text-white hover:bg-yellow-700"
                   >

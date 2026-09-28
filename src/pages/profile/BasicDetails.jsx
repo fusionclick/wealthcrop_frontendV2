@@ -23,6 +23,7 @@ import { getApiWithToken, postApiWithToken } from "../../api/api";
 import { toastError, toastSuccess, toastWarn } from "../../utils/notifyCustom";
 import { formatDate } from "../../utils/format";
 import { isKycVerified } from "../../utils/kycVerdict";
+import { canRetakeRiskProfile } from "../../utils/riskLock";
 import SecondaryEmail from "./SecondaryEmail";
 import KycDetails from "./KycDetails";
 
@@ -175,8 +176,7 @@ const isKycDone = isKycVerified(userData?.kyc?.kyc_status)
 
   const redirectRiskProfile = () => {
 
-      const isReUpdate = userData?.risk_profile?.updated_at < Date.now() 
-      if(!isReUpdate) return toastWarn(`You can update after ${formatDate(userData?.risk_profile?.next_allowed_at)} `)
+      if(!canRetakeRiskProfile(userData?.risk_profile)) return toastWarn(`You can update after ${formatDate(userData?.risk_profile?.next_allowed_at)} `)
 
     navigate("/risk")
   }
@@ -720,7 +720,7 @@ const isKycDone = isKycVerified(userData?.kyc?.kyc_status)
                   </p>
 
                   <button
-                    onClick={() => navigate("/risk")}
+                    onClick={() => redirectRiskProfile()}
                     className="mt-3 w-full text-sm py-2 rounded-lg
                                bg-yellow-600 text-white hover:bg-yellow-700"
                   >

@@ -8,7 +8,7 @@ import { nodeUrl, laravelUrl, validateInvestorReady } from "../../utils/nodeApi"
 import Combo, { fieldClass } from "../../components/ui/Combo";
 import OrderDisclaimers, { useDisclaimers } from "../../components/mutual_fund/OrderDisclaimers";
 import SxpSchedule, { useSxpSchedule } from "../../components/mutual_fund/SxpSchedule";
-import { buildSxpIntent, sxpIntentError } from "../../utils/sxp";
+import { buildSxpIntent, sxpIntentError, retireReplacedPlan } from "../../utils/sxp";
 
 // Folio isi liye label mein hai — ek hi scheme kai folios mein ho sakti hai,
 // aur switch hamesha ek folio se nikalta hai.
@@ -119,7 +119,22 @@ const SwitchMF = () => {
       );
       if (res?.status === 200 || res?.status === true || res?.status === "success") {
         queryClient.invalidateQueries({ queryKey: ["bsePortfolio"] });
-        toastSuccess("STP registered. You can stop it any time from Manage STP.");
+        // Arrived from "Change STP": the replacement is live, so retire the old one.
+        const problem = await retireReplacedPlan({
+          type: "stp",
+          regNo: pre.replaceRegNo,
+          cancelXsp: (regNo) =>
+            postApiWithToken(nodeUrl(import.meta.env.VITE_CANCEL_XSP || "/cancelXsp"), {
+              data: { reg_no: regNo, reason: "" },
+            }),
+        });
+        if (problem) toastError(problem);
+        else
+          toastSuccess(
+            pre.replaceRegNo
+              ? "STP changed. The old plan has been cancelled."
+              : "STP registered. You can stop it any time from Manage STP."
+          );
         navigate("/mutual_fund/manage-stp");
       } else {
         toastError(res?.message || res?.error || "Could not register the STP.");

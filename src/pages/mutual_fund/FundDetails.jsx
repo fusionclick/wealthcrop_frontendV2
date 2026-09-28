@@ -1177,14 +1177,24 @@ const pctOf = (key) => {
         </div>
       ) : null}
 
-      {/* SRS §11 — dividend history. Rendered only when declarations exist, so a growth
-          plan (which has none, correctly) shows nothing rather than an empty table. */}
-      {dividends.length > 0 ? (
+      {/* SRS §11 — dividend history.
+          QA 7.12 said "couldn't find this feature". It was built end to end, but rendered
+          only when declarations existed — so an IDCW plan whose declarations an admin has
+          not uploaded yet was indistinguishable from an unbuilt feature. It is now shown
+          for any IDCW plan, saying plainly that there is nothing recorded. A growth plan has
+          no IDCW by definition and still renders nothing, which is right rather than a gap.
+          `payout` is the backend's own field: "IDCW Payout" / "IDCW Reinvestment" / "Growth". */}
+      {dividends.length > 0 || String(fundsList?.payout || "").startsWith("IDCW") ? (
         <div className="bg-[var(--white-10)] border border-[var(--border-color)] shadow-lg rounded-2xl p-6 max-w-4xl mt-10">
           <h2 className="text-2xl font-semibold mb-1 text-[var(--text-primary)]">Dividend History</h2>
           <p className="text-xs text-[var(--text-secondary)] mb-4">
             IDCW declared by the AMC. Past distributions are not a promise of future ones.
           </p>
+          {dividends.length === 0 ? (
+            <p className="text-sm text-[var(--text-secondary)]">
+              No IDCW declarations have been recorded for this plan yet.
+            </p>
+          ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
@@ -1211,6 +1221,7 @@ const pctOf = (key) => {
               </tbody>
             </table>
           </div>
+          )}
         </div>
       ) : null}
 

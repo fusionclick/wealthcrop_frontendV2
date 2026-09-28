@@ -120,6 +120,52 @@ const DashBoardMF = () => {
 
   if (isLoading) return <FundDashboardSkeleton />;
 
+  /* Portfolio-level actions. Count ab summary card me hai, yahan dohrana
+     bekaar tha.
+
+     Manage SIPs / Redeem / Switch all lived here and none of them belonged:
+     Manage SIPs repeats the SIPs tab in the nav above, and Redeem and Switch act
+     on ONE fund, so sending the investor to a blank picker when they are already
+     looking at the list is a step backwards — both now sit on the fund's own row
+     and in its detail sheet. The one thing this page had no route to at all was
+     the order history, so that is what the button is.
+
+     Held in a variable because the empty account needs the same two buttons —
+     see the empty state below. */
+  const actions = (
+    <div className="flex flex-wrap gap-2 mb-5">
+      <button
+        onClick={() => navigate("/user/mutual_fund/orders")}
+        className="inline-flex items-center gap-1.5 bg-slate-700 hover:bg-slate-800 text-white px-4 py-1.5 rounded-md text-xs font-medium"
+      >
+        <History size={14} /> Order history
+      </button>
+      {/* SRS §4 — Spread acts on a lump sum across the whole portfolio, not on one
+          fund, so unlike Redeem and Switch it does belong at this level. */}
+      <button
+        onClick={() => navigate("/mutual_fund/spread")}
+        className="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-white/10 hover:bg-slate-200 text-slate-700 dark:text-[var(--text-primary)] px-4 py-1.5 rounded-md text-xs font-medium"
+      >
+        <Split size={14} /> Spread a lump sum
+      </button>
+    </div>
+  );
+
+  /* FR 4.1 — filter the list to one portfolio. Holdings are filed from a
+     fund's own detail sheet, which is where the folio is already in hand. */
+  const portfolioBar = (
+    <PortfolioBar
+      portfolios={portfolios}
+      counts={portfolioCounts}
+      selected={portfolioFilter}
+      onSelect={setPortfolioFilter}
+      onCreate={create}
+      onDelete={async (id) => {
+        if (await remove(id)) setPortfolioFilter("all");
+      }}
+    />
+  );
+
   return (
     <div className="p-4 min-h-screen bg-slate-50 dark:bg-[var(--app-bg)]">
       {!hasInvestments ? (
@@ -133,6 +179,17 @@ const DashBoardMF = () => {
           >
             Explore Funds
           </button>
+          {/* QA 5.5 — this used to be the whole screen, which made Portfolios and Spread
+              unreachable for the two accounts that need them most: a brand new one, and an
+              account whose holdings are all external (CAS-imported funds never reach
+              `funds`, so this page still reads as empty while the External tab is full).
+              Neither control needs a BSE holding — Spread's immediate mode is a fresh
+              purchase, and a portfolio has to exist before the External tab will offer to
+              file anything into it. */}
+          <div className="mt-10 flex flex-col items-center gap-1">
+            {actions}
+            {portfolioBar}
+          </div>
         </div>
       ) : (
         <>
@@ -218,44 +275,9 @@ const DashBoardMF = () => {
             </div>
           </div>
 
-          {/* Portfolio-level actions. Count ab summary card me hai, yahan dohrana
-              bekaar tha.
+          {actions}
 
-              Manage SIPs / Redeem / Switch all lived here and none of them belonged:
-              Manage SIPs repeats the SIPs tab in the nav above, and Redeem and Switch act
-              on ONE fund, so sending the investor to a blank picker when they are already
-              looking at the list is a step backwards — both now sit on the fund's own row
-              and in its detail sheet. The one thing this page had no route to at all was
-              the order history, so that is what the button is. */}
-          <div className="flex flex-wrap gap-2 mb-5">
-            <button
-              onClick={() => navigate("/user/mutual_fund/orders")}
-              className="inline-flex items-center gap-1.5 bg-slate-700 hover:bg-slate-800 text-white px-4 py-1.5 rounded-md text-xs font-medium"
-            >
-              <History size={14} /> Order history
-            </button>
-            {/* SRS §4 — Spread acts on a lump sum across the whole portfolio, not on one
-                fund, so unlike Redeem and Switch it does belong at this level. */}
-            <button
-              onClick={() => navigate("/mutual_fund/spread")}
-              className="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-white/10 hover:bg-slate-200 text-slate-700 dark:text-[var(--text-primary)] px-4 py-1.5 rounded-md text-xs font-medium"
-            >
-              <Split size={14} /> Spread a lump sum
-            </button>
-          </div>
-
-          {/* FR 4.1 — filter the list to one portfolio. Holdings are filed from a
-              fund's own detail sheet, which is where the folio is already in hand. */}
-          <PortfolioBar
-            portfolios={portfolios}
-            counts={portfolioCounts}
-            selected={portfolioFilter}
-            onSelect={setPortfolioFilter}
-            onCreate={create}
-            onDelete={async (id) => {
-              if (await remove(id)) setPortfolioFilter("all");
-            }}
-          />
+          {portfolioBar}
 
           <div className="flex justify-between items-center mb-2">
             <p className="text-sm font-semibold">Your Funds</p>

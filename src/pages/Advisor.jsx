@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
-import { Bot, RotateCcw, Save, ThumbsDown, ThumbsUp, User2 } from "lucide-react";
-import { postApi, postApiWithToken } from "../api/api";
+import { Bot, History, RotateCcw, Save, ThumbsDown, ThumbsUp, User2 } from "lucide-react";
+import { getApiWithToken, postApi, postApiWithToken } from "../api/api";
 import { fundBuyPath, nodeUrl } from "../utils/nodeApi";
 import { CHAT_STEPS, allocationFor, behaviourInsights, rationaleFor, sleevesFor } from "../utils/advisor";
 import { optimiseAroundGlidePath, mptRationale } from "../utils/mpt";
@@ -18,6 +18,9 @@ import { toastSuccess } from "../utils/notifyCustom";
  */
 const money = (v) => `₹${Number(v || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 const api = (path) => `${import.meta.env.VITE_URL}${path}`;
+// The date the advice was actually given — the whole point of reopening it.
+const planDate = (iso) =>
+  new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 
 const SLEEVE_COLOR = {
   Equity: "bg-blue-500",
@@ -35,6 +38,8 @@ export default function Advisor() {
   const [answers, setAnswers] = useState({});
   const [tilt, setTilt] = useState(0);
   const [saved, setSaved] = useState(false);
+  // The past plan being reopened, straight off the row as it was saved. Null = live advice.
+  const [viewing, setViewing] = useState(null);
   const endRef = useRef(null);
 
   // The questionnaire already answered on /risk is not asked again — it is shown as the
@@ -85,6 +90,14 @@ export default function Advisor() {
   });
   const insights = useMemo(() => behaviourInsights(orders || []), [orders]);
 
+  // SRS §8 (QA 8.9) — the plans this investor already saved, newest first. GET /advice had
+  // been written and left with no caller, so advice could be stored and never seen again.
+  const { data: history = [], refetch: refetchHistory } = useQuery({
+    queryKey: ["adviceHistory"],
+    queryFn: () => getApiWithToken(api("/advice")),
+    select: (res) => (Array.isArray(res?.data?.data) ? res.data.data : []),
+  });
+
   // One catalogue lookup per sleeve, by category name. The scheme master has no category
   // filter, but every scheme's name carries it ("... Flexi Cap Fund ...").
   const categories = useMemo(() => [...new Set(sleeves.map((s) => s.category))], [sleeves]);
@@ -134,6 +147,7 @@ export default function Advisor() {
     });
     if (res?.status) {
       setSaved(true);
+      refetchHistory();
       toastSuccess(feedback ? "Thanks — noted" : "Plan saved");
     }
   };
@@ -154,6 +168,110 @@ export default function Advisor() {
             </button>
           )}
         </div>
+
+        {/* ponytail: <details> rather than another open/closed useState — the browser
+            already tracks that, and the list is collapsed until it is wanted. */}
+        {history.length > 0 && (
+          <details className="mb-4 rounded-xl border border-slate-200 dark:border-[var(--border-color)] px-3 py-2">
+            <summary className="text-xs font-semibold text-slate-600 dark:text-[#94a3b8] cursor-pointer">
+              Past plans ({history.length})
+            </summary>
+            <ul className="mt-2 space-y-1">
+              {history.map((h) => (
+                <li key={h.id}>
+                  <button
+                    onClick={() => setViewing(h)}
+                    className={`w-full text-left text-xs px-2 py-1.5 rounded-md flex items-center gap-2 ${
+                      viewing?.id === h.id ? "bg-blue-50 dark:bg-blue-500/10" : "hover:bg-slate-50 dark:hover:bg-white/5"
+                    }`}
+                  >
+                    <History size={12} className="shrink-0 text-slate-400" />
+                    <span className="text-slate-700 dark:text-[var(--text-primary)]">{planDate(h.created_at)}</span>
+                    <span className="text-slate-400">
+                      {h.risk} · equity {h.allocation?.equity}%
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+
+        {viewing && (
+          <div className="mb-5 rounded-xl border border-amber-300 dark:border-amber-500/40 bg-amber-50/60 dark:bg-amber-500/5 p-4 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase text-amber-700 dark:text-amber-300">
+                  Past plan · saved {planDate(viewing.created_at)}
+                </p>
+                <p className="text-[11px] text-amber-700/80 dark:text-amber-200/70">
+                  Shown as it was saved on that date. This is not live advice.
+                </p>
+              </div>
+              <button
+                onClick={() => setViewing(null)}
+                className="text-xs font-semibold text-slate-500 hover:text-blue-600 shrink-0"
+              >
+                Close
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-[#94a3b8]">
+              {viewing.risk} · {viewing.horizon_years}-year horizon
+              {viewing.monthly_amount ? ` · ${money(viewing.monthly_amount)} a month` : ""}
+            </p>
+            <p className="text-xs text-slate-600 dark:text-[#94a3b8]">
+              Equity {viewing.allocation?.equity}% · Debt {viewing.allocation?.debt}% · Gold {viewing.allocation?.gold}%
+              · Cash {viewing.allocation?.cash}%
+            </p>
+
+            <table className="w-full text-sm">
+              <tbody>
+                {(viewing.sleeves || []).map((s) => (
+                  <tr
+                    key={`${s.sleeve}-${s.category}`}
+                    className="border-t border-amber-200/70 dark:border-amber-500/20"
+                  >
+                    <td className="py-1.5">
+                      <span className={`inline-block w-2 h-2 rounded-full mr-2 ${SLEEVE_COLOR[s.sleeve]}`} />
+                      {s.category}
+                      <span className="text-xs text-slate-400 ml-1">{s.sleeve}</span>
+                    </td>
+                    <td className="py-1.5 text-right font-semibold whitespace-nowrap">{s.pct}%</td>
+                    <td className="py-1.5 text-right text-slate-500 whitespace-nowrap">
+                      {viewing.monthly_amount ? `${money(s.amount)}/mo` : ""}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {(viewing.rationale || []).length > 0 && (
+              <ul className="space-y-1 text-xs text-slate-600 dark:text-[#94a3b8] list-disc list-inside">
+                {viewing.rationale.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            )}
+
+            {/* What actually happened since. The row keeps the split and one broad-market
+                level, never a per-sleeve NAV — so the market's own move is the only thing
+                here that is actually measurable, and it is labelled as exactly that. */}
+            <p className="text-xs pt-2 border-t border-amber-200/70 dark:border-amber-500/20 text-slate-700 dark:text-[#94a3b8]">
+              {viewing.market_change_pct == null ? (
+                "No comparison available for this plan — it was saved before the market level was recorded."
+              ) : (
+                <>
+                  The market ({viewing.market_basis?.symbol}) is{" "}
+                  <b className={viewing.market_change_pct >= 0 ? "text-emerald-600" : "text-rose-600"}>
+                    {viewing.market_change_pct >= 0 ? "up" : "down"} {Math.abs(viewing.market_change_pct)}%
+                  </b>{" "}
+                  since this advice. That is the market's move, not this plan's own return.
+                </>
+              )}
+            </p>
+          </div>
+        )}
 
         <div className="space-y-3">
           <Bubble side="bot">

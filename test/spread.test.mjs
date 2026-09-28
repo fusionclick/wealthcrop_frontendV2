@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import {
   splitByPercent,
   splitIntoInstalments,
@@ -8,6 +9,7 @@ import {
 } from "../src/utils/spread.js";
 
 const sum = (xs) => Math.round(xs.reduce((a, b) => a + b, 0) * 100) / 100;
+const page = fs.readFileSync("src/pages/mutual_fund/SpreadInvest.jsx", "utf8");
 
 test("a percentage split adds back up to the lump sum exactly", () => {
   // The case that breaks naive rounding: thirds of a round number.
@@ -130,4 +132,50 @@ test("monthly instalment dates step by month, not by 30 days", () => {
 
 test("weekly instalment dates step by seven days", () => {
   assert.deepEqual(instalmentDates("2026-03-02", 3, "w"), ["2026-03-02", "2026-03-09", "2026-03-16"]);
+});
+
+test("QA 3.13: each instalment date is its own row, and the rows sum to the lump sum", () => {
+  const { legs, errors } = buildSpreadPlan({
+    total: 100000,
+    instalments: 6,
+    funds: [
+      { scheme_code: "A", name: "Fund A", percent: 33.33, min_amount: 500 },
+      { scheme_code: "B", name: "Fund B", percent: 33.33, min_amount: 500 },
+      { scheme_code: "C", name: "Fund C", percent: 33.34, min_amount: 500 },
+    ],
+  });
+  const dates = instalmentDates("2026-01-31", 6, "m");
+  assert.deepEqual(errors, []);
+
+  // The figure the page puts against each date: every fund's instalment for that date,
+  // added in paise — the same arithmetic as `schedulePaise` in SpreadInvest.jsx.
+  const rows = dates.map((_, i) => legs.reduce((s, l) => s + Math.round(l.instalments[i] * 100), 0));
+  assert.equal(rows.length, 6);
+  assert.ok(rows.every((p) => p > 0));
+  assert.equal(rows.reduce((a, b) => a + b, 0) / 100, 100000);
+
+  // The bug was a multiplier standing in for the schedule: the dates have to be rendered,
+  // and the column has to show the total it adds up to.
+  assert.match(page, /dates\.map\(\(d, i\) =>/);
+  assert.match(page, /schedulePaise\[i\] \/ 100/);
+  assert.match(page, /schedulePaise\.reduce\(\(a, b\) => a \+ b, 0\) \/ 100/);
+});
+
+test("QA 3.14/3.15: a saved plan reopens with per-leg status, and cancel says BSE keeps running", () => {
+  // GET /spreads/{id} had no caller, so a failed leg was only visible on the tab that
+  // submitted it.
+  assert.match(page, /\/spreads\/\$\{openId\}/);
+  assert.match(page, /enabled: !!openId/);
+  assert.match(page, /setOpenId\(openId === s\.id \? null : s\.id\)/);
+  // Each leg's own status, not just the plan's roll-up.
+  assert.match(page, /l\.status === "failed"/);
+
+  const cancelFn = page.slice(page.indexOf("const cancel = async"), page.indexOf("return ("));
+  assert.ok(cancelFn.includes("deleteApiWithToken"), "the cancel handler moved");
+  // QA 3.15: warned before the plan is gone, not in the toast afterwards.
+  assert.ok(
+    cancelFn.indexOf("window.confirm") >= 0 && cancelFn.indexOf("window.confirm") < cancelFn.indexOf("deleteApiWithToken"),
+    "cancel no longer confirms before deleting"
+  );
+  assert.match(cancelFn, /NOT cancelled with the plan/);
 });

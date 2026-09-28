@@ -198,3 +198,16 @@ test("SIP date and start date can never be sent out of step", () => {
   assert.match(sip, /startDayInvalid/);
   assert.match(sip, /disabled=\{[\s\S]{0,300}?startDayInvalid/, "an invalid SIP date no longer blocks submit");
 });
+
+// QA 3.5 — "couldn't navigate to /mutual_fund/sip-setup". The link was deliberately removed
+// because that bare route carries no scheme: router state dies on a reload and there is no
+// :isin/:code to recover one from, so the page registered a SIP with an empty src_scheme
+// and BSE rejected it. Rather than leave a route that fails at submit, it now sends the
+// investor to pick a fund. The per-fund route is unaffected and stays the real entry point.
+test("sip-setup with no fund sends you to pick one instead of posting an empty scheme", () => {
+  const src = fs.readFileSync("src/pages/mutual_fund/SIPSetupPage.jsx", "utf8");
+  assert.match(src, /const hasScheme = !!\(location\.state\?\.fund \|\| isin \|\| code\)/);
+  assert.match(src, /if \(!hasScheme\) navigate\("\/user\/mutual_fund\/explore", \{ replace: true \}\)/);
+  // The per-fund route must still be able to render, so the guard cannot key off state alone.
+  assert.doesNotMatch(src, /if \(!location\.state\?\.fund\) navigate\(/);
+});
