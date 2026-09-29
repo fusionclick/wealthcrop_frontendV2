@@ -129,3 +129,32 @@ test("RedeemMF refuses a locked redemption using the shared logic", () => {
   assert.match(src, /toastError\(refusal\)/);
   assert.match(src, /disabled=\{[\s\S]{0,300}?Boolean\(refusal\)/);
 });
+
+// QA 3.8 (re-report: "refuse ni hoa, order chala gaya") — /scheme-details returns no lock-in
+// for most schemes on this host, so the guard fell through even for ELSS. RedeemMF now
+// synthesises the statutory 3-year ELSS lock-in from the scheme CATEGORY, which the holding
+// carries, so an ELSS bought within 3 years is refused without depending on the flaky field.
+test("RedeemMF derives an ELSS lock-in from the category when scheme-details has none", () => {
+  const src = fs.readFileSync("src/pages/mutual_fund/RedeemMF.jsx", "utf8");
+  // The category fallback exists and only fires for ELSS.
+  assert.match(src, /elss\[\s-\]\*linked\|tax\[\s-\]\*saver|elss.*equity.*tax.*saver/i);
+  assert.match(src, /effectiveLockIn/);
+  assert.match(src, /period: 3, type: "year"/);
+  // And the guard + lots fetch key off the effective lock-in, not the raw one that is usually null.
+  assert.match(src, /enabled: !!ucc && Boolean\(effectiveLockIn\)/);
+  assert.match(src, /lockinSplit\(\{ lockIn: effectiveLockIn, lots \}\)/);
+});
+
+test("a synthesised 3-year ELSS lock refuses a recent purchase, per lot", () => {
+  // This is the exact object RedeemMF builds for an ELSS holding with no scheme-details lock-in.
+  const elss = { period: 3, type: "year", label: "3 years (ELSS)" };
+  // Bought 5 months ago → still locked.
+  const recent = lockinSplit({ lockIn: elss, lots: [lot("2026-04-20", 100)], today: TODAY });
+  assert.equal(recent.status, "checked");
+  assert.equal(recent.lockedUnits, 100);
+  assert.equal(recent.freeUnits, 0);
+  // Bought 4 years ago → free.
+  const old = lockinSplit({ lockIn: elss, lots: [lot("2022-04-20", 100)], today: TODAY });
+  assert.equal(old.lockedUnits, 0);
+  assert.equal(old.freeUnits, 100);
+});

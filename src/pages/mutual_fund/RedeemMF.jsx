@@ -167,6 +167,19 @@ export function RedeemForm({ holding, locked, onCancel, onSuccess, replaceRegNo,
     staleTime: 1000 * 60 * 2,
   });
 
+  // QA 3.8 (still) — /scheme-details carries no lock-in on this host for most schemes, so the
+  // guard fell through for ELSS too and the redemption reached BSE. ELSS has a STATUTORY
+  // 3-year lock-in and is identifiable by its category, which the holding does carry — so
+  // synthesise the period from the category when the scheme-details field is missing. This is
+  // deterministic and cannot touch a non-ELSS fund: effectiveLockIn stays null for them, and
+  // the "unknown → allow" path is unchanged. The server should enforce this too; a browser
+  // guard is the floor, not the ceiling.
+  const effectiveLockIn = useMemo(() => {
+    if (lockIn) return lockIn;
+    const isElss = /elss|equity[\s-]*linked|tax[\s-]*saver/i.test(String(holding?.scheme_category || ""));
+    return isElss ? { period: 3, type: "year", label: "3 years (ELSS)" } : null;
+  }, [lockIn, holding?.scheme_category]);
+
   // A BSE holding carries no purchase date, so the lots have to be rebuilt from the order
   // history — and only when there is a lock-in to measure them against, which on this host is
   // the rare case.
@@ -175,11 +188,11 @@ export function RedeemForm({ holding, locked, onCancel, onSuccess, replaceRegNo,
     queryKey: ["mfOrderHistory", ucc],
     queryFn: () => postApiWithToken(nodeUrl("/orderHistory"), { ucc }),
     select: (res) => (Array.isArray(res?.data?.orders) ? res.data.orders : []),
-    enabled: !!ucc && Boolean(lockIn),
+    enabled: !!ucc && Boolean(effectiveLockIn),
   });
 
   const lots = useMemo(() => {
-    if (!lockIn || !orders.length) return [];
+    if (!effectiveLockIn || !orders.length) return [];
     // FIFO openLots, not raw purchases: lots an earlier redemption already sold are gone, and
     // counting them again would report units as locked that the investor no longer owns.
     return matchLots(orders, { method: "fifo" }).openLots.filter(
@@ -189,9 +202,9 @@ export function RedeemForm({ holding, locked, onCancel, onSuccess, replaceRegNo,
         // scheme would then over-count the free units — i.e. under-block, the safe direction.
         (!l.folio || !holding?.folio || String(l.folio) === String(holding.folio))
     );
-  }, [orders, lockIn, holding]);
+  }, [orders, effectiveLockIn, holding]);
 
-  const lock = useMemo(() => lockinSplit({ lockIn, lots }), [lockIn, lots]);
+  const lock = useMemo(() => lockinSplit({ lockIn: effectiveLockIn, lots }), [effectiveLockIn, lots]);
   const u4 = (n) => Number(Number(n).toFixed(4));
   const lockLine =
     lock.status === "checked" && lock.lockedUnits > 0
