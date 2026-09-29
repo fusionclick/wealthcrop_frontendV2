@@ -92,7 +92,7 @@ const MFDashboard = () => {
 
       {/* ================= STICKY HEADER ================= */}
       <div
-        className={`transition-top duration-300 ease-in-out border-b bg-white
+        className={`transition-top duration-300 ease-in-out border-b bg-white dark:bg-[var(--card-bg)]
           dark:bg-[var(--card-bg)]
           dark:border-[var(--border-color)]
           ${

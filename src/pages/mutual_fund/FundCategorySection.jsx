@@ -47,7 +47,7 @@ const FundCategorySection = () => {
   return (
     <div className="w-full max-w-6xl mx-auto px-4 lg:px-8 py-8">
       <h2 className="text-xl font-semibold">{title}</h2>
-      <p className="text-sm text-slate-500 mt-1">{funds.length ? `${funds.length} schemes` : "BSE StarMF collection"}</p>
+      <p className="text-sm text-slate-500 dark:text-[var(--text-secondary)] mt-1">{funds.length ? `${funds.length} schemes` : "BSE StarMF collection"}</p>
 
       <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 gap-3 mt-5">
         {MF_COLLECTIONS.map((item) => {
@@ -58,11 +58,11 @@ const FundCategorySection = () => {
               onClick={() => navigate(`/mutual_fund/collections/${item.slug}`)}
               className={`rounded-2xl p-4 flex flex-col items-center gap-2 border transition ${
                 on
-                  ? "bg-white border-slate-300 shadow-md"
-                  : "bg-slate-100 border-transparent hover:bg-white hover:shadow-sm"
+                  ? "bg-white dark:bg-[var(--card-bg)] border-slate-300 dark:border-[var(--border-color)] shadow-md"
+                  : "bg-slate-100 border-transparent hover:bg-white dark:bg-[var(--card-bg)] hover:shadow-sm"
               }`}
             >
-              <div className="w-12 h-12 rounded-xl bg-white shadow-sm flex items-center justify-center">{ICONS[item.slug]}</div>
+              <div className="w-12 h-12 rounded-xl bg-white dark:bg-[var(--card-bg)] shadow-sm flex items-center justify-center">{ICONS[item.slug]}</div>
               <p className="text-sm font-medium text-center leading-tight">{item.name}</p>
             </button>
           );
@@ -79,11 +79,11 @@ const FundCategorySection = () => {
               onClick={() =>
                 navigate(fundPath(fund.scheme_isin || fund.scheme_isin, fund.scheme_bse_code || fund.scheme_bse_code))
               }
-              className="text-left rounded-2xl p-4 bg-white border border-slate-200 shadow-sm hover:shadow-md transition"
+              className="text-left rounded-2xl p-4 bg-white dark:bg-[var(--card-bg)] border border-slate-200 dark:border-[var(--border-color)] shadow-sm hover:shadow-md transition"
             >
               <AmcMark name={fund.name} />
               <p className="text-sm font-semibold mt-3 line-clamp-2 min-h-10">{titleCase(fund.name) || "—"}</p>
-              <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">{fund.subType || fund.category || "Mutual Fund"}</p>
+              <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mt-1 line-clamp-1">{fund.subType || fund.category || "Mutual Fund"}</p>
               <p className="text-sm font-medium mt-4">
                 {navLabel(fund, navs)}
               </p>
@@ -93,7 +93,7 @@ const FundCategorySection = () => {
       )}
 
       {!isLoading && !funds.length && (
-        <p className="text-center text-slate-500 py-16">No funds in this collection yet.</p>
+        <p className="text-center text-slate-500 dark:text-[var(--text-secondary)] py-16">No funds in this collection yet.</p>
       )}
     </div>
   );

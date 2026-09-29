@@ -48,8 +48,13 @@ test("ticket 21: modification is persisted in the backend, not 'updated locally'
   assert.doesNotMatch(code, /updated locally/i);
   // 207 means the new SIP is live and the old one is not cancelled. Reporting that as
   // success is how somebody gets debited twice.
-  assert.match(fn, /res\.status === "partial"/);
-  assert.match(fn, /toastError\(res\.message\)/);
+  //
+  // Both reads must be against the BODY. postApiWithToken hands back the axios response, so
+  // `res.status` is the HTTP code and could never equal "partial" — this branch was
+  // unreachable for as long as it was written that way, and `res.message` was undefined, so
+  // even had it fired it would have toasted nothing.
+  assert.match(fn, /res\.data\?\.status === "partial"/);
+  assert.match(fn, /toastError\(res\.data\?\.message\)/);
 });
 
 test("ticket 21: the SIP list is re-read after a modify, not patched locally", () => {

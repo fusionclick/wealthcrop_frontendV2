@@ -54,13 +54,21 @@ export default function CoursePage() {
   const done = (progress.completed_modules || []).includes(index);
   const finished = Boolean(progress.completed_at);
 
+  // `postApiWithToken` returns the AXIOS RESPONSE, so the Laravel body is `res.data` and the
+  // progress payload it wraps is `res.data.data`. Both handlers below were a level short:
+  // progress was being set to the whole {status, data} envelope, and the quiz result to the
+  // axios response itself — which is why the score line rendered "undefined / undefined
+  // correct" and a newly earned badge never announced itself.
+  const bodyOf = (res) => res?.data;
+
   const markRead = async () => {
     setBusy(true);
     const res = await postApiWithToken(api(`/learning/courses/${slug}/complete`), { module: index });
     setBusy(false);
-    if (res?.status) {
-      setProgress(res.data);
-      if (res.data.badge) toastSuccess(`Badge earned: ${res.data.badge}`);
+    const body = bodyOf(res);
+    if (body?.status) {
+      setProgress(body.data);
+      if (body.data?.badge) toastSuccess(`Badge earned: ${body.data.badge}`);
       if (index < modules.length - 1) setIndex(index + 1);
     }
   };
@@ -72,10 +80,12 @@ export default function CoursePage() {
       answers: (module.questions || []).map((_, i) => (answers[i] ?? -1)),
     });
     setBusy(false);
-    if (res?.status) {
-      setResult(res);
-      setProgress(res.data);
-      if (res.data.badge) toastSuccess(`Badge earned: ${res.data.badge}`);
+    const body = bodyOf(res);
+    if (body?.status) {
+      // score / total / feedback sit on the body beside `data`, not inside it.
+      setResult(body);
+      setProgress(body.data);
+      if (body.data?.badge) toastSuccess(`Badge earned: ${body.data.badge}`);
     }
   };
 

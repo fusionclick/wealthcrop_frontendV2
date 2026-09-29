@@ -698,7 +698,7 @@ const pctOf = (key) => {
                 </p>
 
                 {activeInfo === index && (
-                  <div className="absolute top-14 left-0 w-56 p-3 bg-white border border-gray-200 rounded-lg shadow-md text-xs text-gray-700 z-50">
+                  <div className="absolute top-14 left-0 w-56 p-3 bg-white dark:bg-[var(--card-bg)] border border-gray-200 dark:border-[var(--border-color)] rounded-lg shadow-md text-xs text-gray-700 dark:text-[var(--text-secondary)] z-50">
                     {advancedDefinitions[item.label]}
                   </div>
                 )}
@@ -706,7 +706,7 @@ const pctOf = (key) => {
             ))}
           </div>
 
-          <div className="mt-3 flex items-center gap-2 text-sm text-slate-500">
+          <div className="mt-3 flex items-center gap-2 text-sm text-slate-500 dark:text-[var(--text-secondary)]">
             <span className="text-gray-500">
               <MdOutlineInfo />
             </span>
@@ -736,7 +736,7 @@ const pctOf = (key) => {
               className={`px-4 py-2 rounded-full border font-medium ${
                 mode === "sip"
                   ? "bg-green-600 text-white border-green-600"
-                  : "bg-white border-gray-300"
+                  : "bg-white dark:bg-[var(--card-bg)] border-gray-300 dark:border-[var(--border-color)]"
               }`}
             >
               Monthly SIP
@@ -747,7 +747,7 @@ const pctOf = (key) => {
               className={`px-4 py-2 rounded-full border font-medium ${
                 mode === "lumpsum"
                   ? "bg-green-600 text-white border-green-600"
-                  : "bg-white border-gray-300"
+                  : "bg-white dark:bg-[var(--card-bg)] border-gray-300 dark:border-[var(--border-color)]"
               }`}
             >
               One-Time
@@ -858,9 +858,9 @@ const pctOf = (key) => {
                 </p>
 
                 {/* <div className="mt-4">
-            <p className="text-gray-600 mb-2 font-medium">Breakdown</p>
+            <p className="text-gray-600 dark:text-[var(--text-secondary)] mb-2 font-medium">Breakdown</p>
             {lumpResults.map((res) => (
-              <div key={res.yr} className="flex justify-between py-2 border-b border-gray-100 text-sm">
+              <div key={res.yr} className="flex justify-between py-2 border-b border-gray-100 dark:border-[var(--border-color)] text-sm">
                 <div>
                   <div className="font-medium">{res.yr} year{res.yr > 1 ? "s" : ""}</div>
                   <div className="text-gray-500">Annual rate: {(res.r * 100).toFixed(2)}%</div>
@@ -1466,7 +1466,7 @@ pt-5 p-4
                   ×
                 </button>
                 <h2 className="text-xl font-semibold pr-8">Redeem</h2>
-                <p className="text-sm text-slate-500 mt-1 mb-4">{fundsList?.name}</p>
+                <p className="text-sm text-slate-500 dark:text-[var(--text-secondary)] mt-1 mb-4">{fundsList?.name}</p>
                 {thisHolding ? (
                   <RedeemForm
                     holding={thisHolding}
@@ -1478,7 +1478,7 @@ pt-5 p-4
                     }}
                   />
                 ) : (
-                  <div className="text-sm text-slate-500 space-y-4">
+                  <div className="text-sm text-slate-500 dark:text-[var(--text-secondary)] space-y-4">
                     <p>You don’t hold this fund yet, so there’s nothing to redeem.</p>
                     <button
                       type="button"

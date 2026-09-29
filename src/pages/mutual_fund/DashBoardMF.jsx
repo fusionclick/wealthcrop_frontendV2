@@ -302,7 +302,7 @@ const DashBoardMF = () => {
                   tabIndex={0}
                   onClick={() => setOpenHolding(fund)}
                   onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setOpenHolding(fund)}
-                  className="px-4 py-3 flex items-start justify-between gap-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-[var(--white-5)] transition"
+                  className="px-4 py-3 flex items-start justify-between gap-3 cursor-pointer hover:bg-slate-50 dark:bg-[var(--white-5)] dark:hover:bg-[var(--white-5)] transition"
                 >
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-sm leading-snug line-clamp-2 text-slate-900 dark:text-[var(--text-primary)]">

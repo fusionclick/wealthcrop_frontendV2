@@ -5,7 +5,7 @@ import { useSelector } from "react-redux";
 import { clearToasts, toastError, toastSuccess } from "../../utils/notifyCustom";
 import InvestLoader from "../../components/InvestLoader";
 import PaymentPromptModal from "../../components/PaymentPromptModal";
-import { apiErrorMessage, nodeUrl, laravelUrl, validateInvestorReady } from "../../utils/nodeApi";
+import { apiErrorMessage, nodeUrl, laravelUrl, orderErrorMessage, orderRefId, validateInvestorReady } from "../../utils/nodeApi";
 import OrderDisclaimers, { useDisclaimers } from "../../components/mutual_fund/OrderDisclaimers";
 
 const MutualFundInvestPage = ({ fundsList: fundsProp, setBuyModal }) => {
@@ -47,7 +47,7 @@ const MutualFundInvestPage = ({ fundsList: fundsProp, setBuyModal }) => {
   // hamesha reject hoga. holding_modes na ho to raasta khula rehta hai.
   const dematBlocked = fundsList?.holding_modes?.demat === false;
 
-  const generateOrderRefId = () => String(Math.floor(100000 + Math.random() * 900000));
+  const generateOrderRefId = () => orderRefId();
 
   const pollOrderStatus = (orderId) => {
     const pollUrl = nodeUrl(import.meta.env.VITE_GET_ORDER || "/getOrder");
@@ -181,7 +181,7 @@ const MutualFundInvestPage = ({ fundsList: fundsProp, setBuyModal }) => {
         }
         setShowPaymentPopup(true);
       } else {
-        const message = res?.message || res?.error || "Order placement failed. Please try again.";
+        const message = orderErrorMessage(res, "Order placement failed. Please try again.");
         setOrderError(message);
         toastError(message);
       }

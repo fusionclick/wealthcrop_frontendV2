@@ -16,7 +16,7 @@ const features = [
     text: "Access AI-driven analysis for better investment decisions.",
   },
   {
-    icon: <FaShieldAlt className="text-3xl text-blue-950" />,
+    icon: <FaShieldAlt className="text-3xl text-blue-950 dark:text-[var(--text-primary)]" />,
     title: "Secure & Trusted",
     text: "Bank-grade security and transparent operations.",
   },
@@ -26,7 +26,7 @@ const features = [
     text: "Plan your future with personalized investment strategies.",
   },
   {
-    icon: <FaClock className="text-3xl text-blue-950" />,
+    icon: <FaClock className="text-3xl text-blue-950 dark:text-[var(--text-primary)]" />,
     title: "Real-time Performance",
     text: "Track your investments live with instant market updates.",
   },
@@ -36,7 +36,7 @@ const features = [
     text: "Get insights from certified financial experts whenever you need them.",
   },
   {
-    icon: <FaGlobeAsia className="text-3xl text-blue-950" />,
+    icon: <FaGlobeAsia className="text-3xl text-blue-950 dark:text-[var(--text-primary)]" />,
     title: "Global Access",
     text: "Invest across top-performing global mutual funds and ETFs with ease.",
   },

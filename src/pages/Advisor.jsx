@@ -38,6 +38,8 @@ export default function Advisor() {
   const [answers, setAnswers] = useState({});
   const [tilt, setTilt] = useState(0);
   const [saved, setSaved] = useState(false);
+  // QA 8.9 — which way the investor voted on this plan, so the buttons can show it.
+  const [vote, setVote] = useState(null);
   // The past plan being reopened, straight off the row as it was saved. Null = live advice.
   const [viewing, setViewing] = useState(null);
   const endRef = useRef(null);
@@ -132,6 +134,7 @@ export default function Advisor() {
     setAnswers({});
     setTilt(0);
     setSaved(false);
+    setVote(null);
   };
 
   const savePlan = async (feedback = null) => {
@@ -147,6 +150,10 @@ export default function Advisor() {
     });
     if (res?.status) {
       setSaved(true);
+      // QA 8.9 — the thumbs posted correctly and then looked exactly as they had a moment
+      // earlier, so "nothing happened" was the only reasonable reading. A toast that has
+      // already faded is not feedback about feedback.
+      if (feedback) setVote(feedback);
       refetchHistory();
       toastSuccess(feedback ? "Thanks — noted" : "Plan saved");
     }
@@ -171,11 +178,20 @@ export default function Advisor() {
 
         {/* ponytail: <details> rather than another open/closed useState — the browser
             already tracks that, and the list is collapsed until it is wanted. */}
-        {history.length > 0 && (
-          <details className="mb-4 rounded-xl border border-slate-200 dark:border-[var(--border-color)] px-3 py-2">
-            <summary className="text-xs font-semibold text-slate-600 dark:text-[#94a3b8] cursor-pointer">
-              Past plans ({history.length})
-            </summary>
+        {/* QA 8.9 — this whole block used to be hidden until a plan had been saved, so an
+            investor with nothing saved yet saw no sign that reopening one was possible and
+            reported it as missing. Shown always: the empty version says where past plans
+            will appear, which is the difference between "not built" and "not yet used". */}
+        <details className="mb-4 rounded-xl border border-slate-200 dark:border-[var(--border-color)] px-3 py-2">
+          <summary className="text-xs font-semibold text-slate-600 dark:text-[#94a3b8] cursor-pointer">
+            Past plans ({history.length})
+          </summary>
+          {history.length === 0 ? (
+            <p className="mt-2 text-xs text-slate-500 dark:text-[var(--text-secondary)]">
+              None saved yet. Use <span className="font-medium">Save this plan</span> below and it will appear
+              here, ready to reopen.
+            </p>
+          ) : (
             <ul className="mt-2 space-y-1">
               {history.map((h) => (
                 <li key={h.id}>
@@ -194,8 +210,8 @@ export default function Advisor() {
                 </li>
               ))}
             </ul>
-          </details>
-        )}
+          )}
+        </details>
 
         {viewing && (
           <div className="mb-5 rounded-xl border border-amber-300 dark:border-amber-500/40 bg-amber-50/60 dark:bg-amber-500/5 p-4 space-y-3">
@@ -446,12 +462,24 @@ export default function Advisor() {
                   Set a goal for it
                 </button>
 
-                <span className="text-xs text-slate-400 ml-auto">Was this useful?</span>
-                <button onClick={() => savePlan("up")} aria-label="Helpful" className="text-slate-400 hover:text-emerald-600">
-                  <ThumbsUp size={15} />
+                <span className="text-xs text-slate-400 ml-auto">
+                  {vote ? "Thanks — noted" : "Was this useful?"}
+                </span>
+                <button
+                  onClick={() => savePlan("up")}
+                  aria-label="Helpful"
+                  aria-pressed={vote === "up"}
+                  className={vote === "up" ? "text-emerald-600" : "text-slate-400 hover:text-emerald-600"}
+                >
+                  <ThumbsUp size={15} fill={vote === "up" ? "currentColor" : "none"} />
                 </button>
-                <button onClick={() => savePlan("down")} aria-label="Not helpful" className="text-slate-400 hover:text-rose-600">
-                  <ThumbsDown size={15} />
+                <button
+                  onClick={() => savePlan("down")}
+                  aria-label="Not helpful"
+                  aria-pressed={vote === "down"}
+                  className={vote === "down" ? "text-rose-600" : "text-slate-400 hover:text-rose-600"}
+                >
+                  <ThumbsDown size={15} fill={vote === "down" ? "currentColor" : "none"} />
                 </button>
               </div>
             </>

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { clampNum, num, annuityFactor } from "../../utils/calcSafe";
+import { clampNum, num, annuityFactor, inr } from "../../utils/calcSafe";
 
 const ApyCalculator = () => {
   const navigate = useNavigate();
@@ -190,15 +190,15 @@ const ApyCalculator = () => {
           <div className="bg-white/20 dark:bg-black/30 rounded-xl p-4 shadow-lg backdrop-blur-sm">
             <p className="text-lg">
               <strong>Maturity Amount:</strong> ₹
-              {Number(result.maturity).toLocaleString()}
+              {inr(result.maturity)}
             </p>
             <p className="text-lg mt-2">
               <strong>Total Deposit:</strong> ₹
-              {Number(result.totalDeposit).toLocaleString()}
+              {inr(result.totalDeposit)}
             </p>
             <p className="text-lg mt-2">
               <strong>Interest Earned:</strong> ₹
-              {Number(result.interestEarned).toLocaleString()}
+              {inr(result.interestEarned)}
             </p>
           </div>
         ) : (

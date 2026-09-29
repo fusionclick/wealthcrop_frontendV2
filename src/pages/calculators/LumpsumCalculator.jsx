@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { inr } from "../../utils/calcSafe";
 
 const LumpsumCalculator = () => {
   const [amount, setAmount] = useState("");
@@ -47,7 +48,7 @@ const LumpsumCalculator = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 bg-linear-to-r from-blue-100 to-green-100
+    <div className="min-h-screen bg-gray-50 dark:bg-[var(--app-bg)] bg-linear-to-r from-blue-100 to-green-100
     dark:from-gray-900 dark:to-gray-800
     ">
       
@@ -133,17 +134,17 @@ const LumpsumCalculator = () => {
               <div className="bg-white/20 rounded-xl p-4 shadow-lg backdrop-blur-md">
                 <p className="text-lg">
                   <strong>Total Invested:</strong> ₹
-                  {Number(result.invested).toLocaleString()}
+                  {inr(result.invested)}
                 </p>
 
                 <p className="text-lg mt-1">
                   <strong>Maturity Amount:</strong> ₹
-                  {Number(result.maturity).toLocaleString()}
+                  {inr(result.maturity)}
                 </p>
 
                 <p className="text-lg mt-1">
                   <strong>Wealth Gained:</strong> ₹
-                  {Number(result.wealthGained).toLocaleString()}
+                  {inr(result.wealthGained)}
                 </p>
               </div>
             ) : (
@@ -160,7 +161,7 @@ const LumpsumCalculator = () => {
       </div>
 
       {/* FAQ SECTION */}
-      <div className="max-w-4xl mx-auto mt-10 p-6 bg-white rounded-2xl shadow bg-linear-to-r from-blue-200 to-green-100 dark:from-slate-700 dark:to-slate-800">
+      <div className="max-w-4xl mx-auto mt-10 p-6 bg-white dark:bg-[var(--card-bg)] rounded-2xl shadow bg-linear-to-r from-blue-200 to-green-100 dark:from-slate-700 dark:to-slate-800">
         <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">FAQ — Lumpsum Investment</h2>
 
         {faqs.map((item, index) => (

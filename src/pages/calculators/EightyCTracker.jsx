@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { inr } from "../../utils/calcSafe";
 
 const EightyCTracker = () => {
   const navigate = useNavigate();
@@ -139,11 +140,11 @@ const EightyCTracker = () => {
           <div className="bg-white/20 rounded-xl p-4 shadow-lg backdrop-blur-sm">
             <p className="text-lg">
               <strong>Total 80C Used:</strong>{" "}
-              ₹{result.total.toLocaleString()}
+              ₹{inr(result.total)}
             </p>
             <p className="text-lg mt-2">
               <strong>Remaining Limit:</strong>{" "}
-              ₹{result.remaining.toLocaleString()}
+              ₹{inr(result.remaining)}
             </p>
           </div>
         ) : (

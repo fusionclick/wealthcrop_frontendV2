@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { clampNum, num, annuityFactor } from "../../utils/calcSafe";
+import { clampNum, num, annuityFactor, inr } from "../../utils/calcSafe";
 
 const SwpCalculator = () => {
   const [initialInvestment, setInitialInvestment] = useState("");
@@ -207,12 +207,12 @@ const SwpCalculator = () => {
           <div className="bg-white/20 dark:bg-black/30 rounded-xl p-4 shadow-lg backdrop-blur-md">
             <p className="text-lg">
               <strong>Total Withdrawn:</strong> ₹
-              {Number(result.totalWithdrawn).toLocaleString()}
+              {inr(result.totalWithdrawn)}
             </p>
 
             <p className="text-lg mt-1">
               <strong>Final Balance:</strong> ₹
-              {Number(result.finalBalance).toLocaleString()}
+              {inr(result.finalBalance)}
             </p>
           </div>
         ) : (

@@ -169,10 +169,10 @@ export default function CreateBasket() {
     try{  
 
       const res = await postApiWithToken(url, payload)
-      if(res?.status === 200 || res?.status === true || res?.success === 200 || res?.success === true){
+      if(res?.status === 200 || res?.status === true || res?.data?.success === 200 || res?.data?.success === true){
         navigate("/baskets");
         setAssets([])
-        toastSuccess(res?.message)
+        toastSuccess(res?.data?.message)
       }
 
     }catch(err){

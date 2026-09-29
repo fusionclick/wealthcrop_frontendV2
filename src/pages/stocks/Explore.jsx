@@ -334,7 +334,7 @@ const stockList =  useSelector((state) => state.stocks.stockList)
 
   return (
     <>
-      <div className="min-h-screen bg-white dark:bg-(--app-bg) text-blue-950 hidden lg:block">
+      <div className="min-h-screen bg-white dark:bg-(--app-bg) text-blue-950 dark:text-[var(--text-primary)] hidden lg:block">
 
        
      
@@ -401,7 +401,7 @@ const stockList =  useSelector((state) => state.stocks.stockList)
         <img
           src={stockLogoUrl(stock.symbol)}
           alt={stock.symbol}
-          className="w-10 h-10 mb-2 overflow-hidden rounded border border-gray-300 dark:border-[var(--border-color)] object-contain bg-white"
+          className="w-10 h-10 mb-2 overflow-hidden rounded border border-gray-300 dark:border-[var(--border-color)] object-contain bg-white dark:bg-[var(--card-bg)]"
           onError={(e) => {
             e.target.onerror = null;
             e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(stock.symbol || "?")}&background=dbeafe&color=1e3a8a&size=64`;
@@ -483,7 +483,7 @@ const stockList =  useSelector((state) => state.stocks.stockList)
             ${
               activeTab === btn
                 ? "bg-gray-200 text-gray-900 dark:bg-[var(--border-color)] dark:text-[var(--text-primary)]"
-                : "hover:bg-gray-100 text-gray-600 dark:text-[var(--text-secondary)] dark:hover:bg-[var(--border-color)]"
+                : "hover:bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-[var(--text-secondary)] dark:hover:bg-[var(--border-color)]"
             }
             dark:border-[var(--border-color)]
           `}
@@ -645,7 +645,7 @@ const stockList =  useSelector((state) => state.stocks.stockList)
             <img
               src={stockLogoUrl(stock.symbol)}
               alt={stock.symbol}
-              className="w-10 h-10 mb-2 border rounded overflow-hidden border-gray-300 dark:border-[var(--border-color)] object-contain bg-white"
+              className="w-10 h-10 mb-2 border rounded overflow-hidden border-gray-300 dark:border-[var(--border-color)] object-contain bg-white dark:bg-[var(--card-bg)]"
               onError={(e) => {
                 e.target.onerror = null;
                 e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(stock.symbol || "?")}&background=dbeafe&color=1e3a8a&size=64`;
@@ -782,7 +782,7 @@ const stockList =  useSelector((state) => state.stocks.stockList)
               <span className="font-medium text-slate-800 dark:text-[var(--text-primary)] truncate">
                 {h.symbol || h.tradingsymbol}
               </span>
-              <span className="text-slate-500 shrink-0">
+              <span className="text-slate-500 dark:text-[var(--text-secondary)] shrink-0">
                 {h.qty ?? h.quantity ?? 0} qty
               </span>
             </Link>

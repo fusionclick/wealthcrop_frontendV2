@@ -59,7 +59,7 @@ const fetchUser = async () => {
   const res = await getApiWithToken(url);
 
   if (!(res?.status === 200 || res?.status === true)) {
-    throw new Error(res?.message || "Failed to fetch");
+    throw new Error(res?.data?.message || "Failed to fetch");
   }
 
   console.log("User Data", res?.data);
@@ -101,9 +101,9 @@ const isKycDone = isKycVerified(userData?.kyc?.kyc_status)
       if(response?.status === 200 || response?.status){
         setEditType("emailVerify");
         setOpenModal(true);
-        toastSuccess(response?.message);
+        toastSuccess(response?.data?.message);
       }else{
-        // toastError(res?.message || "Something went wrong");  
+        // toastError(res?.data?.message || "Something went wrong");  
       }
     } catch (error) {
       toastError(error.message)
@@ -121,9 +121,9 @@ const isKycDone = isKycVerified(userData?.kyc?.kyc_status)
           setEmailVerify(true)
           refetch()
           setOpenModal(false);
-          toastSuccess(response?.message);
+          toastSuccess(response?.data?.message);
         }else{
-        // toastError(res?.message || "Something went wrong");  
+        // toastError(res?.data?.message || "Something went wrong");  
       }
     } catch (error) {
       toastError(error.message)
@@ -164,9 +164,9 @@ const isKycDone = isKycVerified(userData?.kyc?.kyc_status)
           localStorage.setItem("accounts", JSON.stringify(updatedAccounts));
 
         setOpenModal(false);
-        toastSuccess(response?.message);
+        toastSuccess(response?.data?.message);
       }else{
-        // toastError(res?.message || "Something went wrong");  
+        // toastError(res?.data?.message || "Something went wrong");  
       }
     } catch (error) {
       toastError(error.message)

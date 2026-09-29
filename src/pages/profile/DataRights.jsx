@@ -54,13 +54,13 @@ export default function DataRights() {
     try {
       const res = await postApiWithToken(api("/privacy/erasure"), { reason });
       if (res?.status) {
-        toastSuccess(res?.message || "Request received.");
+        toastSuccess(res?.data?.message || "Request received.");
         setConfirming(false);
         setReason("");
         const fresh = await getApiWithToken(api("/privacy/erasure"));
         setRequest(fresh?.data?.data ?? null);
       } else {
-        toastError(res?.message || "Could not raise the request.");
+        toastError(res?.data?.message || "Could not raise the request.");
       }
     } catch (e) {
       toastError(e?.response?.data?.message || e.message);

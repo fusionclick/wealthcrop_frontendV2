@@ -27,11 +27,11 @@ export default function Performance() {
           ← Back to Basket
         </Link>
 
-        <h1 className="text-2xl font-bold text-slate-800 mt-2">
+        <h1 className="text-2xl font-bold text-slate-800 dark:text-[var(--text-primary)] mt-2">
           Performance Analysis
         </h1>
 
-        <p className="text-gray-600 text-sm mt-1">
+        <p className="text-gray-600 dark:text-[var(--text-secondary)] text-sm mt-1">
           Deep insights into long-term performance & risk metrics.
         </p>
       </div>
@@ -39,15 +39,15 @@ export default function Performance() {
       <div className="max-w-4xl mx-auto space-y-5">
 
         {/* NAV Trend */}
-        <div className="bg-white border border-[#e0e7ef] rounded-xl shadow-sm p-4">
-          <h2 className="font-semibold text-slate-800 text-[15px] mb-2">NAV Trend</h2>
+        <div className="bg-white dark:bg-[var(--card-bg)] border border-[#e0e7ef] rounded-xl shadow-sm p-4">
+          <h2 className="font-semibold text-slate-800 dark:text-[var(--text-primary)] text-[15px] mb-2">NAV Trend</h2>
           <Chart data={details.navHistory || []} />
         </div>
 
         {/* Metrics */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {details.metrics && Object.entries(details.metrics).map(([key, val]) => (
-            <div key={key} className="bg-white border rounded-xl p-4">
+            <div key={key} className="bg-white dark:bg-[var(--card-bg)] border rounded-xl p-4">
               <p className="text-xs text-gray-500 uppercase">{key}</p>
               <p className="text-lg font-semibold">{val}</p>
             </div>
@@ -56,7 +56,7 @@ export default function Performance() {
 
         {/* Rolling returns */}
         {details.rolling && (
-          <div className="bg-white border rounded-xl p-4">
+          <div className="bg-white dark:bg-[var(--card-bg)] border rounded-xl p-4">
             <h2 className="font-semibold mb-3">Rolling Returns</h2>
             <div className="flex gap-6">
               {Object.entries(details.rolling).map(([k, v]) => (

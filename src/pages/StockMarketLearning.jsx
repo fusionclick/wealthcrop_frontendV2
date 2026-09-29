@@ -11,13 +11,13 @@ export default function StockMarketLearning() {
 
       {/* HERO SECTION */}
       <div className="max-w-6xl mx-auto px-6 mb-16">
-        <div className="bg-white rounded-3xl p-10 shadow-xl border border-indigo-200 flex flex-col md:flex-row items-center gap-10">
+        <div className="bg-white dark:bg-[var(--card-bg)] rounded-3xl p-10 shadow-xl border border-indigo-200 flex flex-col md:flex-row items-center gap-10">
           
           <div className="flex-1">
             <h1 className="text-5xl font-extrabold text-indigo-900 mb-4">
               Stock Market – Complete Guide
             </h1>
-            <p className="text-gray-700 text-lg mb-6">
+            <p className="text-gray-700 dark:text-[var(--text-secondary)] text-lg mb-6">
               Learn how the stock market works, how companies get valued, how prices move, and 
               the strategies used by successful long-term investors.
             </p>
@@ -34,16 +34,16 @@ export default function StockMarketLearning() {
       <div className="max-w-5xl mx-auto px-6 mb-16">
         <h2 className="text-3xl font-bold text-indigo-900 mb-4">What is the Stock Market?</h2>
 
-        <p className="text-gray-700 leading-relaxed mb-6">
+        <p className="text-gray-700 dark:text-[var(--text-secondary)] leading-relaxed mb-6">
           A marketplace where shares of publicly listed companies are bought and sold.  
           It represents ownership in companies and gives investors a chance to grow their wealth 
           as businesses grow.
         </p>
 
         <div className="grid md:grid-cols-2 gap-8">
-          <div className="p-6 rounded-2xl bg-white shadow border border-indigo-100">
+          <div className="p-6 rounded-2xl bg-white dark:bg-[var(--card-bg)] shadow border border-indigo-100">
             <h3 className="text-xl font-bold text-indigo-800 mb-2">Why do stock prices move?</h3>
-            <ul className="list-disc pl-6 text-gray-700 space-y-2">
+            <ul className="list-disc pl-6 text-gray-700 dark:text-[var(--text-secondary)] space-y-2">
               <li>Company performance</li>
               <li>Demand & supply</li>
               <li>Global events</li>
@@ -52,9 +52,9 @@ export default function StockMarketLearning() {
             </ul>
           </div>
 
-          <div className="p-6 rounded-2xl bg-white shadow border border-indigo-100">
+          <div className="p-6 rounded-2xl bg-white dark:bg-[var(--card-bg)] shadow border border-indigo-100">
             <h3 className="text-xl font-bold text-indigo-800 mb-2">Why should you invest?</h3>
-            <ul className="list-disc pl-6 text-gray-700 space-y-2">
+            <ul className="list-disc pl-6 text-gray-700 dark:text-[var(--text-secondary)] space-y-2">
               <li>Beats inflation long-term</li>
               <li>High wealth creation potential</li>
               <li>Ownership in businesses</li>
@@ -90,11 +90,11 @@ export default function StockMarketLearning() {
           ].map((item, i) => (
             <div
               key={i}
-              className="bg-white p-6 rounded-3xl shadow-md border border-indigo-100 hover:shadow-xl transition"
+              className="bg-white dark:bg-[var(--card-bg)] p-6 rounded-3xl shadow-md border border-indigo-100 hover:shadow-xl transition"
             >
               <img src={item.img} className="w-32 mx-auto mb-4"/>
               <h3 className="text-xl font-bold text-indigo-800 text-center mb-2">{item.title}</h3>
-              <p className="text-gray-700 text-center">{item.desc}</p>
+              <p className="text-gray-700 dark:text-[var(--text-secondary)] text-center">{item.desc}</p>
             </div>
           ))}
 
@@ -105,7 +105,7 @@ export default function StockMarketLearning() {
       <div className="max-w-5xl mx-auto px-6 mb-16">
         <h2 className="text-3xl font-bold text-indigo-900 mb-6">How to Analyse a Stock?</h2>
 
-        <div className="space-y-5 text-gray-700 leading-relaxed">
+        <div className="space-y-5 text-gray-700 dark:text-[var(--text-secondary)] leading-relaxed">
           <p><b>1. Fundamental Analysis:</b> Study revenue, profits, debt, business model, management quality.</p>
           <p><b>2. Technical Analysis:</b> Study charts, patterns, support & resistance, indicators.</p>
           <p><b>3. Compare with competitors:</b> Benchmark against industry peers.</p>
@@ -119,9 +119,9 @@ export default function StockMarketLearning() {
         <h2 className="text-3xl font-bold text-indigo-900 mb-6">Beginner Tips</h2>
 
         <div className="grid md:grid-cols-2 gap-6">
-          <div className="p-6 bg-white rounded-2xl border border-indigo-100 shadow-sm">
+          <div className="p-6 bg-white dark:bg-[var(--card-bg)] rounded-2xl border border-indigo-100 shadow-sm">
             <h3 className="text-xl font-semibold text-indigo-800 mb-3">Do’s</h3>
-            <ul className="list-disc pl-6 text-gray-700 space-y-2">
+            <ul className="list-disc pl-6 text-gray-700 dark:text-[var(--text-secondary)] space-y-2">
               <li>Start early & stay consistent</li>
               <li>Invest for long term</li>
               <li>Diversify your portfolio</li>
@@ -130,9 +130,9 @@ export default function StockMarketLearning() {
             </ul>
           </div>
 
-          <div className="p-6 bg-white rounded-2xl border border-indigo-100 shadow-sm">
+          <div className="p-6 bg-white dark:bg-[var(--card-bg)] rounded-2xl border border-indigo-100 shadow-sm">
             <h3 className="text-xl font-semibold text-indigo-800 mb-3">Don’ts</h3>
-            <ul className="list-disc pl-6 text-gray-700 space-y-2">
+            <ul className="list-disc pl-6 text-gray-700 dark:text-[var(--text-secondary)] space-y-2">
               <li>Don't follow random tips</li>
               <li>Don't panic during market dips</li>
               <li>Don't invest money needed urgently</li>

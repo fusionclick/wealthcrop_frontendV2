@@ -70,7 +70,7 @@ const FutureandOptions = () => {
               {orders.map((order) => (
                 <tr
                   key={order.id}
-                  className="border-t hover:bg-gray-50 dark:border-[var(--border-color)] dark:hover:bg-[var(--white-5)]"
+                  className="border-t hover:bg-gray-50 dark:bg-[var(--white-5)] dark:border-[var(--border-color)] dark:hover:bg-[var(--white-5)]"
                 >
                   <td className="px-4 py-2 font-medium text-blue-950 dark:text-[var(--text-primary)]">
                     {order.symbol}

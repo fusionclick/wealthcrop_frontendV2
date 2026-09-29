@@ -16,11 +16,11 @@ const categories = [
 ];
 
 const SkeletonCard = () => (
-  <div className="bg-white rounded-xl shadow-md p-4 animate-pulse">
-    <div className="h-44 bg-gray-200 rounded-lg"></div>
-    <div className="mt-4 h-4 bg-gray-200 rounded w-1/3"></div>
-    <div className="mt-2 h-3 bg-gray-200 rounded w-2/3"></div>
-    <div className="mt-2 h-3 bg-gray-200 rounded w-1/2"></div>
+  <div className="bg-white dark:bg-[var(--card-bg)] rounded-xl shadow-md p-4 animate-pulse">
+    <div className="h-44 bg-gray-200 dark:bg-white/10 rounded-lg"></div>
+    <div className="mt-4 h-4 bg-gray-200 dark:bg-white/10 rounded w-1/3"></div>
+    <div className="mt-2 h-3 bg-gray-200 dark:bg-white/10 rounded w-2/3"></div>
+    <div className="mt-2 h-3 bg-gray-200 dark:bg-white/10 rounded w-1/2"></div>
   </div>
 );
 

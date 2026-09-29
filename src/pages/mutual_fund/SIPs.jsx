@@ -80,7 +80,7 @@ const SIPs = () => {
         <button
           key={to}
           onClick={() => navigate(to)}
-          className="text-sm px-3 py-1.5 rounded-lg border border-slate-200 dark:border-[var(--border-color)] text-blue-600 dark:text-blue-400 font-medium hover:bg-slate-50 dark:hover:bg-[var(--white-5)]"
+          className="text-sm px-3 py-1.5 rounded-lg border border-slate-200 dark:border-[var(--border-color)] text-blue-600 dark:text-blue-400 font-medium hover:bg-slate-50 dark:bg-[var(--white-5)] dark:hover:bg-[var(--white-5)]"
         >
           {label} →
         </button>

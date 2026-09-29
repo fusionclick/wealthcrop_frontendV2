@@ -72,7 +72,7 @@ const [docUploaded, setDocUploaded] = useState({
     const res = await getApiWithToken(url);
   
     if (!(res?.status === 200 || res?.status === true)) {
-      throw new Error(res?.message || "Failed to fetch");
+      throw new Error(res?.data?.message || "Failed to fetch");
     }
   
     
@@ -302,7 +302,7 @@ const handlePrimaryAction = async () => {
 
     } else {
       //  API responded but failed
-      setStepError(res?.message || "Something went wrong");
+      setStepError(res?.data?.message || "Something went wrong");
     }
 
   } catch (e) {
@@ -393,7 +393,7 @@ const callStepApi = async (step, data) => {
   const res = await postApiWithToken(config.url, payload);
 
   if (res?.status === 200 || res?.status === true) {
-    toastSuccess(res?.message);
+    toastSuccess(res?.data?.message);
   }
 
   return res;
@@ -417,7 +417,7 @@ const uploadDocument = async (type, file, meta = {}) => {
       body: formData,
     });
 
-    if (!res.ok) throw new Error("Upload failed");
+    if (!res.data?.ok) throw new Error("Upload failed");
 
     const data = await res.json();
 
@@ -787,7 +787,7 @@ const retryUcc = async () => {
 
     if(res?.status === 200 || res?.status === true){
       pendingUcc.current = null; // Laravel ke paas UCC hai — ab bse-status kaafi hai
-      toastSuccess(res?.message)
+      toastSuccess(res?.data?.message)
       // This is the storage call, not a verdict source. It runs immediately after add_ucc
       // set a verified verdict, so an unguarded write here is what the investor saw as
       // "KYC verified" turning back into "awaiting BSE verification" a moment later.
@@ -900,13 +900,13 @@ useEffect(() => {
               <div key={s} className="flex items-center gap-3">
                 <div
                   // className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
-                  //   i <= step ? "bg-white text-blue-950" : "bg-white/30"
+                  //   i <= step ? "bg-white dark:bg-[var(--card-bg)] text-blue-950 dark:text-[var(--text-primary)]" : "bg-white/30"
                   // }`}
                   className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
   completedSteps[i]
     ? "bg-green-500 text-white"
     : i === step
-    ? "bg-white text-blue-950"
+    ? "bg-white dark:bg-[var(--card-bg)] text-blue-950 dark:text-[var(--text-primary)]"
     : "bg-white/30"
 }`}
                 >
@@ -942,7 +942,7 @@ useEffect(() => {
               <div
                 key={i}
                 className={`h-1 flex-1 mx-0.5 rounded ${
-                  i <= step ? "bg-blue-900" : "bg-gray-200"
+                  i <= step ? "bg-blue-900" : "bg-gray-200 dark:bg-white/10"
                 }`}
               />
             ))}
@@ -1914,7 +1914,7 @@ function ReviewStep({ isUccCreated, verdict, checking, onCheck, onFinish, error,
           onClick={onRetry}
           className={`px-5 py-2 rounded-lg text-sm font-medium transition ${
             target
-              ? "border border-gray-300 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
+              ? "border border-gray-300 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:bg-white/10 dark:hover:bg-white/5"
               : "bg-blue-950 dark:bg-blue-600 text-white hover:bg-blue-900 dark:hover:bg-blue-500"
           }`}
         >
@@ -1923,7 +1923,7 @@ function ReviewStep({ isUccCreated, verdict, checking, onCheck, onFinish, error,
         <button
           type="button"
           onClick={onFinish}
-          className="px-5 py-2 rounded-lg text-sm font-medium border border-gray-300 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 transition"
+          className="px-5 py-2 rounded-lg text-sm font-medium border border-gray-300 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:bg-white/10 dark:hover:bg-white/5 transition"
         >
           Continue to sign in
         </button>
@@ -2004,7 +2004,7 @@ function ReviewStep({ isUccCreated, verdict, checking, onCheck, onFinish, error,
             type="button"
             onClick={onCheck}
             disabled={checking}
-            className="px-5 py-2 rounded-lg text-sm font-medium border border-gray-300 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition"
+            className="px-5 py-2 rounded-lg text-sm font-medium border border-gray-300 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:bg-white/10 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition"
           >
             {checking ? "Checking…" : "Check again"}
           </button>

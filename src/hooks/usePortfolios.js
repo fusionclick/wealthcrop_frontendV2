@@ -84,7 +84,15 @@ export default function usePortfolios(enabled = true) {
       try {
         const res = await deleteApiWithToken(`${base()}/${id}`);
         await refresh();
-        toastSuccess(res?.message || "Portfolio deleted.");
+        // QA 5.9 — the server has always answered "Portfolio deleted. N holding(s) are
+        // unassigned again — nothing was sold." `deleteApiWithToken` returns the AXIOS
+        // RESPONSE, so the body is `res.data`; reading `res.message` was one level too high
+        // and always undefined, so that reassurance was swapped for a bare "Portfolio
+        // deleted." every time. Deleting something in a portfolio app and not being told
+        // your money is untouched is exactly when people panic.
+        toastSuccess(
+          res?.data?.message || "Portfolio deleted. Your holdings are unassigned again — nothing was sold."
+        );
         return true;
       } catch (e) {
         toastError(e?.message || "Could not delete that portfolio.");

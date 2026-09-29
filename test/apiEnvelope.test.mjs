@@ -74,3 +74,60 @@ test("getApi consumers are left alone — they are already at the body", () => {
   assert.match(gate, /queryFn: \(\) => getApi\(/);
   assert.match(gate, /select: \(res\) => res\?\.data \?\? \{\}/);
 });
+
+// ─────────────────────────────────────────────────────────────────────────────────────────
+// The same trap, on the IMPERATIVE side — which the useQuery walk above cannot see.
+//
+// On 2026-09-29 it was found in four more places at once: RedeemMF/SwitchMF/SpreadInvest/
+// MutualFundInvestPage (`res?.message || res?.error`, so BSE's actual refusal was replaced
+// by a generic sentence), usePortfolios.remove (the server's "nothing was sold" reassurance
+// dropped), and KycDetails (`res.message`, `res.pan_change_pending` and the pan-change
+// banner all reading the envelope, which made a working PAN-change feature look dead).
+//
+// An axios response has only these properties. Reading anything ELSE off one means the
+// body was meant, and the value is silently undefined.
+//
+// `response` is allowed: that is the axios ERROR shape, used defensively alongside a
+// `.data` fallback, not a misread of a success response.
+const AXIOS_PROPS = new Set([
+  "data", "status", "statusText", "headers", "config", "request", "response",
+]);
+
+// Comments describing the bug are not the bug. Blanking them keeps line numbers intact so
+// an offender still points at the right line.
+const stripComments = (s) =>
+  s
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+    .replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + " ".repeat(m.length - p1.length));
+
+test("no imperative *ApiWithToken result is read as if it were the body", () => {
+  const offenders = [];
+
+  for (const file of walk("src")) {
+    const src = stripComments(readFileSync(file, "utf8"));
+    if (!/ApiWithToken\(/.test(src)) continue;
+
+    // `const res = await postApiWithToken(...)` — capture the variable it lands in.
+    for (const m of src.matchAll(/(?:const|let)\s+(\w+)\s*=\s*await\s+\w*ApiWithToken\(/g)) {
+      const varName = m[1];
+      // Look only at the rest of that function-ish region, not the whole file.
+      const region = src.slice(m.index, m.index + 900);
+      for (const read of region.matchAll(new RegExp(String.raw`\b${varName}\s*\??\.\s*(\w+)`, "g"))) {
+        const prop = read[1];
+        if (AXIOS_PROPS.has(prop)) continue;
+        // A match that runs to the very end of the slice was cut in half by the window —
+        // `res?.status` truncated to `res?.s` reads as an offender and is not one.
+        if (read.index + read[0].length >= region.length) continue;
+        const line = src.slice(0, m.index + read.index).split("\n").length;
+        offenders.push(`${file}:${line}  ${varName}.${prop} — axios responses have no .${prop}`);
+      }
+    }
+  }
+
+  assert.deepEqual(
+    offenders,
+    [],
+    "these read a property that only exists on the BODY, off the axios response:\n" +
+      offenders.join("\n")
+  );
+});

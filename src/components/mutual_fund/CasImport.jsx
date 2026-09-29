@@ -57,7 +57,7 @@ const CasImport = ({ open, onClose, existing = [], onSave, onDone }) => {
       });
       // postApiWithToken already shows the server's message on a non-2xx and returns null.
       if (!res) return;
-      if (res.status !== "success") return setError(res.message || "Could not read that statement.");
+      if (res.status !== "success") return setError(res.data?.message || "Could not read that statement.");
 
       const found = markCasDuplicates(res.data?.holdings || [], existing);
       setRows(found);
@@ -137,7 +137,7 @@ const CasImport = ({ open, onClose, existing = [], onSave, onDone }) => {
               covers all fund houses, because CAMS and KFintech consolidate for each other.
               The password line was also wrong: the RTA does not email a password, the
               investor CHOOSES one on the request form and that is what opens the file. */}
-          <p className="text-[11px] text-slate-500 mt-0.5">
+          <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mt-0.5">
             Don’t have the PDF yet? Request it free from{" "}
             <a
               href="https://www.camsonline.com/Investors/Statements/Consolidated-Account-Statement"
@@ -167,7 +167,7 @@ const CasImport = ({ open, onClose, existing = [], onSave, onDone }) => {
             reset();
             onClose?.();
           }}
-          className="text-xs text-slate-500 shrink-0"
+          className="text-xs text-slate-500 dark:text-[var(--text-secondary)] shrink-0"
         >
           Close
         </button>
@@ -175,7 +175,7 @@ const CasImport = ({ open, onClose, existing = [], onSave, onDone }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <label className="block md:col-span-2">
-          <span className="text-[11px] text-slate-500">CAS PDF</span>
+          <span className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">CAS PDF</span>
           <input
             type="file"
             accept="application/pdf,.pdf"
@@ -189,7 +189,7 @@ const CasImport = ({ open, onClose, existing = [], onSave, onDone }) => {
           />
         </label>
         <label className="block">
-          <span className="text-[11px] text-slate-500">Password</span>
+          <span className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">Password</span>
           <input
             type="password"
             autoComplete="off"
@@ -215,7 +215,7 @@ const CasImport = ({ open, onClose, existing = [], onSave, onDone }) => {
 
       {!!rows.length && (
         <div className="space-y-2 pt-1">
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">
             {rows.length} holding(s) found. Untick anything you do not want tracked here.
           </p>
           {rows.map((row) => (
@@ -231,7 +231,7 @@ const CasImport = ({ open, onClose, existing = [], onSave, onDone }) => {
               />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium truncate">{row.matched_name || row.scheme_name}</p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500 dark:text-[var(--text-secondary)]">
                   {row.units} units
                   {Number(row.nav) > 0 ? ` · NAV ₹${Number(row.nav).toFixed(2)}` : " · NAV —"}
                   {/* The statement's own figure is the primary one — units × this NAV is
@@ -251,7 +251,7 @@ const CasImport = ({ open, onClose, existing = [], onSave, onDone }) => {
                 </p>
                 <div className="flex flex-wrap items-center gap-1 mt-1">
                   {row.duplicate && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-[var(--text-secondary)]">
                       Already in your portfolio
                     </span>
                   )}
@@ -285,7 +285,7 @@ const CasImport = ({ open, onClose, existing = [], onSave, onDone }) => {
                     <button
                       type="button"
                       onClick={() => setInvested(row.key, String(row.visible_cost))}
-                      className="text-[10px] px-1.5 py-0.5 rounded border border-slate-300 text-slate-600 hover:bg-slate-50"
+                      className="text-[10px] px-1.5 py-0.5 rounded border border-slate-300 dark:border-[var(--border-color)] text-slate-600 dark:text-[var(--text-secondary)] hover:bg-slate-50 dark:hover:bg-white/5 dark:bg-[var(--white-5)]"
                     >
                       Use {money(row.visible_cost)} shown here
                     </button>
@@ -293,7 +293,7 @@ const CasImport = ({ open, onClose, existing = [], onSave, onDone }) => {
                 </div>
               </div>
               <label className="block w-32 shrink-0">
-                <span className="text-[10px] text-slate-500">Invested (₹)</span>
+                <span className="text-[10px] text-slate-500 dark:text-[var(--text-secondary)]">Invested (₹)</span>
                 <input
                   type="number"
                   value={row.invested_amount}

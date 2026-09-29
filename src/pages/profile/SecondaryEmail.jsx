@@ -34,12 +34,12 @@ export default function SecondaryEmail({ userData, refetch }) {
       });
       if (res?.status) {
         setStage("otp");
-        toastSuccess(res?.message || "OTP sent");
+        toastSuccess(res?.data?.message || "OTP sent");
       } else if (res) {
         // postApiWithToken returns null on an HTTP error and has already toasted the
         // server's own reason. A second generic toast here buried "that is already your
         // primary email" under "Could not send the OTP", so QA reported the wrong cause.
-        toastError(res?.message || "Could not send the OTP.");
+        toastError(res?.data?.message || "Could not send the OTP.");
       }
     } catch (e) {
       toastError(e?.response?.data?.message || e.message);
@@ -57,9 +57,9 @@ export default function SecondaryEmail({ userData, refetch }) {
         setStage("idle");
         setOtp("");
         refetch?.();
-        toastSuccess(res?.message || "Secondary email verified");
+        toastSuccess(res?.data?.message || "Secondary email verified");
       } else if (res) {
-        toastError(res?.message || "Invalid OTP.");
+        toastError(res?.data?.message || "Invalid OTP.");
       }
     } catch (e) {
       toastError(e?.response?.data?.message || e.message);

@@ -68,3 +68,25 @@ export const finiteOr = (v, fallback = null) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : fallback;
 };
+
+/**
+ * The one place a calculator number becomes text.
+ *
+ * `finiteOr` already existed, but only five of the twenty-two calculators imported it; the
+ * rest wrote `Number(x).toLocaleString()` straight into the JSX. `Number(NaN)
+ * .toLocaleString()` is the string "NaN" and `Number(Infinity).toLocaleString()` is "∞", so
+ * a division by a rate the investor is allowed to set to 0 printed "₹∞" on screen. That is
+ * exactly what QA 10.3 asks about.
+ *
+ * A dash, not "₹0", for the same reason `finiteOr` returns null: zero is a claim about
+ * someone's money and a plausible-looking lie, while a dash says plainly that the inputs do
+ * not produce an answer.
+ */
+export const inr = (v, { maximumFractionDigits = 2, fallback = "—" } = {}) => {
+  // Absent is not zero — the same rule `num` applies. Number(null) and Number("") are both
+  // 0 and both pass a finiteness test, so a value that was never computed would print as a
+  // confident ₹0, which is exactly the lie this helper exists to prevent.
+  if (v === null || v === undefined || (typeof v === "string" && v.trim() === "")) return fallback;
+  const n = Number(v);
+  return Number.isFinite(n) ? n.toLocaleString("en-IN", { maximumFractionDigits }) : fallback;
+};

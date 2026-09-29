@@ -66,7 +66,7 @@ function LoginPinModal({ onSuccess }) {
         setError("");
         localStorage.setItem("pin_set", "true");
         armPinExpiry();
-        toastSuccess(res?.message || "PIN set");
+        toastSuccess(res?.data?.message || "PIN set");
         onSuccess();
       }
     } catch (err) {
@@ -105,13 +105,13 @@ function LoginPinModal({ onSuccess }) {
       const res = await postApi(url, { email });
 
       if (res?.status === 200 || res?.status === true) {
-        if (res?.auto_reset && res?.pin) {
-          toastSuccess(`New PIN: ${res.pin}`);
+        if (res?.data?.auto_reset && res?.data?.pin) {
+          toastSuccess(`New PIN: ${res.data?.pin}`);
           setPin(["", "", "", ""]);
           setError("");
           return;
         }
-        toastSuccess(res?.message);
+        toastSuccess(res?.data?.message);
         setMode("reset");
       }
     } catch (error) {

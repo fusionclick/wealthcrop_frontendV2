@@ -29,9 +29,9 @@ const ChangePassword = () => {
               setShowNew(false)
               setShowConfirm(false)
         
-                  toastSuccess(res?.message);
+                  toastSuccess(res?.data?.message);
             }else{
-                // toastSuccess(res?.message);
+                // toastSuccess(res?.data?.message);
             }
         } catch (error) {
             toastError(error.message || "Something went wrong");

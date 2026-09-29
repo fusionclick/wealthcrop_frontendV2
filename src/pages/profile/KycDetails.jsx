@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ShieldCheck } from "lucide-react";
+import { FiEdit2 } from "react-icons/fi";
 import { getApiWithToken, postApiWithToken } from "../../api/api";
 import { toastError, toastSuccess } from "../../utils/notifyCustom";
 
@@ -37,9 +38,17 @@ export default function KycDetails({ userData, refetch }) {
   }, [profile?.pan_number, profile?.city, profile?.occupation]);
 
   // The banner for a PAN change already waiting on an admin.
+  //
+  // QA 2.7 — `getApiWithToken` returns the AXIOS RESPONSE, so the Laravel body is `res.data`
+  // and its payload is `res.data.data`. This read `res.data.state`, which is the envelope
+  // and has no `state`, so `pending` was permanently null and the banner never appeared
+  // once — the investor was told nothing about a request they had just raised.
   const loadPending = () =>
     getApiWithToken(api("/kyc/pan-change"))
-      .then((res) => setPending(res?.data?.state === "pending" ? res.data : null))
+      .then((res) => {
+        const row = res?.data?.data;
+        setPending(row?.state === "pending" ? row : null);
+      })
       .catch(() => {});
 
   useEffect(() => {
@@ -58,15 +67,26 @@ export default function KycDetails({ userData, refetch }) {
         city: form.city.trim(),
         occupation: form.occupation.trim(),
       });
-      if (res?.status) {
+      // QA 2.7 / 2.8 — every read below was one level too high. `postApiWithToken` returns
+      // the AXIOS RESPONSE, so `res.status` was the HTTP code (truthy for any success) and
+      // `res.message` / `res.pan_change_pending` were both undefined. The result: the
+      // server's "your PAN is verified, so the change has been sent for approval" was
+      // replaced by a bare "Saved", the pending banner never refreshed, and the PAN on
+      // screen did not move — which reads exactly as "PAN cannot be edited".
+      const body = res?.data;
+      if (body?.status) {
         setEditing(false);
-        toastSuccess(res?.message || "Saved");
+        toastSuccess(body.message || "Saved");
         // A locked PAN is not applied here — it becomes a request, so refresh the banner.
-        if (res?.pan_change_pending) loadPending();
+        if (body.pan_change_pending) loadPending();
         refetch?.();
-      } else if (res) {
-        toastError(res?.message || "Could not save.");
+      } else {
+        toastError(body?.message || "Could not save.");
       }
+    } catch (err) {
+      // A 422 from the validator rejects the promise, and with only a `finally` here it
+      // died silently: the investor pressed Save, nothing happened, nothing was said.
+      toastError(err?.response?.data?.message || err?.message || "Could not save.");
     } finally {
       setBusy(false);
     }
@@ -121,12 +141,16 @@ export default function KycDetails({ userData, refetch }) {
             </button>
           </div>
         ) : (
+          // QA 2.8 — every other row on this page carries a pencil, so a bare word "Edit"
+          // in the section header did not read as the control for these three fields and
+          // was reported as "there is no edit button in front of occupation".
           <button
             type="button"
             onClick={() => setEditing(true)}
-            className="text-xs font-semibold text-emerald-600 hover:text-emerald-800"
+            aria-label="Edit KYC details"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
           >
-            Edit
+            <FiEdit2 /> Edit
           </button>
         )}
       </div>

@@ -87,7 +87,7 @@ const { data: nominees, error, isLoading, refetch } = useQuery({
         if (res?.status === 200 || res?.status === true) {
           setNomineeAdded(true);
           setShowForm(false);
-          toastSuccess(res?.message)
+          toastSuccess(res?.data?.message)
           refetch()
         }
         

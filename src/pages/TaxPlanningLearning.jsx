@@ -35,7 +35,7 @@ export default function TaxPlanningLearning() {
             <div className="flex gap-3">
               <button
                 onClick={() => navigate("/calculator/elss-calculator")}
-                className="px-6 py-3 rounded-xl bg-white border border-blue-300 text-blue-700 font-semibold hover:bg-blue-50 transition"
+                className="px-6 py-3 rounded-xl bg-white dark:bg-[var(--card-bg)] border border-blue-300 text-blue-700 font-semibold hover:bg-blue-50 transition"
               >
                 Explore Tax Saving
               </button>
@@ -58,30 +58,30 @@ export default function TaxPlanningLearning() {
         {/* SECTION – Basics */}
         <section className="mb-12">
           <h2 className="text-3xl font-bold text-blue-900 mb-4">Tax Basics for Investors</h2>
-          <p className="text-gray-700 leading-relaxed mb-4">
+          <p className="text-gray-700 dark:text-[var(--text-secondary)] leading-relaxed mb-4">
             Understand what portions of your investments are taxable and how holding periods impact tax rates.
           </p>
 
           <div className="grid md:grid-cols-3 gap-6">
-            <div className="p-5 bg-white rounded-xl border border-blue-100 shadow-sm">
+            <div className="p-5 bg-white dark:bg-[var(--card-bg)] rounded-xl border border-blue-100 shadow-sm">
               <h4 className="font-semibold text-blue-800 mb-2">Equity Funds</h4>
-              <p className="text-gray-700 text-sm">
+              <p className="text-gray-700 dark:text-[var(--text-secondary)] text-sm">
                 Short term (&lt;=12 months): taxed as per slab rates.<br />
                 Long term (&gt;12 months): LTCG above ₹1 lakh taxed at 10%.
               </p>
             </div>
 
-            <div className="p-5 bg-white rounded-xl border border-blue-100 shadow-sm">
+            <div className="p-5 bg-white dark:bg-[var(--card-bg)] rounded-xl border border-blue-100 shadow-sm">
               <h4 className="font-semibold text-blue-800 mb-2">Debt Funds</h4>
-              <p className="text-gray-700 text-sm">
+              <p className="text-gray-700 dark:text-[var(--text-secondary)] text-sm">
                 Short term: taxed as per slab rates.<br />
                 Long term (&gt;36 months): taxed at 20% with indexation.
               </p>
             </div>
 
-            <div className="p-5 bg-white rounded-xl border border-blue-100 shadow-sm">
+            <div className="p-5 bg-white dark:bg-[var(--card-bg)] rounded-xl border border-blue-100 shadow-sm">
               <h4 className="font-semibold text-blue-800 mb-2">ELSS</h4>
-              <p className="text-gray-700 text-sm">
+              <p className="text-gray-700 dark:text-[var(--text-secondary)] text-sm">
                 Eligible under 80C, 3-year lock-in, treated as equity for taxation.
               </p>
             </div>
@@ -89,32 +89,32 @@ export default function TaxPlanningLearning() {
         </section>
 
         {/* SECTION – Strategies */}
-        <section className="mb-12 bg-white p-6 rounded-2xl border border-blue-100 shadow-sm">
+        <section className="mb-12 bg-white dark:bg-[var(--card-bg)] p-6 rounded-2xl border border-blue-100 shadow-sm">
           <h2 className="text-3xl font-bold text-blue-900 mb-4">
             Tax Efficient Investing Strategies
           </h2>
 
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <h4 className="font-semibold text-gray-800 mb-2">Use ELSS for 80C</h4>
-              <p className="text-gray-700 text-sm mb-4">
+              <h4 className="font-semibold text-gray-800 dark:text-[var(--text-primary)] mb-2">Use ELSS for 80C</h4>
+              <p className="text-gray-700 dark:text-[var(--text-secondary)] text-sm mb-4">
                 ELSS provides market-linked growth + tax saving. Best for long-term wealth creation.
               </p>
 
-              <h4 className="font-semibold text-gray-800 mb-2">Stagger Capital Gains</h4>
-              <p className="text-gray-700 text-sm">
+              <h4 className="font-semibold text-gray-800 dark:text-[var(--text-primary)] mb-2">Stagger Capital Gains</h4>
+              <p className="text-gray-700 dark:text-[var(--text-secondary)] text-sm">
                 Spread gains across financial years to reduce overall taxable amount.
               </p>
             </div>
 
             <div>
-              <h4 className="font-semibold text-gray-800 mb-2">Tax Harvesting</h4>
-              <p className="text-gray-700 text-sm mb-4">
+              <h4 className="font-semibold text-gray-800 dark:text-[var(--text-primary)] mb-2">Tax Harvesting</h4>
+              <p className="text-gray-700 dark:text-[var(--text-secondary)] text-sm mb-4">
                 Offset taxable gains by booking losses strategically.
               </p>
 
-              <h4 className="font-semibold text-gray-800 mb-2">Choose Tax-efficient Funds</h4>
-              <p className="text-gray-700 text-sm">
+              <h4 className="font-semibold text-gray-800 dark:text-[var(--text-primary)] mb-2">Choose Tax-efficient Funds</h4>
+              <p className="text-gray-700 dark:text-[var(--text-secondary)] text-sm">
                 Index funds & ETFs often have lower turnover → lower tax burden.
               </p>
             </div>
@@ -126,43 +126,43 @@ export default function TaxPlanningLearning() {
           <h3 className="text-2xl font-bold text-blue-900 mb-4">Tools & Calculators</h3>
 
           <div className="grid md:grid-cols-3 gap-6">
-            <div className="p-4 bg-white border border-blue-100 rounded-xl shadow-sm text-center cursor-pointer">
+            <div className="p-4 bg-white dark:bg-[var(--card-bg)] border border-blue-100 rounded-xl shadow-sm text-center cursor-pointer">
               <div className="text-lg font-semibold text-blue-800 mb-2"
               onClick={()=>(navigate("/calculator/elss-calculator"))}
               >ELSS Planner</div>
-              <div className="text-sm text-gray-700">Calculate tax savings & returns from ELSS investments.</div>
+              <div className="text-sm text-gray-700 dark:text-[var(--text-secondary)]">Calculate tax savings & returns from ELSS investments.</div>
             </div>
 
-            <div className="p-4 bg-white border border-blue-100 rounded-xl shadow-sm text-center cursor-pointer">
+            <div className="p-4 bg-white dark:bg-[var(--card-bg)] border border-blue-100 rounded-xl shadow-sm text-center cursor-pointer">
               <div className="text-lg font-semibold text-blue-800 mb-2"
               onClick={()=>(navigate("/calculator/ltcg-calculator"))}
               >LTCG Calculator</div>
-              <div className="text-sm text-gray-700">Estimate capital gains tax on equity & debt funds.</div>
+              <div className="text-sm text-gray-700 dark:text-[var(--text-secondary)]">Estimate capital gains tax on equity & debt funds.</div>
             </div>
 
-            <div className="p-4 bg-white border border-blue-100 rounded-xl shadow-sm text-center cursor-pointer">
+            <div className="p-4 bg-white dark:bg-[var(--card-bg)] border border-blue-100 rounded-xl shadow-sm text-center cursor-pointer">
               <div className="text-lg font-semibold text-blue-800 mb-2"
               onClick={()=>(navigate("/calculator/eightyC-calculator"))}
               >80C Tracker</div>
-              <div className="text-sm text-gray-700">Track your 80C investments and remaining limit.</div>
+              <div className="text-sm text-gray-700 dark:text-[var(--text-secondary)]">Track your 80C investments and remaining limit.</div>
             </div>
           </div>
         </section>
 
         {/* PROS / CAUTIONS */}
         <section className="mb-12 grid md:grid-cols-2 gap-6">
-          <div className="p-6 bg-white rounded-2xl border border-blue-100 shadow-sm">
+          <div className="p-6 bg-white dark:bg-[var(--card-bg)] rounded-2xl border border-blue-100 shadow-sm">
             <h4 className="font-semibold text-blue-800 mb-2">Benefits</h4>
-            <ul className="list-disc pl-5 text-gray-700 space-y-2">
+            <ul className="list-disc pl-5 text-gray-700 dark:text-[var(--text-secondary)] space-y-2">
               <li>Reduce taxable income legally</li>
               <li>Earn market-linked returns</li>
               <li>Diversified investment options</li>
             </ul>
           </div>
 
-          <div className="p-6 bg-white rounded-2xl border border-red-100 shadow-sm">
+          <div className="p-6 bg-white dark:bg-[var(--card-bg)] rounded-2xl border border-red-100 shadow-sm">
             <h4 className="font-semibold text-red-700 mb-2">Cautions</h4>
-            <ul className="list-disc pl-5 text-gray-700 space-y-2">
+            <ul className="list-disc pl-5 text-gray-700 dark:text-[var(--text-secondary)] space-y-2">
               <li>ELSS has a 3-year lock-in period</li>
               <li>Don't invest only to save tax</li>
               <li>Plan liquidity before investing</li>
@@ -176,7 +176,7 @@ export default function TaxPlanningLearning() {
 
           <div className="space-y-3">
             {faqs.map((f, i) => (
-              <div key={i} className="bg-white rounded-xl border border-gray-200 shadow-sm">
+              <div key={i} className="bg-white dark:bg-[var(--card-bg)] rounded-xl border border-gray-200 dark:border-[var(--border-color)] shadow-sm">
                 <button
                   onClick={() => setOpen(open === i ? null : i)}
                   className="w-full text-left px-4 py-4 flex justify-between items-center font-medium"
@@ -185,7 +185,7 @@ export default function TaxPlanningLearning() {
                   <span className="text-xl">{open === i ? "−" : "+"}</span>
                 </button>
                 {open === i && (
-                  <div className="px-4 pb-4 text-gray-700 text-sm">{f.a}</div>
+                  <div className="px-4 pb-4 text-gray-700 dark:text-[var(--text-secondary)] text-sm">{f.a}</div>
                 )}
               </div>
             ))}

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { clampNum, num, annuityFactor, finiteOr } from "../../utils/calcSafe";
+import { clampNum, num, annuityFactor, finiteOr, inr } from "../../utils/calcSafe";
 
 const EducationCalculator = () => {
   const [currentCost, setCurrentCost] = useState("");
@@ -209,11 +209,11 @@ const EducationCalculator = () => {
           <div className="bg-white/20 dark:bg-black/30 rounded-xl p-4 shadow-lg backdrop-blur-md space-y-2">
             <p className="text-lg">
               <strong>Future Education Cost:</strong> ₹
-              {Number(result.futureCost).toLocaleString()}
+              {inr(result.futureCost)}
             </p>
             <p className="text-lg">
               <strong>Required Monthly SIP:</strong> ₹
-              {Number(result.monthlySIP).toLocaleString()}
+              {inr(result.monthlySIP)}
             </p>
           </div>
         ) : (

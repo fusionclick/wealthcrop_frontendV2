@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { compareRegimes } from "../../utils/calculators";
+import { inr } from "../../utils/calcSafe";
 
-const money = (n) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
+const money = (n) => `₹${inr(n || 0)}`;
 
 // ponytail: Row/Input component ke andar define the. Har render par naya component type
 // banta hai, React purana input unmount kar ke naya mount karta hai — is liye ek digit

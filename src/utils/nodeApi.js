@@ -603,6 +603,103 @@ export const buildMandatePayload = (ucc, investorData, amount = 5000) => ({
 export const orderIsFinal = (status) => /ALLOT|REJECT|CANCEL|FAIL/.test(String(status || "").toUpperCase());
 
 /**
+ * QA 3.7 — the reason an order was refused, read off the right level of the response.
+ *
+ * `postApiWithToken` returns the AXIOS RESPONSE, so the body is `res.data`. Six call sites
+ * read `res.message || res.error`, which is a level too high and therefore always
+ * undefined — so every failure fell through to its generic fallback. QA placed a second
+ * redemption, got "Redemption failed. Please try again.", and neither they nor we ever saw
+ * what BSE actually said. The bug being reported was invisible by construction.
+ *
+ * Same trap that crashed /user/approvals and the investments page on 28 Sep. There it threw;
+ * here it silently swallows the only useful part of the response, which is worse.
+ */
+export const orderErrorMessage = (res, fallback) => {
+  const body = res?.data ?? res;
+  return (
+    body?.message ||
+    body?.error ||
+    // BSE answers per-order, so a single rejected order carries its reason in the item.
+    body?.items?.[0]?.remarks ||
+    body?.data?.items?.[0]?.remarks ||
+    fallback
+  );
+};
+
+/**
+ * A member order reference BSE will accept as unique.
+ *
+ * Was `Math.floor(100000 + Math.random() * 900000)` in four places — six digits, drawn
+ * fresh each time with no memory. `mem_ord_ref_id` has to be unique per member FOREVER, and
+ * 900,000 values shared across every order every investor ever places is not that; a
+ * collision comes back from BSE as a flat rejection with no hint that the id was the
+ * problem. Time-ordered and numeric, because BSE rejects non-numeric refs.
+ *
+ * The counter is not belt-and-braces: Spread places several orders in one go, inside the
+ * same millisecond, so a timestamp plus randomness alone does collide there. The counter
+ * makes a burst in this tab unique; the random tail keeps two tabs apart.
+ */
+let orderRefLastTs = 0;
+let orderRefSeq = 0;
+export const orderRefId = () => {
+  const ts = Date.now();
+  // Counting WITHIN the millisecond, not across it: a free-running counter that wraps can
+  // repeat inside one tick, which is exactly where a burst lives.
+  if (ts === orderRefLastTs) orderRefSeq += 1;
+  else {
+    orderRefLastTs = ts;
+    orderRefSeq = 0;
+  }
+  const seq = String(orderRefSeq % 10000).padStart(4, "0");
+  const rand = String(Math.floor(Math.random() * 1000)).padStart(3, "0");
+  return `${ts}${seq}${rand}`;
+};
+
+/**
+ * QA 3.7 — what KIND of order a row is.
+ *
+ * The order tables carried no type column at all, and the amount was headed "Invested" on
+ * every row, so a redemption read as money going IN. Both order pages read the type through
+ * here, because the two of them disagreeing about whether a row is a buy or a sell would be
+ * worse than either of them being plain.
+ *
+ * Laravel stores `purchase | redeem | sip`; BSE answers `P | R | Purchase | Redemption |
+ * Switch`. Both spellings now arrive in one list, since orderHistory merges them.
+ */
+const SELL_TYPE = /^(r|redeem|redemption|swp|switch-out|sell)$/i;
+const SIP_TYPE = /^(sip|xsip|systematic)$/i;
+const SWITCH_TYPE = /^(sw|switch|switch-in|stp)$/i;
+
+export const isSell = (type) => SELL_TYPE.test(String(type || "").trim());
+
+export const orderTypeLabel = (type) => {
+  const t = String(type || "").trim();
+  if (!t) return "—";
+  if (SELL_TYPE.test(t)) return "Redeem";
+  if (SIP_TYPE.test(t)) return "SIP";
+  if (SWITCH_TYPE.test(t)) return "Switch";
+  if (/^(p|purchase|buy)$/i.test(t)) return "Purchase";
+  // An unknown code is shown as it arrived rather than guessed into one of the above. A
+  // wrong label here is a lie about which way the money moved.
+  return t;
+};
+
+export const orderTypeTone = (type) => {
+  switch (orderTypeLabel(type)) {
+    case "Redeem":
+      return "bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-400";
+    case "SIP":
+      return "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300";
+    case "Switch":
+      return "bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300";
+    case "Purchase":
+      return "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400";
+    default:
+      return "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-[var(--text-secondary)]";
+  }
+};
+
+/**
  * The live BSE status for a stored order row, matched on the BSE order id.
  *
  * The Laravel table records `status: 'pending'` when the order is placed and only the

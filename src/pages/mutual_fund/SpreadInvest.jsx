@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
 import { postApi, postApiWithToken, getApiWithToken, deleteApiWithToken } from "../../api/api";
 import { toastError, toastSuccess } from "../../utils/notifyCustom";
-import { nodeUrl, validateInvestorReady } from "../../utils/nodeApi";
+import { nodeUrl, orderErrorMessage, orderRefId, validateInvestorReady } from "../../utils/nodeApi";
 import Combo, { fieldClass } from "../../components/ui/Combo";
 import OrderDisclaimers, { useDisclaimers } from "../../components/mutual_fund/OrderDisclaimers";
 import { buildSxpIntent } from "../../utils/sxp";
@@ -30,7 +30,7 @@ import { buildSpreadPlan, instalmentDates } from "../../utils/spread";
 
 const holdingLabel = (h) => `${h.scheme_name || "Fund"}${h.folio ? ` · ${h.folio}` : ""}`;
 // Same six-digit reference the single-fund invest page generates, per order.
-const generateOrderRefId = () => String(Math.floor(100000 + Math.random() * 900000));
+const generateOrderRefId = () => orderRefId();
 const money = (n) => `₹${Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const FREQ = [
@@ -183,7 +183,7 @@ export default function SpreadInvest() {
       });
 
       const plan = created?.data;
-      if (!plan?.id) throw new Error(created?.message || "Could not create the spread plan.");
+      if (!plan?.id) throw new Error(created?.data?.message || "Could not create the spread plan.");
 
       // 2. Place each leg. A leg that fails is recorded and the rest still go — one
       //    rejected fund should not cost the investor the whole plan.
@@ -218,7 +218,7 @@ export default function SpreadInvest() {
           await postApiWithToken(`${import.meta.env.VITE_URL}/spreads/${plan.id}/legs/${leg.id}`, {
             status: ok ? "placed" : "failed",
             reference: ok ? String(reference || "") : null,
-            error: ok ? null : String(res?.message || res?.error || "Rejected").slice(0, 500),
+            error: ok ? null : String(orderErrorMessage(res, "Rejected")).slice(0, 500),
           });
           if (ok) placed += 1;
         } catch (e) {
@@ -265,7 +265,7 @@ export default function SpreadInvest() {
 
     try {
       const res = await deleteApiWithToken(`${import.meta.env.VITE_URL}/spreads/${id}`);
-      toastSuccess(res?.message || "Spread cancelled.");
+      toastSuccess(res?.data?.message || "Spread cancelled.");
       refetchSpreads();
       queryClient.invalidateQueries({ queryKey: ["spread", id] });
     } catch (e) {

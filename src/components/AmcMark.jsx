@@ -18,7 +18,7 @@ export default function AmcMark({ name, className = "h-11 w-11" }) {
       src={src}
       alt=""
       onError={() => setBroken(true)}
-      className={`${className} rounded-xl bg-white object-contain p-1.5 shrink-0 border border-slate-200 shadow-sm`}
+      className={`${className} rounded-xl bg-white dark:bg-[var(--card-bg)] object-contain p-1.5 shrink-0 border border-slate-200 dark:border-[var(--border-color)] shadow-sm`}
     />
   );
 }

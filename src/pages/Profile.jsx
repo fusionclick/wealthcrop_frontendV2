@@ -70,7 +70,7 @@ const Profile = () => {
     const res = await getApiWithToken(url);
   
     if (!(res?.status === 200 || res?.status === true)) {
-      throw new Error(res?.message || "Failed to fetch");
+      throw new Error(res?.data?.message || "Failed to fetch");
     }
   
     console.log("User Data", res?.data);
@@ -258,7 +258,7 @@ const email = current?.email
                           border-b border-gray-100 dark:border-slate-700">
             <button
               onClick={onClose}
-              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800"
+              className="p-2 rounded-full hover:bg-gray-100 dark:bg-white/10 dark:hover:bg-slate-800"
             >
               <ArrowLeft className="w-5 h-5 text-gray-700 dark:text-gray-200" />
             </button>
@@ -296,7 +296,7 @@ const email = current?.email
     <div
       key={acc.userId}
       onClick={() => handleSwitch(acc)}
-      className={`flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 ${
+      className={`flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-gray-100 dark:bg-white/10 dark:hover:bg-gray-800 ${
         current?.userId === acc.userId ? "bg-blue-50 dark:bg-blue-900/20" : ""
       }`}
     >
@@ -314,7 +314,7 @@ const email = current?.email
 
   {
     accounts.length > 2 && (
-      <div onClick={() => setShowAll(!showAll)} className="px-4 py-2 text-blue-600 cursor-pointer hover:bg-gray-100 dark:hover:bg[var(--gray-800)] text-xs font-semibold flex items-center gap-1">
+      <div onClick={() => setShowAll(!showAll)} className="px-4 py-2 text-blue-600 cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 dark:bg-white/10 dark:hover:bg[var(--gray-800)] text-xs font-semibold flex items-center gap-1">
         {showAll ? "Show less ↑" : "Show more ↓"}
       </div>
     )
@@ -323,7 +323,7 @@ const email = current?.email
   {/* Add Account */}
   <div
     onClick={() => navigate("/login")}
-    className="px-4 py-2 text-blue-600 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 text-sm"
+    className="px-4 py-2 text-blue-600 cursor-pointer hover:bg-gray-100 dark:bg-white/10 dark:hover:bg-gray-800 text-sm"
   >
     + Add Account
   </div>

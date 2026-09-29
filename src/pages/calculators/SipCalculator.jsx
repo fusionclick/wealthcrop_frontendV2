@@ -9,6 +9,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { sipForGoal } from "../../utils/calculators";
 import { MF_EXPLORE_PATH } from "../../utils/nodeApi";
+import { inr } from "../../utils/calcSafe";
 import {
   BarChart,
   Bar,
@@ -113,7 +114,7 @@ const SipCalculator = () => {
       >
         <p className="flex items-center gap-2">
           <FaBullseye className="text-red-600" /> Goal Amount:
-          <strong>₹{goalAmount.toLocaleString()}</strong>
+          <strong>₹{inr(goalAmount)}</strong>
         </p>
         <p className="flex items-center gap-2">
           <FaClock /> <strong>{years} Years</strong>
@@ -136,27 +137,27 @@ const SipCalculator = () => {
         "
       >
         <p>
-          To reach <strong>₹{result.futureValue?.toLocaleString()}</strong> in{" "}
+          To reach <strong>₹{inr(result.futureValue)}</strong> in{" "}
           <strong>{years} years</strong>
           {inflation > 0 && (
             <>
               {" "}
-              — that is ₹{goalAmount.toLocaleString()} of today&apos;s money at{" "}
+              — that is ₹{inr(goalAmount)} of today&apos;s money at{" "}
               {inflation}% inflation
             </>
           )}
           ,
         </p>
         <p>
-          Invest <strong>₹{result.monthlySIP?.toLocaleString()}</strong> monthly.
+          Invest <strong>₹{inr(result.monthlySIP)}</strong> monthly.
         </p>
         <p>
           Total Invested:{" "}
-          <strong>₹{result.totalInvested?.toLocaleString()}</strong>
+          <strong>₹{inr(result.totalInvested)}</strong>
         </p>
         <p>
           Estimated Growth:{" "}
-          <strong>₹{result.estimatedGrowth?.toLocaleString()}</strong>
+          <strong>₹{inr(result.estimatedGrowth)}</strong>
         </p>
       </div>
 
@@ -187,7 +188,7 @@ const SipCalculator = () => {
               {label}
             </label>
             <span className="text-sm font-semibold text-blue-950 dark:text-gray-200">
-              {value.toLocaleString()}
+              {inr(value)}
             </span>
           </div>
           <input
@@ -214,7 +215,7 @@ const SipCalculator = () => {
             <XAxis dataKey="year" stroke="#9ca3af" />
             <YAxis stroke="#9ca3af" />
             <Tooltip
-              formatter={(val) => `₹${val.toLocaleString()}`}
+              formatter={(val) => `₹${inr(val)}`}
               contentStyle={{
                 backgroundColor: "#020617",
                 border: "1px solid rgba(255,255,255,0.1)",

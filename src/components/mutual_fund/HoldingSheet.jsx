@@ -73,7 +73,7 @@ export default function HoldingSheet({
       <div className="flex items-start justify-between gap-3 p-5 border-b border-slate-100 dark:border-[var(--border-color)]">
         <div className="min-w-0">
           <p className="font-semibold text-sm leading-snug">{titleCase(holding.name || holding.scheme_name) || "—"}</p>
-          <p className="text-[11px] text-slate-500 mt-1">
+          <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mt-1">
             <span
               className={`inline-block px-1.5 py-0.5 rounded mr-1.5 ${
                 isInternal ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"
@@ -84,7 +84,7 @@ export default function HoldingSheet({
             {holding.category || holding.scheme_category || "Mutual Fund"}
           </p>
         </div>
-        <button type="button" onClick={onClose} aria-label="Close" className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-[var(--white-10)]">
+        <button type="button" onClick={onClose} aria-label="Close" className="p-1 rounded-full hover:bg-slate-100 dark:bg-white/10 dark:hover:bg-[var(--white-10)]">
           <X size={18} />
         </button>
       </div>
@@ -92,11 +92,11 @@ export default function HoldingSheet({
       <div className="p-5">
         <div className="grid grid-cols-2 gap-3 mb-4">
           <div className="rounded-xl bg-slate-50 dark:bg-[var(--white-10)] p-3">
-            <p className="text-[11px] text-slate-500">Current value</p>
+            <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">Current value</p>
             <p className="text-lg font-semibold">{money(current)}</p>
           </div>
           <div className="rounded-xl bg-slate-50 dark:bg-[var(--white-10)] p-3">
-            <p className="text-[11px] text-slate-500">Returns</p>
+            <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">Returns</p>
             <p className={`text-lg font-semibold ${pnl >= 0 ? "text-emerald-600" : "text-red-500"}`}>
               {pnl >= 0 ? "+" : ""}
               {money(pnl)}
@@ -185,7 +185,7 @@ export default function HoldingSheet({
           </button>
         )}
         {!isInternal && (
-          <p className="text-[11px] text-slate-500 mt-3">
+          <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mt-3">
             This holding was bought elsewhere, so it cannot be redeemed here — redeem it with the
             platform you bought it from.
           </p>

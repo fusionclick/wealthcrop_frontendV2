@@ -311,7 +311,7 @@ const email = current?.email
     <div
       key={acc.userId}
       onClick={() => handleSwitch(acc)}
-      className={`flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 ${
+      className={`flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-gray-100 dark:bg-white/10 dark:hover:bg-gray-800 ${
         current?.userId === acc.userId ? "bg-blue-50 dark:bg-blue-900/20" : ""
       }`}
     >
@@ -328,7 +328,7 @@ const email = current?.email
 </div>
   {
     accounts.length > 2 && (
-      <div onClick={() => setShowAll(!showAll)} className="px-4 py-2 text-blue-600 cursor-pointer hover:bg-gray-100 dark:hover:bg[var(--gray-800)] text-xs font-semibold flex items-center gap-1">
+      <div onClick={() => setShowAll(!showAll)} className="px-4 py-2 text-blue-600 cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 dark:bg-white/10 dark:hover:bg[var(--gray-800)] text-xs font-semibold flex items-center gap-1">
         {showAll ? "Show less ↑" : "Show more ↓"}
       </div>
     )
@@ -341,7 +341,7 @@ const email = current?.email
    {/* Add Account */}
   <div
     onClick={() => navigate("/login")}
-    className="px-4 py-2 text-blue-600 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 text-sm"
+    className="px-4 py-2 text-blue-600 cursor-pointer hover:bg-gray-100 dark:bg-white/10 dark:hover:bg-gray-800 text-sm"
   >
     + Add Account
   </div>

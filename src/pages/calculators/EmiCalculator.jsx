@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { inr } from "../../utils/calcSafe";
 
 const EmiCalculator = () => {
   const navigate = useNavigate();
@@ -177,13 +178,13 @@ const EmiCalculator = () => {
             dark:bg-black/30
           ">
             <p className="text-lg">
-              <strong>Monthly EMI:</strong> ₹{Number(result.emi).toLocaleString()}
+              <strong>Monthly EMI:</strong> ₹{inr(result.emi)}
             </p>
             <p className="text-lg mt-2">
-              <strong>Total Interest:</strong> ₹{Number(result.totalInterest).toLocaleString()}
+              <strong>Total Interest:</strong> ₹{inr(result.totalInterest)}
             </p>
             <p className="text-lg mt-2">
-              <strong>Total Payable:</strong> ₹{Number(result.totalPayable).toLocaleString()}
+              <strong>Total Payable:</strong> ₹{inr(result.totalPayable)}
             </p>
           </div>
         ) : (

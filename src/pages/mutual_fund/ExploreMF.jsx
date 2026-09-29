@@ -265,12 +265,12 @@ const ExploreMF = () => {
                   <p className="text-sm font-semibold mt-3 line-clamp-2 min-h-10 text-slate-900 dark:text-[var(--text-primary)]">
                     {titleCase(f.name) || "—"}
                   </p>
-                  <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">{f.scheme_amc_name || "Mutual Fund"}</p>
+                  <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mt-1 line-clamp-1">{f.scheme_amc_name || "Mutual Fund"}</p>
                   <FundBadges fund={f} className="mt-2" />
                   <p className="text-sm font-semibold text-slate-900 dark:text-[var(--text-primary)] mt-3">
                     {navLabel(f, navs)}
                   </p>
-                  <p className="text-[11px] text-slate-500 mt-1">{navDate(f, navs) || ""}</p>
+                  <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mt-1">{navDate(f, navs) || ""}</p>
                 </button>
               ))}
             </Rail>
@@ -352,7 +352,7 @@ const ExploreMF = () => {
               className={`border rounded-xl px-3 py-2 text-sm shadow-sm dark:bg-[var(--white-10)] dark:border-[var(--border-color)] ${
                 filters[f.key] !== DEFAULT_FILTERS[f.key]
                   ? "border-emerald-500 bg-emerald-50 text-emerald-800 dark:text-emerald-300"
-                  : "border-slate-200 bg-white"
+                  : "border-slate-200 dark:border-[var(--border-color)] bg-white dark:bg-[var(--card-bg)]"
               }`}
             >
               {f.options.map(([value, label]) => (
@@ -369,7 +369,7 @@ const ExploreMF = () => {
               setSort(e.target.value);
             }}
             className={`border rounded-xl px-3 py-2 text-sm shadow-sm dark:bg-[var(--white-10)] dark:border-[var(--border-color)] ${
-              sort ? "border-emerald-500 bg-emerald-50 text-emerald-800 dark:text-emerald-300" : "border-slate-200 bg-white"
+              sort ? "border-emerald-500 bg-emerald-50 text-emerald-800 dark:text-emerald-300" : "border-slate-200 dark:border-[var(--border-color)] bg-white dark:bg-[var(--card-bg)]"
             }`}
           >
             {SORTS.map(([value, label]) => (

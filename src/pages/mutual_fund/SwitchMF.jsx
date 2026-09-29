@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { postApi, postApiWithToken } from "../../api/api";
 import { toastError, toastSuccess } from "../../utils/notifyCustom";
 import { useSelector } from "react-redux";
-import { nodeUrl, laravelUrl, validateInvestorReady } from "../../utils/nodeApi";
+import { nodeUrl, laravelUrl, orderErrorMessage, orderRefId, validateInvestorReady } from "../../utils/nodeApi";
 import Combo, { fieldClass } from "../../components/ui/Combo";
 import OrderDisclaimers, { useDisclaimers } from "../../components/mutual_fund/OrderDisclaimers";
 import SxpSchedule, { useSxpSchedule } from "../../components/mutual_fund/SxpSchedule";
@@ -137,7 +137,7 @@ const SwitchMF = () => {
           );
         navigate("/mutual_fund/manage-stp");
       } else {
-        toastError(res?.message || res?.error || "Could not register the STP.");
+        toastError(orderErrorMessage(res, "Could not register the STP."));
       }
     } catch (e) {
       toastError(e?.response?.data?.message || e?.message || "Could not register the STP.");
@@ -159,7 +159,7 @@ const SwitchMF = () => {
     if (!switchAll && (!amount || Number(amount) <= 0)) return toastError("Enter a valid switch amount.");
 
     setSubmitting(true);
-    const memRef = String(Math.floor(100000 + Math.random() * 900000));
+    const memRef = orderRefId();
     const payload = {
       data: {
         orders: [
@@ -217,7 +217,7 @@ const SwitchMF = () => {
         toastSuccess("Switch order placed successfully!");
         navigate("/user/order/mutual-funds");
       } else {
-        toastError(res?.message || res?.error || "Switch failed.");
+        toastError(orderErrorMessage(res, "Switch failed."));
       }
     } catch (e) {
       toastError(e?.response?.data?.message || e?.message || "Switch failed.");

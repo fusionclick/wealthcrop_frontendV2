@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { rentVsBuy } from "../../utils/calculators";
+import { inr } from "../../utils/calcSafe";
 
-const money = (n) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+const money = (n) => `₹${inr(n || 0, { maximumFractionDigits: 0 })}`;
 
 // ponytail: Input/Row component ke andar define the — har render par naya component type,
 // yaani React input ko unmount kar ke dobara mount karta tha aur ek digit par focus chala

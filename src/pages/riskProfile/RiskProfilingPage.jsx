@@ -75,8 +75,8 @@ const RiskProfilingPage = () => {
 
     try {
       const res = await postApiWithToken(`${import.meta.env.VITE_URL}/risk/calculate`, payload);
-      if (res?.status === 200 || res?.status === true || res?.success) {
-        toastSuccess(res?.message || "Risk profile saved!");
+      if (res?.status === 200 || res?.status === true || res?.data?.success) {
+        toastSuccess(res?.data?.message || "Risk profile saved!");
         const d = res?.data || res;
         setResult({
           score: d?.score,

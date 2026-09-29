@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { inr } from "../../utils/calcSafe";
 
 const InflationCalculator = () => {
   const [currentPrice, setCurrentPrice] = useState("");
@@ -178,7 +179,7 @@ const InflationCalculator = () => {
           <div className="bg-white/20 dark:bg-black/30 rounded-xl p-4 shadow-lg backdrop-blur-md">
             <p className="text-lg">
               <strong>Future Price:</strong> ₹
-              {Number(result.futurePrice).toLocaleString()}
+              {inr(result.futurePrice)}
             </p>
           </div>
         ) : (

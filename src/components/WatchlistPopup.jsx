@@ -76,7 +76,7 @@ const WatchlistPopup = ({ onClose }) => {
                     e.stopPropagation();
                     console.log("Bookmark clicked", item);
                   }}
-                  className="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-white/10"
+                  className="p-2 rounded-md hover:bg-gray-200 dark:bg-white/10 dark:hover:bg-white/10"
                 >
                   <Bookmark
                     size={18}

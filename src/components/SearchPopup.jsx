@@ -230,7 +230,7 @@ export default function SearchPopup({ onClose }) {
               ${
                 tag === filterTag
                   ? "bg-green-50 border-green-500 text-green-600 dark:bg-[var(--gray-800)]"
-                  : "border-gray-200 hover:bg-green-50"
+                  : "border-gray-200 dark:border-[var(--border-color)] hover:bg-green-50"
               }
 
               dark:border-[var(--border-color)]
@@ -263,7 +263,7 @@ export default function SearchPopup({ onClose }) {
                 onClose();
                 navigate(`/stocks/${stock.symbol}`);
               }}
-              className="px-5 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-[var(--gray-800)] flex justify-between items-center"
+              className="px-5 py-3 cursor-pointer hover:bg-gray-50 dark:bg-[var(--white-5)] dark:hover:bg-[var(--gray-800)] flex justify-between items-center"
             >
               <div>
                 <div className="text-sm font-medium dark:text-[var(--text-primary)]">

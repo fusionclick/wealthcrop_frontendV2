@@ -74,7 +74,19 @@ export default function PortfolioBar({ portfolios, counts, selected, onSelect, o
             <button
               type="button"
               title={`Delete ${p.name}`}
-              onClick={() => onDelete(p.id)}
+              onClick={() => {
+                // QA 5.9 — one click on this X deleted a portfolio outright, with no
+                // confirmation and no hint about what happened to the money in it. The
+                // answer is "nothing", and it belongs BEFORE the click, not only in the
+                // toast that follows.
+                if (
+                  window.confirm(
+                    `Delete the "${p.name}" portfolio?\n\nIts holdings are only unfiled — nothing is sold and nothing leaves your account.`
+                  )
+                ) {
+                  onDelete(p.id);
+                }
+              }}
               className="ml-1 rounded-full p-0.5 text-slate-400 hover:text-red-500"
             >
               <X size={13} />

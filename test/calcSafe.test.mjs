@@ -4,8 +4,9 @@
 // The NaN/Infinity half came from dividing by a rate the investor is allowed to set to 0.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { num, clampNum, annuityFactor, finiteOr } from "../src/utils/calcSafe.js";
+import { readFileSync, readdirSync} from "node:fs";
+import { join } from "node:path";
+import { annuityFactor, clampNum, finiteOr, inr, num } from "../src/utils/calcSafe.js";
 
 test("num coerces input strings and refuses anything that is not a real number", () => {
   assert.equal(num("1500"), 1500);
@@ -84,4 +85,44 @@ test("the calculators that could loop or divide by zero now use the guards", () 
   // 1/years in the exponent: a fractional term becomes a huge power and overflows.
   assert.match(cagr, /clampNum\(years, 1, 100, 1\)/);
   assert.match(cagr, /if \(start <= 0\) return;/, "dividing by a zero starting value is Infinity");
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────
+// QA 10.3, second round. The guards above were real but only five of the twenty-two
+// calculators imported them; every other one wrote `Number(x).toLocaleString()` straight
+// into the JSX, and that renders the literal strings "NaN" and "∞" on screen. So the round
+// that added calcSafe fixed the arithmetic and left the display untouched.
+
+test("a non-number never reaches the screen as one", () => {
+  for (const bad of [NaN, Infinity, -Infinity, undefined, null, "abc"]) {
+    assert.equal(inr(bad), "—", `${String(bad)} must not print as a number`);
+  }
+});
+
+test("a real number still formats normally, and zero stays zero", () => {
+  assert.equal(inr(1234567), "12,34,567");
+  assert.equal(inr(1234.567), "1,234.57");
+  assert.equal(inr(1234.567, { maximumFractionDigits: 0 }), "1,235");
+  // 0 is a legitimate answer; only a non-number earns the dash.
+  assert.equal(inr(0), "0");
+  assert.notEqual(inr(0), "—");
+});
+
+test("no calculator prints a number without the guard", () => {
+  const dir = "src/pages/calculators";
+  const offenders = [];
+
+  for (const f of readdirSync(dir)) {
+    if (!f.endsWith(".jsx")) continue;
+    for (const m of readFileSync(join(dir, f), "utf8").matchAll(/^.*toLocaleString\(.*$/gm)) {
+      const line = m[0];
+      // A date has no NaN/Infinity failure mode here.
+      if (/\b(day|month|year|weekday)\b/.test(line)) continue;
+      // Already gated by an explicit null/finite check at the call site.
+      if (/===\s*null\s*\?|\?\s*`|&&\s*`/.test(line)) continue;
+      offenders.push(`${f}: ${line.trim()}`);
+    }
+  }
+
+  assert.deepEqual(offenders, [], "these print a raw number and will show NaN or ∞:\n" + offenders.join("\n"));
 });

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { inr } from "../../utils/calcSafe";
 
 const RetirementCalculator = () => {
   const [currentAge, setCurrentAge] = useState("");
@@ -180,11 +181,11 @@ const RetirementCalculator = () => {
           <div className="bg-white/20 dark:bg-black/30 rounded-xl p-4 shadow-lg backdrop-blur-md">
             <p className="text-lg">
               <strong>Monthly Expense at Retirement:</strong> ₹
-              {Number(result.futureExpense).toLocaleString()}
+              {inr(result.futureExpense)}
             </p>
             <p className="text-lg mt-1">
               <strong>Retirement Corpus Required:</strong> ₹
-              {Number(result.corpus).toLocaleString()}
+              {inr(result.corpus)}
             </p>
           </div>
         ) : (

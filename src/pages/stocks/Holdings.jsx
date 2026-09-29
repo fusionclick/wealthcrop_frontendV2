@@ -101,7 +101,7 @@ const Holdings = () => {
                 </NavLink>
                 <NavLink
                   to="/stockList/all-nse-stocks"
-                  className="px-5 py-2 rounded-lg text-sm font-medium transition border border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-[var(--border-color)] dark:text-[var(--text-secondary)]"
+                  className="px-5 py-2 rounded-lg text-sm font-medium transition border border-gray-300 text-gray-700 hover:bg-gray-50 dark:hover:bg-white/5 dark:bg-[var(--white-5)] dark:border-[var(--border-color)] dark:text-[var(--text-secondary)]"
                 >
                   Browse all NSE stocks
                 </NavLink>
@@ -194,7 +194,7 @@ const Holdings = () => {
                   <tr
                     key={stock.id ?? stock.symbol}
                     onClick={() => navigate(`/stocks/${stock.symbol}`)}
-                    className="border-t transition hover:bg-gray-50 cursor-pointer dark:border-[var(--border-color)] dark:hover:bg-[var(--white-5)]"
+                    className="border-t transition hover:bg-gray-50 dark:bg-[var(--white-5)] cursor-pointer dark:border-[var(--border-color)] dark:hover:bg-[var(--white-5)]"
                   >
                     <td className="px-4 py-2 font-medium text-blue-950 dark:text-[var(--text-primary)]">
                       <NavLink

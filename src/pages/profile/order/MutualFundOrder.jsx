@@ -4,7 +4,7 @@ import { useSelector } from "react-redux";
 import emptymutual from "../../../assets/emptymutual.svg";
 import { getApiWithToken, postApiWithToken } from "../../../api/api";
 import { useNavigate } from "react-router-dom";
-import { laravelUrl, nodeUrl, withLiveOrderStatus } from "../../../utils/nodeApi";
+import { isSell, laravelUrl, nodeUrl, orderTypeLabel, orderTypeTone, withLiveOrderStatus } from "../../../utils/nodeApi";
 
 /**
  * QA 3.4 — this table showed every order as "Pending" forever.
@@ -86,7 +86,10 @@ const MutualFundOrder = () => {
           <table className="min-w-full text-sm rounded-lg overflow-hidden border border-gray-200 dark:border-[var(--border-color)]">
             <thead className="bg-gray-100 dark:bg-[var(--white-5)]">
               <tr>
-                {["Fund Name", "Invested (₹)", "Returns (%)", "Order Date", "Status"].map((h) => (
+                {/* QA 3.7 — there was no Type column and the amount column said "Invested"
+                    on every row, so a redemption read as money going IN. A sell shown as a
+                    buy is the one mistake this table must not make. */}
+                {["Fund Name", "Type", "Amount (₹)", "Returns (%)", "Order Date", "Status"].map((h) => (
                   <th key={h} className="px-4 py-2 font-medium text-left text-gray-700 dark:text-[var(--text-secondary)]">
                     {h}
                   </th>
@@ -95,12 +98,17 @@ const MutualFundOrder = () => {
             </thead>
             <tbody>
               {rows.map((fund, idx) => (
-                <tr key={idx} className="border-t transition hover:bg-gray-50 dark:border-[var(--border-color)] dark:hover:bg-[var(--white-5)]">
+                <tr key={idx} className="border-t transition hover:bg-gray-50 dark:bg-[var(--white-5)] dark:border-[var(--border-color)] dark:hover:bg-[var(--white-5)]">
                   <td className="px-4 py-2 font-medium whitespace-nowrap text-blue-950 dark:text-[var(--text-primary)]">
                     {fund.scheme_name || "—"}
                   </td>
+                  <td className="px-4 py-2 whitespace-nowrap">
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${orderTypeTone(fund.order_type)}`}>
+                      {orderTypeLabel(fund.order_type)}
+                    </span>
+                  </td>
                   <td className="px-4 py-2 text-right text-gray-700 dark:text-[var(--text-secondary)]">
-                    ₹{Number(fund.inv_amo || 0).toLocaleString()}
+                    {isSell(fund.order_type) ? "−" : ""}₹{Number(fund.inv_amo || 0).toLocaleString()}
                   </td>
                   <td className={`px-4 py-2 text-right font-medium ${Number(fund.ret_percentage) >= 0 ? "text-green-600 dark:text-emerald-400" : "text-red-500"}`}>
                     {fund.ret_percentage != null ? `${fund.ret_percentage}%` : "—"}

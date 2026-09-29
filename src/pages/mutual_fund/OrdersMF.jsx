@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { History, RefreshCw } from "lucide-react";
 import { postApiWithToken } from "../../api/api";
-import { nodeUrl, orderIsFinal } from "../../utils/nodeApi";
+import { isSell, nodeUrl, orderIsFinal, orderTypeLabel, orderTypeTone } from "../../utils/nodeApi";
 
 /**
  * Every order this UCC has placed, whatever happened to it.
@@ -135,11 +135,22 @@ const OrdersMF = () => {
                 <p className="font-medium text-sm leading-snug line-clamp-2 text-slate-900 dark:text-[var(--text-primary)]">
                   {o.scheme_name || o.scheme_bse_code || "—"}
                 </p>
-                <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mt-0.5">
-                  {asDate(o.date)}
-                  {o.type ? ` · ${o.type}` : ""}
-                  {o.folio ? ` · Folio ${o.folio}` : ""}
-                  {o.id ? ` · #${o.id}` : ""}
+                {/* QA 3.7 — the type was printed raw here, so BSE's "R" sat in grey 11px
+                    text next to a plain rupee figure and a redemption read like a purchase.
+                    Same badge and the same labels as /user/order/mutual-funds: the two
+                    pages disagreeing about which way the money moved is the actual bug. */}
+                <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mt-1 flex items-center gap-1.5 flex-wrap">
+                  {o.type && (
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${orderTypeTone(o.type)}`}>
+                      {orderTypeLabel(o.type)}
+                    </span>
+                  )}
+                  <span>{asDate(o.date)}</span>
+                  {o.folio ? <span>· Folio {o.folio}</span> : null}
+                  {o.id ? <span>· #{o.id}</span> : null}
+                  {/* Merged from Laravel and not yet in BSE's own list. Without this, a
+                      just-placed order looks identical to one BSE has confirmed. */}
+                  {o.source === "local" ? <span className="italic">· awaiting BSE confirmation</span> : null}
                 </p>
                 {/* BSE puts the reason a rejected order failed in `remarks`, and it is the
                     only place the investor can find out why. */}
@@ -148,8 +159,8 @@ const OrdersMF = () => {
                 )}
               </div>
               <div className="text-right shrink-0">
-                <p className="font-semibold text-sm text-slate-900 dark:text-[var(--text-primary)]">
-                  {o.amount ? money(o.amount) : o.units ? `${o.units} units` : "—"}
+                <p className={`font-semibold text-sm ${isSell(o.type) ? "text-red-600 dark:text-red-400" : "text-slate-900 dark:text-[var(--text-primary)]"}`}>
+                  {o.amount ? `${isSell(o.type) ? "−" : ""}${money(o.amount)}` : o.units ? `${o.units} units` : "—"}
                 </p>
                 {o.status && (
                   <span className={`inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded ${TONE(o.status)}`}>

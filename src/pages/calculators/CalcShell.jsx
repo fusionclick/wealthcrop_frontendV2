@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { inr } from "../../utils/calcSafe";
 
 /**
  * The input/result frame the three SRS planning tools share.
@@ -7,7 +8,7 @@ import { useState } from "react";
  * of this chrome plus an FAQ and a related-links rail; rewriting them onto this is a
  * refactor nobody asked for, so they are left alone.
  */
-const money = (v) => `₹${Number(v || 0).toLocaleString("en-IN")}`;
+const money = (v) => `₹${inr(v || 0)}`;
 
 export default function CalcShell({ title, blurb, fields, values, onChange, results, note }) {
   return (

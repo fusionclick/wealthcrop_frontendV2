@@ -132,7 +132,7 @@ const StockList = () => {
                   key={item.symbol}
                   onMouseEnter={() => setHoveredRow(item.symbol)}
                   onMouseLeave={() => setHoveredRow(null)}
-                  className="relative border-b hover:bg-gray-100 dark:border-[var(--border-color)] dark:hover:bg-[var(--white-5)]"
+                  className="relative border-b hover:bg-gray-100 dark:bg-white/10 dark:border-[var(--border-color)] dark:hover:bg-[var(--white-5)]"
                 >
                   <td className="py-4 px-3">
                     <NavLink
@@ -147,7 +147,7 @@ const StockList = () => {
                   </td>
                   <td className="py-4 px-3">
                     <span className="flex items-center gap-1 dark:text-[var(--text-primary)]">
-                      <IndianRupee className="w-4 h-4 text-gray-600" />
+                      <IndianRupee className="w-4 h-4 text-gray-600 dark:text-[var(--text-secondary)]" />
                       {item.price ? item.price.toFixed(2) : "—"}
                     </span>
                   </td>

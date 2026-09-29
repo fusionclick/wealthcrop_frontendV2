@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { inr } from "../../utils/calcSafe";
 
 const ELSSPlannerCalculator = () => {
   const navigate = useNavigate();
@@ -35,8 +36,8 @@ const ELSSPlannerCalculator = () => {
 
     setResult({
       estimatedValue: estimatedValue.toFixed(0),
-      taxSaved: taxSaved.toLocaleString(),
-      totalInvested: P.toLocaleString(),
+      taxSaved: inr(taxSaved),
+      totalInvested: inr(P),
     });
   };
 
@@ -169,7 +170,7 @@ const ELSSPlannerCalculator = () => {
           <div className="bg-white/20 rounded-xl p-4 shadow-lg backdrop-blur-sm">
             <p className="text-lg">
               <strong>Estimated Value:</strong>{" "}
-              ₹{Number(result.estimatedValue).toLocaleString()}
+              ₹{inr(result.estimatedValue)}
             </p>
             <p className="text-lg mt-2">
               <strong>Tax Saved (80C):</strong> ₹{result.taxSaved}

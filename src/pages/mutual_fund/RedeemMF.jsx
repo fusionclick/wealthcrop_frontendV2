@@ -4,7 +4,7 @@ import { postApi, postApiWithToken } from "../../api/api";
 import { toastError, toastSuccess } from "../../utils/notifyCustom";
 import { useSelector } from "react-redux";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { nodeUrl, validateInvestorReady, laravelUrl, holdingMatchesScheme, fundBuyPath, unitsFor, navLooksPlausible } from "../../utils/nodeApi";
+import { nodeUrl, validateInvestorReady, laravelUrl, holdingMatchesScheme, fundBuyPath, unitsFor, navLooksPlausible, orderErrorMessage, orderRefId } from "../../utils/nodeApi";
 import SxpSchedule, { useSxpSchedule } from "../../components/mutual_fund/SxpSchedule";
 import OrderDisclaimers, { useDisclaimers } from "../../components/mutual_fund/OrderDisclaimers";
 import { buildSxpIntent, sxpIntentError, retireReplacedPlan } from "../../utils/sxp";
@@ -26,7 +26,7 @@ export async function submitRedeemOrder({ investorData, holding, redeemAll, rede
   }
 
   const ucc = investorData?.kyc?.ucc_code;
-  const memRef = String(Math.floor(100000 + Math.random() * 900000));
+  const memRef = orderRefId();
   const payload = {
     data: {
       orders: [
@@ -76,7 +76,7 @@ export async function submitRedeemOrder({ investorData, holding, redeemAll, rede
       queryClient?.invalidateQueries({ queryKey: ["investedFunds"] });
       return { ok: true };
     }
-    return { ok: false, message: res?.message || res?.error || "Redemption failed. Please try again." };
+    return { ok: false, message: orderErrorMessage(res, "Redemption failed. Please try again.") };
   } catch (err) {
     return { ok: false, message: err?.response?.data?.message || err?.message || "Redemption failed. Please try again." };
   }
@@ -103,7 +103,7 @@ export async function registerSwp({ investorData, holding, amount, sched, acknow
       queryClient?.invalidateQueries({ queryKey: ["bsePortfolio"] });
       return { ok: true };
     }
-    return { ok: false, message: res?.message || res?.error || "Could not register the SWP." };
+    return { ok: false, message: orderErrorMessage(res, "Could not register the SWP.") };
   } catch (e) {
     return { ok: false, message: e?.response?.data?.message || e?.message || "Could not register the SWP." };
   }

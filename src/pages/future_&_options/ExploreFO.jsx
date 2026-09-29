@@ -73,7 +73,7 @@ const ExploreFO = () => {
 
  
   return (
-    <div className='min-h-screen bg-white dark:bg-(--app-bg) text-blue-950'>
+    <div className='min-h-screen bg-white dark:bg-(--app-bg) text-blue-950 dark:text-[var(--text-primary)]'>
 
          <div className="mt-10 px-10 grid grid-cols-1 lg:grid-cols-3 gap-10">
                   {/* left side content */}
@@ -175,7 +175,7 @@ const ExploreFO = () => {
                                 ${
                                   activeTab === btn
                                     ? "bg-gray-200 text-gray-900 dark:bg-[var(--border-color)] dark:text-[var(--text-primary)]"
-                                    : "hover:bg-gray-100 text-gray-600 dark:text-[var(--text-secondary)] dark:hover:bg-[var(--border-color)]"
+                                    : "hover:bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-[var(--text-secondary)] dark:hover:bg-[var(--border-color)]"
                                 }
                                 dark:border-[var(--border-color)]
                               `}

@@ -97,7 +97,7 @@ function MutualFundCarousel() {
             </>
           );
           return item.href ? (
-            <Link key={`${item.key}-${idx}`} to={item.href} className="flex items-center px-4 hover:bg-gray-100 dark:hover:bg-white/10">
+            <Link key={`${item.key}-${idx}`} to={item.href} className="flex items-center px-4 hover:bg-gray-100 dark:bg-white/10 dark:hover:bg-white/10">
               {inner}
             </Link>
           ) : (

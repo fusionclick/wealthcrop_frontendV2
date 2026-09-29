@@ -705,8 +705,8 @@ useEffect(() => {
         toastOptions={{
           duration: 3000,
           className:
-            "!bg-white dark:!bg-[#0f172a] !text-blue-950 dark:!text-gray-100 " +
-            "!border !border-gray-200 dark:!border-white/10 !rounded-xl " +
+            "!bg-white dark:bg-[var(--card-bg)] dark:!bg-[#0f172a] !text-blue-950 dark:text-[var(--text-primary)] dark:!text-gray-100 " +
+            "!border !border-gray-200 dark:border-[var(--border-color)] dark:!border-white/10 !rounded-xl " +
             "!shadow-lg !shadow-black/5 !text-sm !font-medium !px-4 !py-3 !max-w-sm",
           success: { iconTheme: { primary: "#16a34a", secondary: "#fff" } },
           error: { duration: 4000, iconTheme: { primary: "#dc2626", secondary: "#fff" } },

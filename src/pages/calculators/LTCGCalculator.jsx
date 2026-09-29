@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { inr } from "../../utils/calcSafe";
 
 const LTCGCalculator = () => {
   const navigate = useNavigate();
@@ -225,13 +226,13 @@ const LTCGCalculator = () => {
         {result ? (
           <div className="bg-white/20 rounded-xl p-4 shadow-lg backdrop-blur-sm">
             <p className="text-lg">
-              <strong>Gain:</strong> ₹{Number(result.gain).toLocaleString()}
+              <strong>Gain:</strong> ₹{inr(result.gain)}
             </p>
             <p className="text-lg mt-2">
               <strong>Tax Category:</strong> {result.category}
             </p>
             <p className="text-lg mt-2">
-              <strong>Tax Payable:</strong> ₹{Number(result.tax).toLocaleString()}
+              <strong>Tax Payable:</strong> ₹{inr(result.tax)}
             </p>
           </div>
         ) : (

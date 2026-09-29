@@ -141,8 +141,8 @@ const ManageSipPage = () => {
     if (status === "PAUSED")
       return "bg-amber-100 text-amber-700";
     if (status === "CANCELLED")
-      return "bg-slate-200 text-slate-600";
-    return "bg-slate-100 text-slate-600";
+      return "bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-[var(--text-secondary)]";
+    return "bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-[var(--text-secondary)]";
   };
 
   // ---- Actions ----
@@ -258,8 +258,12 @@ const ManageSipPage = () => {
       },
     });
     if (!res) return; // the server's reason has already been shown; stay on the form
-    if (res.status === "partial") {
-      toastError(res.message);
+    // `postApiWithToken` returns the AXIOS RESPONSE, so `res.status` is the HTTP code — a
+    // number, never the string "partial". This branch could therefore never fire, and
+    // "partial" is precisely the case where the replacement SIP is live AND the old one was
+    // not cancelled. Reporting that as "SIP updated." is how somebody gets debited twice.
+    if (res.data?.status === "partial") {
+      toastError(res.data?.message);
     } else {
       toastSuccess("SIP updated.");
     }
@@ -307,15 +311,15 @@ const ManageSipPage = () => {
 
   // ================= UI =================
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-6 flex justify-center">
+    <div className="min-h-screen bg-slate-50 dark:bg-[var(--app-bg)] px-4 py-6 flex justify-center">
       <div className="w-full max-w-5xl space-y-5">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-semibold text-slate-900">
+            <h1 className="text-xl font-semibold text-slate-900 dark:text-[var(--text-primary)]">
               Manage SIPs
             </h1>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-slate-500 dark:text-[var(--text-secondary)] mt-1">
               View, modify, pause or cancel your SIPs in one place.
             </p>
           </div>
@@ -329,27 +333,27 @@ const ManageSipPage = () => {
 
         {/* Summary cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-            <p className="text-[11px] text-slate-500">Active SIPs</p>
-            <p className="mt-1 text-lg font-semibold text-slate-900">
+          <div className="bg-white dark:bg-[var(--card-bg)] rounded-xl border border-slate-200 dark:border-[var(--border-color)] p-4 shadow-sm">
+            <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">Active SIPs</p>
+            <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-[var(--text-primary)]">
               {summary.activeCount}
             </p>
           </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-            <p className="text-[11px] text-slate-500">Monthly SIP outgo</p>
-            <p className="mt-1 text-lg font-semibold text-slate-900">
+          <div className="bg-white dark:bg-[var(--card-bg)] rounded-xl border border-slate-200 dark:border-[var(--border-color)] p-4 shadow-sm">
+            <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">Monthly SIP outgo</p>
+            <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-[var(--text-primary)]">
               ₹{summary.totalMonthlyOutgo.toLocaleString()}
             </p>
           </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-            <p className="text-[11px] text-slate-500">Invested via SIPs</p>
-            <p className="mt-1 text-lg font-semibold text-slate-900">
+          <div className="bg-white dark:bg-[var(--card-bg)] rounded-xl border border-slate-200 dark:border-[var(--border-color)] p-4 shadow-sm">
+            <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">Invested via SIPs</p>
+            <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-[var(--text-primary)]">
               ₹{summary.totalInvested.toLocaleString()}
             </p>
           </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-            <p className="text-[11px] text-slate-500">Current value</p>
-            <p className="mt-1 text-lg font-semibold text-slate-900">
+          <div className="bg-white dark:bg-[var(--card-bg)] rounded-xl border border-slate-200 dark:border-[var(--border-color)] p-4 shadow-sm">
+            <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">Current value</p>
+            <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-[var(--text-primary)]">
               ₹{summary.totalCurrent.toLocaleString()}
             </p>
             <p
@@ -367,7 +371,7 @@ const ManageSipPage = () => {
 
         {/* Filter tabs */}
         <div className="flex items-center justify-between mt-2">
-          <div className="flex gap-3 text-xs font-medium border-b border-slate-200">
+          <div className="flex gap-3 text-xs font-medium border-b border-slate-200 dark:border-[var(--border-color)]">
             {[
               { key: "ALL", label: "All" },
               { key: "ACTIVE", label: "Active" },
@@ -380,7 +384,7 @@ const ManageSipPage = () => {
                 className={`pb-2 border-b-2 px-1 ${
                   statusFilter === tab.key
                     ? "border-blue-600 text-blue-600"
-                    : "border-transparent text-slate-500"
+                    : "border-transparent text-slate-500 dark:text-[var(--text-secondary)]"
                 }`}
               >
                 {tab.label}
@@ -388,7 +392,7 @@ const ManageSipPage = () => {
             ))}
           </div>
 
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">
             Showing {filteredSips.length} SIP
             {filteredSips.length !== 1 ? "s" : ""}
           </p>
@@ -402,14 +406,14 @@ const ManageSipPage = () => {
             return (
               <div
                 key={sip.id}
-                className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
+                className="bg-white dark:bg-[var(--card-bg)] border border-slate-200 dark:border-[var(--border-color)] rounded-xl p-4 shadow-sm flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
               >
                 {/* Left: Scheme Info */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-slate-900 truncate">
+                  <p className="text-sm font-semibold text-slate-900 dark:text-[var(--text-primary)] truncate">
                     {sip.schemeName}
                   </p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
+                  <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mt-0.5">
                     {sip.category}
                   </p>
 
@@ -425,10 +429,10 @@ const ManageSipPage = () => {
                         ? "Paused"
                         : "Cancelled"}
                     </span>
-                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                    <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-[var(--text-secondary)]">
                       Mandate: {sip.mandateStatus}
                     </span>
-                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                    <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-[var(--text-secondary)]">
                       {sip.frequency} • {sip.sipDay.toString().padStart(2, "0")}{" "}
                       of every month
                     </span>
@@ -438,11 +442,11 @@ const ManageSipPage = () => {
                 {/* Middle: Numbers */}
                 <div className="flex flex-wrap gap-4 text-xs md:text-[11px]">
                   <div className="text-right md:text-left">
-                    <p className="text-slate-500">SIP amount</p>
-                    <p className="font-semibold text-slate-900">
+                    <p className="text-slate-500 dark:text-[var(--text-secondary)]">SIP amount</p>
+                    <p className="font-semibold text-slate-900 dark:text-[var(--text-primary)]">
                       ₹{sip.sipAmount.toLocaleString()}
                     </p>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
+                    <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mt-0.5">
                       Next: {sip.nextInstallment}
                     </p>
                     {/* A registered top-up changed nothing visible on this card, so one
@@ -455,17 +459,17 @@ const ManageSipPage = () => {
                     ) : null}
                   </div>
                   <div className="text-right md:text-left">
-                    <p className="text-slate-500">Invested</p>
-                    <p className="font-semibold text-slate-900">
+                    <p className="text-slate-500 dark:text-[var(--text-secondary)]">Invested</p>
+                    <p className="font-semibold text-slate-900 dark:text-[var(--text-primary)]">
                       ₹{sip.investedSoFar.toLocaleString()}
                     </p>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
+                    <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mt-0.5">
                       Since {sip.startDate}
                     </p>
                   </div>
                   <div className="text-right md:text-left">
-                    <p className="text-slate-500">Current value</p>
-                    <p className="font-semibold text-slate-900">
+                    <p className="text-slate-500 dark:text-[var(--text-secondary)]">Current value</p>
+                    <p className="font-semibold text-slate-900 dark:text-[var(--text-primary)]">
                       ₹{sip.currentValue.toLocaleString()}
                     </p>
                     <p
@@ -487,7 +491,7 @@ const ManageSipPage = () => {
                     <>
                       <button
                         onClick={() => handleTogglePause(sip.id)}
-                        className="text-[11px] px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50"
+                        className="text-[11px] px-3 py-1.5 rounded-lg border border-slate-300 dark:border-[var(--border-color)] text-slate-700 dark:text-[var(--text-secondary)] hover:bg-slate-50 dark:hover:bg-white/5 dark:bg-[var(--white-5)]"
                       >
                         {sip.status === "ACTIVE" ? "Pause SIP" : "Resume SIP"}
                       </button>
@@ -523,16 +527,16 @@ const ManageSipPage = () => {
           })}
 
           {filteredSips.length === 0 && (
-            <p className="text-center text-xs text-slate-500 mt-4">
+            <p className="text-center text-xs text-slate-500 dark:text-[var(--text-secondary)] mt-4">
               No SIPs in this filter.
             </p>
           )}
         </div>
 
         {/* SIP Payment History */}
-        <div className="mt-6 bg-white border border-slate-200 rounded-xl shadow-sm">
-          <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-            <p className="text-sm font-semibold text-slate-900">
+        <div className="mt-6 bg-white dark:bg-[var(--card-bg)] border border-slate-200 dark:border-[var(--border-color)] rounded-xl shadow-sm">
+          <div className="px-4 py-3 border-b border-slate-100 dark:border-[var(--border-color)] flex items-center justify-between">
+            <p className="text-sm font-semibold text-slate-900 dark:text-[var(--text-primary)]">
               Recent SIP payments
             </p>
             <button
@@ -545,7 +549,7 @@ const ManageSipPage = () => {
 
           <div className="overflow-x-auto">
             <table className="min-w-full text-xs">
-              <thead className="bg-slate-50 text-[11px] text-slate-500">
+              <thead className="bg-slate-50 dark:bg-[var(--white-5)] text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">
                 <tr>
                   <th className="text-left px-4 py-2">Date</th>
                   <th className="text-left px-4 py-2">Scheme</th>
@@ -557,11 +561,11 @@ const ManageSipPage = () => {
                 {(sipHistory.length ? sipHistory : SIP_HISTORY_PLACEHOLDER).map((row) => (
                   <tr
                     key={row.id}
-                    className="border-t border-slate-100 hover:bg-slate-50"
+                    className="border-t border-slate-100 dark:border-[var(--border-color)] hover:bg-slate-50 dark:hover:bg-white/5 dark:bg-[var(--white-5)]"
                   >
                     <td className="px-4 py-2">{row.date}</td>
                     <td className="px-4 py-2">
-                      <span className="text-[11px] text-slate-900">
+                      <span className="text-[11px] text-slate-900 dark:text-[var(--text-primary)]">
                         {row.schemeName}
                       </span>
                     </td>
@@ -586,7 +590,7 @@ const ManageSipPage = () => {
                   <tr>
                     <td
                       colSpan={4}
-                      className="px-4 py-4 text-center text-[11px] text-slate-500"
+                      className="px-4 py-4 text-center text-[11px] text-slate-500 dark:text-[var(--text-secondary)]"
                     >
                       No SIP installments recorded yet.
                     </td>
@@ -657,11 +661,11 @@ const PauseSipModal = ({ sip, onClose, onConfirm }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-5">
-        <h2 className="text-sm font-semibold text-slate-900 mb-1">
+      <div className="w-full max-w-md bg-white dark:bg-[var(--card-bg)] rounded-2xl shadow-lg p-5">
+        <h2 className="text-sm font-semibold text-slate-900 dark:text-[var(--text-primary)] mb-1">
           {sip.status === "ACTIVE" ? "Pause SIP" : "Resume SIP"}
         </h2>
-        <p className="text-[11px] text-slate-500 mb-3">
+        <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mb-3">
           {sip.status === "ACTIVE"
             ? "You can temporarily pause this SIP. Future installments will not be deducted during this period."
             : "Resume this SIP to restart future installments."}
@@ -669,21 +673,21 @@ const PauseSipModal = ({ sip, onClose, onConfirm }) => {
 
         {sip.status === "ACTIVE" && (
           <div className="space-y-2 mb-3 text-xs">
-            <p className="text-[11px] text-slate-500">Pause duration</p>
+            <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">Pause duration</p>
             <div className="flex gap-2">
               {[1, 3, 6].map((m) => (
                 <button
                   key={m}
                   onClick={() => setMonths(m)}
                   className={`flex-1 py-1.5 rounded-lg border text-xs ${
-                    months === m ? "bg-slate-900 text-white border-slate-900" : "border-slate-200 text-slate-600"
+                    months === m ? "bg-slate-900 text-white border-slate-900" : "border-slate-200 dark:border-[var(--border-color)] text-slate-600 dark:text-[var(--text-secondary)]"
                   }`}
                 >
                   {m} month{m === 1 ? "" : "s"}
                 </button>
               ))}
             </div>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">
               {pauseInstallments(months, sip.frequency)} installment
               {pauseInstallments(months, sip.frequency) === 1 ? "" : "s"} will be skipped.
             </p>
@@ -693,7 +697,7 @@ const PauseSipModal = ({ sip, onClose, onConfirm }) => {
         <div className="mt-4 flex justify-end gap-3 text-xs">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600"
+            className="px-4 py-2 rounded-lg border border-slate-200 dark:border-[var(--border-color)] text-slate-600 dark:text-[var(--text-secondary)]"
           >
             Close
           </button>
@@ -718,23 +722,23 @@ const CancelSipModal = ({ sip, onClose, onConfirm }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-5">
+      <div className="w-full max-w-md bg-white dark:bg-[var(--card-bg)] rounded-2xl shadow-lg p-5">
         <h2 className="text-sm font-semibold text-rose-600 mb-1">
           Cancel SIP?
         </h2>
-        <p className="text-[11px] text-slate-500 mb-3">
+        <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mb-3">
           Once cancelled, future installments for{" "}
-          <span className="font-medium text-slate-800">
+          <span className="font-medium text-slate-800 dark:text-[var(--text-primary)]">
             {sip.schemeName}
           </span>{" "}
           will not be deducted. You can always start a new SIP later.
         </p>
 
-        <label className="text-[11px] text-slate-500 mb-1 block">
+        <label className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mb-1 block">
           Reason (optional)
         </label>
         <textarea
-          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-rose-300"
+          className="w-full border border-slate-200 dark:border-[var(--border-color)] rounded-lg px-3 py-2 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-rose-300"
           rows={3}
           placeholder="Eg: I don't want to continue this strategy"
           value={reason}
@@ -744,7 +748,7 @@ const CancelSipModal = ({ sip, onClose, onConfirm }) => {
         <div className="mt-4 flex justify-end gap-3 text-xs">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600"
+            className="px-4 py-2 rounded-lg border border-slate-200 dark:border-[var(--border-color)] text-slate-600 dark:text-[var(--text-secondary)]"
           >
             Go back
           </button>
@@ -826,15 +830,15 @@ const TopUpSipModal = ({ sip, onClose, onConfirm }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-5">
-        <h2 className="text-sm font-semibold text-slate-900 mb-1">Top up this SIP</h2>
-        <p className="text-[11px] text-slate-500 mb-3">
-          Increase what you invest in <span className="font-medium text-slate-800">{sip.schemeName}</span> over
+      <div className="w-full max-w-md bg-white dark:bg-[var(--card-bg)] rounded-2xl shadow-lg p-5">
+        <h2 className="text-sm font-semibold text-slate-900 dark:text-[var(--text-primary)] mb-1">Top up this SIP</h2>
+        <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mb-3">
+          Increase what you invest in <span className="font-medium text-slate-800 dark:text-[var(--text-primary)]">{sip.schemeName}</span> over
           time. Your current SIP of ₹{sip.sipAmount.toLocaleString("en-IN")} stays as it is; the top-up is
           added on top of it.
         </p>
 
-        <label className="text-[11px] text-slate-500 mb-1 block">Top-up amount (₹)</label>
+        <label className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mb-1 block">Top-up amount (₹)</label>
         <input
           type="number"
           value={amount}
@@ -843,19 +847,19 @@ const TopUpSipModal = ({ sip, onClose, onConfirm }) => {
             setTouched(true);
             setAmount(e.target.value);
           }}
-          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none"
+          className="w-full border border-slate-200 dark:border-[var(--border-color)] rounded-lg px-3 py-2 text-xs outline-none"
         />
         {minTopup > 0 && (
-          <p className={`text-[11px] mt-1 ${belowMin ? "text-red-500" : "text-slate-500"}`}>
+          <p className={`text-[11px] mt-1 ${belowMin ? "text-red-500" : "text-slate-500 dark:text-[var(--text-secondary)]"}`}>
             Minimum for this fund: ₹{minTopup.toLocaleString("en-IN")}
           </p>
         )}
 
-        <label className="text-[11px] text-slate-500 mt-3 mb-1 block">How often</label>
+        <label className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mt-3 mb-1 block">How often</label>
         <select
           value={freq}
           onChange={(e) => setFreq(e.target.value)}
-          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none"
+          className="w-full border border-slate-200 dark:border-[var(--border-color)] rounded-lg px-3 py-2 text-xs outline-none"
         >
           {TOPUP_FREQ.map(([code, label]) => (
             <option key={code} value={code}>
@@ -865,7 +869,7 @@ const TopUpSipModal = ({ sip, onClose, onConfirm }) => {
         </select>
 
         <div className="mt-4 flex justify-end gap-3 text-xs">
-          <button onClick={onClose} className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600">
+          <button onClick={onClose} className="px-4 py-2 rounded-lg border border-slate-200 dark:border-[var(--border-color)] text-slate-600 dark:text-[var(--text-secondary)]">
             Close
           </button>
           <button
@@ -947,7 +951,7 @@ const ModifySipPage = ({ sip, onBack, onSave }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-6 flex justify-center">
+    <div className="min-h-screen bg-slate-50 dark:bg-[var(--app-bg)] px-4 py-6 flex justify-center">
       <div className="w-full max-w-md">
         <button
           onClick={onBack}
@@ -956,41 +960,41 @@ const ModifySipPage = ({ sip, onBack, onSave }) => {
           ← Back to SIPs
         </button>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 mb-4">
-          <p className="text-[11px] text-slate-500 mb-1">Modifying SIP in</p>
-          <p className="text-sm font-semibold text-slate-900">
+        <div className="bg-white dark:bg-[var(--card-bg)] rounded-2xl shadow-sm border border-slate-200 dark:border-[var(--border-color)] p-4 mb-4">
+          <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mb-1">Modifying SIP in</p>
+          <p className="text-sm font-semibold text-slate-900 dark:text-[var(--text-primary)]">
             {sip.schemeName}
           </p>
-          <p className="text-[11px] text-slate-500 mt-1">{sip.category}</p>
+          <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mt-1">{sip.category}</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 space-y-4 text-xs">
+        <div className="bg-white dark:bg-[var(--card-bg)] rounded-2xl shadow-sm border border-slate-200 dark:border-[var(--border-color)] p-4 space-y-4 text-xs">
           <div>
-            <p className="text-[11px] text-slate-500 mb-1">SIP amount (₹)</p>
-            <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3">
-              <span className="text-[11px] text-slate-500 mr-1">₹</span>
+            <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mb-1">SIP amount (₹)</p>
+            <div className="flex items-center rounded-xl border border-slate-200 dark:border-[var(--border-color)] bg-slate-50 dark:bg-[var(--white-5)] px-3">
+              <span className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mr-1">₹</span>
               <input
                 type="number"
                 value={amount}
                 onChange={(e) => setAmount(Number(e.target.value))}
-                className="w-full bg-transparent text-sm text-slate-900 outline-none py-2"
+                className="w-full bg-transparent text-sm text-slate-900 dark:text-[var(--text-primary)] outline-none py-2"
                 min={0}
               />
             </div>
           </div>
 
           {minSip > 0 && (
-            <p className="text-[11px] text-slate-500 -mt-2">
+            <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] -mt-2">
               Minimum for this fund: ₹{minSip.toLocaleString("en-IN")}
             </p>
           )}
 
           <div>
-            <p className="text-[11px] text-slate-500 mb-1">SIP date</p>
+            <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mb-1">SIP date</p>
             <select
               value={sipDate}
               onChange={(e) => setSipDate(Number(e.target.value))}
-              className="w-full border border-slate-200 bg-slate-50 rounded-xl px-3 py-2 text-xs outline-none"
+              className="w-full border border-slate-200 dark:border-[var(--border-color)] bg-slate-50 dark:bg-[var(--white-5)] rounded-xl px-3 py-2 text-xs outline-none"
             >
               {sipDays.map((d) => (
                 <option key={d} value={d}>
@@ -998,17 +1002,17 @@ const ModifySipPage = ({ sip, onBack, onSave }) => {
                 </option>
               ))}
             </select>
-            <p className="text-[11px] text-slate-500 mt-1">
+            <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mt-1">
               The replacement SIP starts on {startDate}.
             </p>
           </div>
 
           <div>
-            <p className="text-[11px] text-slate-500 mb-1">Frequency</p>
+            <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mb-1">Frequency</p>
             <select
               value={frequency}
               onChange={(e) => setFrequency(e.target.value)}
-              className="w-full border border-slate-200 bg-slate-50 rounded-xl px-3 py-2 text-xs outline-none"
+              className="w-full border border-slate-200 dark:border-[var(--border-color)] bg-slate-50 dark:bg-[var(--white-5)] rounded-xl px-3 py-2 text-xs outline-none"
             >
               {FREQ_OPTIONS.map(([code, label]) => (
                 <option key={code} value={code}>
@@ -1023,13 +1027,13 @@ const ModifySipPage = ({ sip, onBack, onSave }) => {
               and never sent the acknowledgement, so every save came back "Please read and
               accept the required disclaimers", naming something that was not on the page.
               Same component and hook the SIP and lumpsum checkouts already use. */}
-          <OrderDisclaimers {...disc} className="pt-2 border-t border-slate-100 mt-2" />
+          <OrderDisclaimers {...disc} className="pt-2 border-t border-slate-100 dark:border-[var(--border-color)] mt-2" />
 
-          <div className="pt-2 border-t border-slate-100 mt-2 flex items-center justify-between gap-3">
+          <div className="pt-2 border-t border-slate-100 dark:border-[var(--border-color)] mt-2 flex items-center justify-between gap-3">
             {/* Not a euphemism: BSE has no way to edit a SIP, so this really does register a
                 new one and cancel this one. The investor should know that before pressing. */}
-            <p className="text-[11px] text-slate-500">
-              This registers a <span className="font-medium text-slate-800">new SIP</span> and cancels the
+            <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">
+              This registers a <span className="font-medium text-slate-800 dark:text-[var(--text-primary)]">new SIP</span> and cancels the
               current one — BSE cannot edit an existing registration.
             </p>
             <button

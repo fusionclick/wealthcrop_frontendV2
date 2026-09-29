@@ -102,7 +102,7 @@ const Positions = () => {
             </button>
             <NavLink
               to="/stockList/all-nse-stocks"
-              className="border border-gray-300 text-gray-700 dark:text-[var(--text-secondary)] px-5 py-2 rounded-md text-sm hover:bg-gray-50"
+              className="border border-gray-300 dark:border-[var(--border-color)] text-gray-700 dark:text-[var(--text-secondary)] px-5 py-2 rounded-md text-sm hover:bg-gray-50 dark:hover:bg-white/5 dark:bg-[var(--white-5)]"
             >
               Browse NSE stocks
             </NavLink>

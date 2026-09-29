@@ -154,7 +154,7 @@ const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
       <img
   src={logoSrc}
   alt="logo"
-  className="w-16 h-16 rounded-xl object-contain bg-white"
+  className="w-16 h-16 rounded-xl object-contain bg-white dark:bg-[var(--card-bg)]"
   onError={(e) => {
     e.target.onerror = null;
     e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(

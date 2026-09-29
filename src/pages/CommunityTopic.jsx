@@ -226,7 +226,7 @@ export default function CommunityTopic() {
     if (res?.status) {
       setReporting(false);
       setDetail("");
-      toastSuccess(res.message || "Reported.");
+      toastSuccess(res.data?.message || "Reported.");
     }
   };
 

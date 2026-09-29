@@ -76,10 +76,10 @@ const InvestmentOptions = () => {
     <div className="p-6 max-w-6xl mx-auto">
 
       {/* HEADER SECTION */}
-      <h1 className="text-3xl font-bold text-blue-950 mb-2">
+      <h1 className="text-3xl font-bold text-blue-950 dark:text-[var(--text-primary)] mb-2">
         Start Your Investment Journey
       </h1>
-      <p className="text-gray-600 mb-8">
+      <p className="text-gray-600 dark:text-[var(--text-secondary)] mb-8">
         Explore various investment choices and use smart tools to plan your financial future.
       </p>
 
@@ -89,8 +89,8 @@ const InvestmentOptions = () => {
         {/* STOCKS */}
         <div onClick={() => navigate("/user/stocks/explore")} className="p-6 bg-linear-to-br from-blue-100 to-blue-50 rounded-2xl shadow-md border border-white hover:shadow-lg transition cursor-pointer">
           <FaChartLine className="text-3xl text-blue-600 mb-3" />
-          <h3 className="text-xl font-semibold text-slate-800">Stocks</h3>
-          <p className="text-gray-600 mt-1 text-sm">
+          <h3 className="text-xl font-semibold text-slate-800 dark:text-[var(--text-primary)]">Stocks</h3>
+          <p className="text-gray-600 dark:text-[var(--text-secondary)] mt-1 text-sm">
             Invest in market-leading companies and grow wealth.
           </p>
         </div>
@@ -98,8 +98,8 @@ const InvestmentOptions = () => {
         {/* MUTUAL FUNDS */}
         <div onClick={() => navigate("/user/mutual_fund/explore")} className="p-6 bg-linear-to-br from-green-100 to-green-50 rounded-2xl shadow-md border border-white hover:shadow-lg transition cursor-pointer">
           <FaCoins className="text-3xl text-green-600 mb-3" />
-          <h3 className="text-xl font-semibold text-slate-800">Mutual Funds</h3>
-          <p className="text-gray-600 mt-1 text-sm">
+          <h3 className="text-xl font-semibold text-slate-800 dark:text-[var(--text-primary)]">Mutual Funds</h3>
+          <p className="text-gray-600 dark:text-[var(--text-secondary)] mt-1 text-sm">
             Diversified growth for long-term financial goals.
           </p>
         </div>
@@ -107,38 +107,38 @@ const InvestmentOptions = () => {
         {/* F&O */}
         <div onClick={() => navigate("/user/f&o")} className="p-6 bg-linear-to-br from-orange-100 to-orange-50 rounded-2xl shadow-md border border-white hover:shadow-lg transition cursor-pointer">
           <FaExchangeAlt className="text-3xl text-orange-600 mb-3" />
-          <h3 className="text-xl font-semibold text-slate-800">F&O</h3>
-          <p className="text-gray-600 mt-1 text-sm">
+          <h3 className="text-xl font-semibold text-slate-800 dark:text-[var(--text-primary)]">F&O</h3>
+          <p className="text-gray-600 dark:text-[var(--text-secondary)] mt-1 text-sm">
             High-leverage trading for experienced investors.
           </p>
         </div>
       </div>
 
       {/* BENEFITS SECTION */}
-      <h2 className="text-2xl font-bold text-slate-800 mb-4">Why Invest With Us?</h2>
+      <h2 className="text-2xl font-bold text-slate-800 dark:text-[var(--text-primary)] mb-4">Why Invest With Us?</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-14">
-        <div className="p-5 border rounded-xl shadow-sm bg-white">
+        <div className="p-5 border rounded-xl shadow-sm bg-white dark:bg-[var(--card-bg)]">
           <FaBookmark className="text-xl text-blue-600 mb-2" />
-          <h4 className="font-semibold text-slate-700 mb-1">Handpicked Investment Ideas</h4>
+          <h4 className="font-semibold text-slate-700 dark:text-[var(--text-secondary)] mb-1">Handpicked Investment Ideas</h4>
           <p className="text-sm text-gray-500">Curated funds and stocks based on performance & reliability.</p>
         </div>
 
-        <div className="p-5 border rounded-xl shadow-sm bg-white">
+        <div className="p-5 border rounded-xl shadow-sm bg-white dark:bg-[var(--card-bg)]">
           <FaLock className="text-xl text-green-600 mb-2" />
-          <h4 className="font-semibold text-slate-700 mb-1">Secure & Trusted</h4>
+          <h4 className="font-semibold text-slate-700 dark:text-[var(--text-secondary)] mb-1">Secure & Trusted</h4>
           <p className="text-sm text-gray-500">Industry-leading security and data protection standards.</p>
         </div>
 
-        <div className="p-5 border rounded-xl shadow-sm bg-white">
+        <div className="p-5 border rounded-xl shadow-sm bg-white dark:bg-[var(--card-bg)]">
           <FaChartBar className="text-xl text-orange-600 mb-2" />
-          <h4 className="font-semibold text-slate-700 mb-1">Smart Growth Tools</h4>
+          <h4 className="font-semibold text-slate-700 dark:text-[var(--text-secondary)] mb-1">Smart Growth Tools</h4>
           <p className="text-sm text-gray-500">Use calculators and insights to plan smarter.</p>
         </div>
       </div>
 
       {/* CALCULATOR SECTION */}
-      <h2 className="text-2xl font-bold text-slate-800 mb-4">Investment Calculators</h2>
+      <h2 className="text-2xl font-bold text-slate-800 dark:text-[var(--text-primary)] mb-4">Investment Calculators</h2>
 
       {/* QUICK calculators */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
@@ -146,7 +146,7 @@ const InvestmentOptions = () => {
           <button
             key={i}
             onClick={() => navigate(item.path)}
-            className="bg-white border border-gray-200 shadow-sm p-3 rounded-xl text-sm hover:bg-gray-100 transition font-medium"
+            className="bg-white dark:bg-[var(--card-bg)] border border-gray-200 dark:border-[var(--border-color)] shadow-sm p-3 rounded-xl text-sm hover:bg-gray-100 dark:hover:bg-white/10 transition font-medium"
           >
             {item.name} Calculator
           </button>
@@ -159,7 +159,7 @@ const InvestmentOptions = () => {
           <button
             key={i}
             onClick={() => navigate(item.path)}
-            className="bg-white border border-gray-200 shadow-sm p-3 rounded-xl text-sm hover:bg-gray-100 transition font-medium"
+            className="bg-white dark:bg-[var(--card-bg)] border border-gray-200 dark:border-[var(--border-color)] shadow-sm p-3 rounded-xl text-sm hover:bg-gray-100 dark:hover:bg-white/10 transition font-medium"
           >
             {item.name} Calculator
           </button>
@@ -175,15 +175,15 @@ const InvestmentOptions = () => {
       </button>
 
       {/* FAQ SECTION */}
-      <h2 className="text-2xl font-bold text-slate-800 mt-14 mb-4">
+      <h2 className="text-2xl font-bold text-slate-800 dark:text-[var(--text-primary)] mt-14 mb-4">
         Frequently Asked Questions
       </h2>
 
       <div className="space-y-4">
         {faqs.map((f, i) => (
-          <div key={i} className="p-4 bg-white rounded-xl shadow border">
-            <p className="font-semibold text-slate-800">{f.q}</p>
-            <p className="text-gray-600 mt-1 text-sm">{f.a}</p>
+          <div key={i} className="p-4 bg-white dark:bg-[var(--card-bg)] rounded-xl shadow border">
+            <p className="font-semibold text-slate-800 dark:text-[var(--text-primary)]">{f.q}</p>
+            <p className="text-gray-600 dark:text-[var(--text-secondary)] mt-1 text-sm">{f.a}</p>
           </div>
         ))}
       </div>

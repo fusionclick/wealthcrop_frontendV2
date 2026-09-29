@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { inr } from "../../utils/calcSafe";
 
 const HraCalculator = () => {
   const [basicSalary, setBasicSalary] = useState("");
@@ -194,20 +195,20 @@ const HraCalculator = () => {
           <div className="bg-white/20 dark:bg-black/30 rounded-xl p-4 shadow-lg backdrop-blur-md space-y-2">
             <p className="text-lg">
               <strong>Exempt HRA:</strong> ₹
-              {Number(result.hraExemptMonthly).toLocaleString()}
+              {inr(result.hraExemptMonthly)}
             </p>
             <p className="text-lg">
               <strong>Taxable HRA:</strong> ₹
-              {Number(result.hraTaxableMonthly).toLocaleString()}
+              {inr(result.hraTaxableMonthly)}
             </p>
 
             <p className="text-sm mt-3">
               <strong>Exempt (Yearly):</strong> ₹
-              {Number(result.hraExemptYearly).toLocaleString()}
+              {inr(result.hraExemptYearly)}
             </p>
             <p className="text-sm">
               <strong>Taxable (Yearly):</strong> ₹
-              {Number(result.hraTaxableYearly).toLocaleString()}
+              {inr(result.hraTaxableYearly)}
             </p>
           </div>
         ) : (
