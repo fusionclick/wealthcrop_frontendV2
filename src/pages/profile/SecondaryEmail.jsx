@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ShieldCheck } from "lucide-react";
 import { postApiWithToken } from "../../api/api";
 import { toastError, toastSuccess } from "../../utils/notifyCustom";
@@ -24,6 +24,17 @@ export default function SecondaryEmail({ userData, refetch }) {
   const [otp, setOtp] = useState("");
   const [stage, setStage] = useState("idle"); // idle | otp
   const [busy, setBusy] = useState(false);
+
+  // QA 2.2 — the verified tick vanished after a refresh. `saved` and `verified` come straight
+  // off userData and update when it loads, but `email` is state and `useState(saved)` only
+  // captured the value from the FIRST render — when the parent (BasicDetails has no loading
+  // guard) rendered this with userData still undefined, so `saved` was "". After the data
+  // arrived, `email` stayed "" while `saved` became the real address, so `email === saved`
+  // below was false and the verified branch never rendered. Re-sync when the saved address
+  // changes and we are not mid-verify (deps exclude keystrokes, so typing a new one is safe).
+  useEffect(() => {
+    if (stage === "idle") setEmail(saved);
+  }, [saved, stage]);
 
   const send = async () => {
     if (!email.trim()) return toastError("Enter an email address.");

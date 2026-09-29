@@ -100,15 +100,23 @@ const stripComments = (s) =>
     .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
     .replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + " ".repeat(m.length - p1.length));
 
-test("no imperative *ApiWithToken result is read as if it were the body", () => {
+test("no imperative response-helper result is read as if it were the body", () => {
   const offenders = [];
+
+  // Only get/delete return the axios RESPONSE (payload at res.data.data). post/put/getApi/
+  // postApi return the BODY already unwrapped (api.js:56/77/…), so reading res.message off
+  // THOSE is correct, not a bug — scanning them with the "axios props only" rule below would
+  // false-flag correct code (it only slipped past before because a long comment pushed the
+  // read past this walk's 900-char window). So this walk is scoped to the two helpers that
+  // actually hand back a response.
+  const RESPONSE_HELPERS = /(?:getApiWithToken|deleteApiWithToken)\(/;
 
   for (const file of walk("src")) {
     const src = stripComments(readFileSync(file, "utf8"));
-    if (!/ApiWithToken\(/.test(src)) continue;
+    if (!RESPONSE_HELPERS.test(src)) continue;
 
-    // `const res = await postApiWithToken(...)` — capture the variable it lands in.
-    for (const m of src.matchAll(/(?:const|let)\s+(\w+)\s*=\s*await\s+\w*ApiWithToken\(/g)) {
+    // `const res = await getApiWithToken(...)` — capture the variable it lands in.
+    for (const m of src.matchAll(/(?:const|let)\s+(\w+)\s*=\s*await\s+(?:getApiWithToken|deleteApiWithToken)\(/g)) {
       const varName = m[1];
       // Look only at the rest of that function-ish region, not the whole file.
       const region = src.slice(m.index, m.index + 900);

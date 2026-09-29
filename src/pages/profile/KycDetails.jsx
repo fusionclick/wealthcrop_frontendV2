@@ -67,21 +67,22 @@ export default function KycDetails({ userData, refetch }) {
         city: form.city.trim(),
         occupation: form.occupation.trim(),
       });
-      // QA 2.7 / 2.8 — every read below was one level too high. `postApiWithToken` returns
-      // the AXIOS RESPONSE, so `res.status` was the HTTP code (truthy for any success) and
-      // `res.message` / `res.pan_change_pending` were both undefined. The result: the
-      // server's "your PAN is verified, so the change has been sent for approval" was
-      // replaced by a bare "Saved", the pending banner never refreshed, and the PAN on
-      // screen did not move — which reads exactly as "PAN cannot be edited".
-      const body = res?.data;
-      if (body?.status) {
+      // QA 2.7 / 2.8 / 2.9 — the opposite of loadPending above. `postApiWithToken` returns
+      // the Laravel BODY (api.js:77 `return res?.data`), NOT the axios response, so `status`,
+      // `message` and `pan_change_pending` are all top-level on `res`. The previous code read
+      // `res.data`, which is the serialized UserProfile payload — it has no `.status`, so
+      // EVERY save (changed PAN, unchanged PAN, or city-only) fell into the else and showed
+      // "Could not save", while the typed PAN stayed on screen because the success branch
+      // that resets the form never ran. get returns the response (payload at res.data.data);
+      // post returns the body (payload at res.data). They are not the same.
+      if (res?.status) {
         setEditing(false);
-        toastSuccess(body.message || "Saved");
+        toastSuccess(res.message || "Saved");
         // A locked PAN is not applied here — it becomes a request, so refresh the banner.
-        if (body.pan_change_pending) loadPending();
+        if (res.pan_change_pending) loadPending();
         refetch?.();
       } else {
-        toastError(body?.message || "Could not save.");
+        toastError(res?.message || "Could not save.");
       }
     } catch (err) {
       // A 422 from the validator rejects the promise, and with only a `finally` here it

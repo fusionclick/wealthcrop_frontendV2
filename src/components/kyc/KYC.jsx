@@ -722,7 +722,7 @@ useEffect(() => {
 /**
  * Which step owns a field BSE complained about, so the investor can go and change it.
  * Without this the only buttons on a failure were "Try again" — which resends the exact
- * same data and fails identically — and "Continue to sign in", so a wrong pincode was a
+ * same data and fails identically — and "Continue to dashboard", so a wrong pincode was a
  * dead end and KYC could never complete.
  */
 const FIELD_STEP = [
@@ -1925,7 +1925,7 @@ function ReviewStep({ isUccCreated, verdict, checking, onCheck, onFinish, error,
           onClick={onFinish}
           className="px-5 py-2 rounded-lg text-sm font-medium border border-gray-300 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:bg-white/10 dark:hover:bg-white/5 transition"
         >
-          Continue to sign in
+          Continue to dashboard
         </button>
       </div>
     </div>
@@ -2014,7 +2014,7 @@ function ReviewStep({ isUccCreated, verdict, checking, onCheck, onFinish, error,
           onClick={onFinish}
           className="bg-blue-950 dark:bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-900 dark:hover:bg-blue-500 transition"
         >
-          Continue to sign in
+          Continue to dashboard
         </button>
       </div>
     </div>

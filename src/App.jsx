@@ -105,7 +105,7 @@ import { isPinExpired } from "./utils/pinExpireChecker";
 
 // PIN gate sirf dashboard par lagta hai. Onboarding (signup -> verify -> KYC) ke
 // beech user ko PIN nahi poochhna — wahan uska PIN hota hi nahi.
-const PIN_FREE_ROUTES = ["/login", "/signup", "/verify-otp", "/kyc", "/reset-password", "/reset-pin"];
+const PIN_FREE_ROUTES = ["/login", "/signup", "/verify-otp", "/kyc", "/reset-password"];
 
 // Onboarding screens ek viewport me rehni chahiye — footer/disclaimer wahan sirf
 // scroll banate hain. Wahi routes jinme PIN gate nahi lagta.
@@ -116,7 +116,7 @@ import ModuleGate from "./components/ModuleGate";
 import LoginPinModal from "./utils/LoginPinModal";
 import ResetPassword from "./pages/ResetPassword";
 import SocketHandler from "./utils/socketHandler";
-import ResetPin from "./pages/ResetPin";
+// ResetPin is rendered inline by LoginPinModal (the "Forgot PIN?" flow), not as a route.
 import Notifications from "./pages/Notifications";
 import StockList from "./pages/stocks/StockList";
 import PageLoader from "./components/PageLoader";
@@ -589,7 +589,11 @@ useEffect(() => {
             <Route path="/signup" element={<Register />} />
             <Route path="/verify-otp" element={<VerifyOtp />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/reset-pin" element={<ResetPin />} />
+            {/* QA 1.10 — there was a standalone /reset-pin route here rendering <ResetPin />
+                with no props. ResetPin is an embedded component (needs `email` and `onBack`),
+                so as a bare route it was broken and reachable by nobody. PIN reset already
+                works in context: the login PIN modal's "Forgot PIN?" sends the OTP and
+                renders ResetPin inline (LoginPinModal.jsx). The dead route is removed. */}
             <Route path="/nfo" element={<NFO />} />
             <Route
               path="/mutual_fund/:isin/:code"
