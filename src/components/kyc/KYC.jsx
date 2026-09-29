@@ -684,7 +684,7 @@ useEffect(() => {
           // No mandate is registered here. A mandate is a payment authorisation; it belongs
           // to SIP setup with the investor's own VPA, not to an automatic KYC side effect.
           // The fixture that used to do it is deleted — see the note further down this file.
-          toastSuccess("KYC verified by BSE. Please sign in to continue.");
+          toastSuccess("KYC verified by BSE. You are all set.");
           finishKyc();
         }
       }
@@ -831,7 +831,7 @@ const checkBseStatus = async () => {
     const retried = await sendUcc(ucc, dp_id, client_id);
     if (isKycVerified(retried?.kyc_status)) {
       // Same reason as the other call site: no auto-mandate off a hardcoded fixture.
-      toastSuccess("KYC verified by BSE. Please sign in to continue.");
+      toastSuccess("KYC verified by BSE. You are all set.");
       finishKyc();
     }
     return;
@@ -850,7 +850,7 @@ const checkBseStatus = async () => {
     if (next.error) keepVerified(next);
     else setBseVerdict(next);
     if (isKycVerified(body.kyc_status)) {
-      toastSuccess("KYC verified by BSE. Please sign in to continue.");
+      toastSuccess("KYC verified by BSE. You are all set.");
       finishKyc();
     }
   } finally {
