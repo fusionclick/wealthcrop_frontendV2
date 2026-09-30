@@ -670,11 +670,20 @@ const SELL_TYPE = /^(r|redeem|redemption|swp|switch-out|sell)$/i;
 const SIP_TYPE = /^(sip|xsip|systematic)$/i;
 const SWITCH_TYPE = /^(sw|switch|switch-in|stp)$/i;
 
+// QA 3.10 — SWP/STP plans are not listed here up front; each instalment arrives in this list
+// as BSE executes it. Naming it is the difference between "my plan paid out" and "who redeemed
+// my money?" — both used to render as a bare "Redeem"/"Switch". Matched BEFORE the two above
+// and deliberately NOT removed from them, so isSell and the money direction are unchanged.
+const SWP_TYPE = /^(swp)$/i;
+const STP_TYPE = /^(stp|stp[\s_-]*out)$/i;
+
 export const isSell = (type) => SELL_TYPE.test(String(type || "").trim());
 
 export const orderTypeLabel = (type) => {
   const t = String(type || "").trim();
   if (!t) return "—";
+  if (SWP_TYPE.test(t)) return "SWP";
+  if (STP_TYPE.test(t)) return "STP";
   if (SELL_TYPE.test(t)) return "Redeem";
   if (SIP_TYPE.test(t)) return "SIP";
   if (SWITCH_TYPE.test(t)) return "Switch";
@@ -687,10 +696,14 @@ export const orderTypeLabel = (type) => {
 export const orderTypeTone = (type) => {
   switch (orderTypeLabel(type)) {
     case "Redeem":
+    // A SWP instalment is money leaving, same as a redemption, so it reads the same.
+    case "SWP":
       return "bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-400";
     case "SIP":
       return "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300";
     case "Switch":
+    // An STP instalment moves money between funds; it stays invested, so it reads as a switch.
+    case "STP":
       return "bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300";
     case "Purchase":
       return "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400";

@@ -6,10 +6,26 @@ import { isSell, orderErrorMessage, orderRefId, orderTypeLabel } from "../src/ut
 
 test("a redemption is never labelled as a purchase, in either spelling", () => {
   // Laravel stores "redeem"; BSE answers "R" or "Redemption". Both land in one list now.
-  for (const t of ["r", "R", "redeem", "Redemption", "SWP", "switch-out"]) {
-    assert.strictEqual(orderTypeLabel(t), t.toLowerCase() === "swp" ? "Redeem" : "Redeem", `${t} should read as a sell`);
+  for (const t of ["r", "R", "redeem", "Redemption", "switch-out"]) {
+    assert.strictEqual(orderTypeLabel(t), "Redeem", `${t} should read as a sell`);
     assert.strictEqual(isSell(t), true, `${t} should be a sell`);
   }
+});
+
+// QA 3.10 — SWP/STP plans are not listed in Orders up front; each instalment appears here as
+// BSE executes it. It has to be identifiable: a SWP instalment reading as a bare "Redeem" is
+// indistinguishable from someone redeeming the money by hand.
+test("a SWP/STP instalment is named, and still moves money the same way", () => {
+  for (const t of ["swp", "SWP"]) {
+    assert.strictEqual(orderTypeLabel(t), "SWP");
+    // The label changed; the direction must not. A SWP is money leaving.
+    assert.strictEqual(isSell(t), true, "a SWP instalment is still a sell");
+  }
+  for (const t of ["stp", "STP", "STP_OUT", "stp-out"]) {
+    assert.strictEqual(orderTypeLabel(t), "STP");
+  }
+  // An STP keeps the money invested, so it is not a redemption of the portfolio.
+  assert.strictEqual(isSell("stp"), false);
 });
 
 test("a purchase is a purchase and is never treated as a sell", () => {
@@ -23,7 +39,6 @@ test("SIP and Switch keep their own identity", () => {
   assert.strictEqual(orderTypeLabel("sip"), "SIP");
   assert.strictEqual(orderTypeLabel("XSIP"), "SIP");
   assert.strictEqual(orderTypeLabel("switch"), "Switch");
-  assert.strictEqual(orderTypeLabel("STP"), "Switch");
   assert.strictEqual(isSell("sip"), false);
 });
 
