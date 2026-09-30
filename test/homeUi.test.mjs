@@ -503,16 +503,25 @@ test("backend wahi profile fields leta hai jo frontend bhejta hai", () => {
     "utf8"
   );
   // Pehle sirf `email` dekha jata tha, is liye baqi har update "No changes detected" deti thi.
-  assert.match(controller, /PROFILE_FIELDS = \['marital_status', 'fname', 'income', 'occupation'\]/);
-  assert.match(controller, /updateOrCreate\(\['user_id' => \$user->id\]/);
-  // income column decimal hai — numeric validate hona chahiye.
-  assert.match(controller, /'income'\s*=> 'nullable\|numeric\|min:0'/);
-
+  // Ab dono taraf se derive karte hain, hardcoded list se nahi — warna field add karne par
+  // test purani list par atka rehta hai aur asli contract check hota hi nahi.
   const page = read("../src/pages/profile/BasicDetails.jsx");
-  const sent = [...page.matchAll(/"(marital_status|fname|income|occupation|email)"/g)].map((m) => m[1]);
-  for (const f of ["marital_status", "fname", "income"]) {
-    assert.ok(sent.includes(f), `${f} frontend bhejta hi nahi`);
+
+  // Frontend: jo columns BasicDetails ka API_FIELD map bhejta hai.
+  const map = page.match(/const API_FIELD = \{([\s\S]*?)\}/)[1];
+  const sent = [...map.matchAll(/:\s*"([a-z_]+)"/g)].map((m) => m[1]);
+  assert.ok(sent.length >= 10, `API_FIELD khali lag raha hai: ${sent}`);
+
+  // Backend: PROFILE_FIELDS + email (jo users par hai, profile par nahi).
+  const listed = controller.match(/PROFILE_FIELDS = \[([\s\S]*?)\]/)[1];
+  const accepted = new Set([...listed.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]).concat("email"));
+
+  for (const f of sent) {
+    assert.ok(accepted.has(f), `frontend ${f} bhejta hai magar backend parhta hi nahi`);
+    // Likha jata hai to validate bhi hona chahiye — warna kuch bhi column mein chala jayega.
+    assert.ok(new RegExp(`'${f}'\\s*=>`).test(controller), `${f} likha jata hai magar validate nahi`);
   }
+  assert.match(controller, /updateOrCreate\(\['user_id' => \$user->id\]/);
 });
 
 test("basket ka Confirm button jhoota wada nahi karta", () => {

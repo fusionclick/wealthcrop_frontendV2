@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { num, clampNum, finiteOr, inr } from "../../utils/calcSafe";
 import { useNavigate } from "react-router-dom";
 
 const FDCalculator = () => {
@@ -9,13 +10,20 @@ const FDCalculator = () => {
   const [openFAQ, setOpenFAQ] = useState(null);
 
   const calculateFD = () => {
-    if (!amount || !rate || !years) return;
-    const maturity = amount * Math.pow(1 + rate / 100, years);
-    const interest = maturity - amount;
-    setResult({
-      maturity: maturity.toFixed(2),
-      interest: interest.toFixed(2),
-    });
+    // QA 10.3 — `!rate` is true for a typed 0, so a 0% FD silently did nothing at all; and
+    // years was unbounded, so Math.pow overflowed to Infinity and the screen printed
+    // "₹Infinity". Blank still means "not filled in"; 0 is a real answer and 0% simply
+    // returns the principal. The tenure is clamped the same way the shared model clamps its
+    // loop bounds — 100 years is past any real FD.
+    if (amount === "" || rate === "") return;
+    const p = num(amount);
+    const r = num(rate);
+    const y = clampNum(years, 0, 100, 0);
+
+    const maturity = finiteOr(p * (1 + r / 100) ** y);
+    if (maturity === null) return setResult(null);
+
+    setResult({ maturity, interest: maturity - p });
   };
 
   const faqs = [
@@ -188,10 +196,10 @@ const FDCalculator = () => {
         {result ? (
           <div className="bg-white/20 rounded-xl p-4 shadow-lg backdrop-blur-md">
             <p className="text-lg">
-              <strong>Maturity Amount:</strong> ₹{result.maturity}
+              <strong>Maturity Amount:</strong> ₹{inr(result.maturity)}
             </p>
             <p className="text-lg mt-1">
-              <strong>Interest Earned:</strong> ₹{result.interest}
+              <strong>Interest Earned:</strong> ₹{inr(result.interest)}
             </p>
           </div>
         ) : (

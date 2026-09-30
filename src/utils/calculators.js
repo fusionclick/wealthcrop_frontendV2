@@ -30,11 +30,26 @@ const surchargeRate = (taxable, regime) => {
 };
 
 /**
+ * QA 10.3 — "enter 0 and a very large number → no NaN, no Infinity, no crash".
+ *
+ * Every horizon below bounds a loop, and each one clamped a FLOOR with no ceiling. A typed
+ * 999999999 in a years field therefore ran the loop a billion times and froze the tab — that
+ * is the crash QA hit, and no amount of guarding the printed output can reach it, because the
+ * page never gets to render. 100 years is past the end of any real product and still returns
+ * instantly. Clamping only changes the answer for inputs that had no answer before.
+ */
+const MAX_YEARS = 100;
+const MAX_MONTHS = MAX_YEARS * 12;
+
+const clampYears = (v, min = 1) => Math.min(MAX_YEARS, Math.max(min, Math.round(Number(v) || 0)));
+const clampMonths = (v, min = 1) => Math.min(MAX_MONTHS, Math.max(min, Math.round(Number(v) || 0)));
+
+/**
  * Ek fixed monthly SIP saal-ba-saal kya banti hai: kitna daala (invested) aur kitna
  * bana (value). Dono jagah — home page ka growth chart aur goal planner — yahi chalta hai.
  */
 export const sipSeries = ({ monthly, years, cagr }) => {
-  const yrs = Math.max(1, Math.round(Number(years) || 0));
+  const yrs = clampYears(years);
   const m = Math.max(0, Number(monthly) || 0);
   const r = (Number(cagr) || 0) / 100 / 12;
 
@@ -54,7 +69,7 @@ export const sipSeries = ({ monthly, years, cagr }) => {
  * warna inflation slider hilta hai aur natija wahi rehta hai.
  */
 export const sipForGoal = ({ goal, years, cagr, inflation = 0, current = 0 }) => {
-  const yrs = Math.max(1, Math.round(Number(years) || 0));
+  const yrs = clampYears(years);
   const target = Math.max(0, Number(goal) || 0) * Math.pow(1 + (Number(inflation) || 0) / 100, yrs);
   const n = yrs * 12;
   const r = (Number(cagr) || 0) / 100 / 12;
@@ -94,7 +109,7 @@ export const sipForGoal = ({ goal, years, cagr, inflation = 0, current = 0 }) =>
  */
 export const epf = ({ basic, employeePct = 12, employerPct = 12, years, rate = 8.25 }) => {
   const m = Math.max(0, Number(basic) || 0);
-  const yrs = Math.max(1, Math.round(Number(years) || 0));
+  const yrs = clampYears(years);
   const eeRate = Math.max(0, Number(employeePct) || 0) / 100;
   const erRate = Math.max(0, Number(employerPct) || 0) / 100;
   const r = Math.max(0, Number(rate) || 0) / 100;
@@ -125,10 +140,10 @@ export const epf = ({ basic, employeePct = 12, employerPct = 12, years, rate = 8
  * should not be budgeted as if it compounds first.
  */
 export const emergencyFund = ({ expenses, months = 6, current = 0, rate = 0, buildMonths = 12 }) => {
-  const need = Math.max(0, Number(expenses) || 0) * Math.max(1, Math.round(Number(months) || 0));
+  const need = Math.max(0, Number(expenses) || 0) * clampMonths(months);
   const have = Math.max(0, Number(current) || 0);
   const gap = Math.max(0, need - have);
-  const build = Math.max(1, Math.round(Number(buildMonths) || 0));
+  const build = clampMonths(buildMonths);
   const r = Math.max(0, Number(rate) || 0) / 100;
   return {
     required: Math.round(need),
@@ -196,7 +211,11 @@ export const rentVsBuy = ({
   const P = Math.max(0, Number(price) || 0);
   const down = (P * downPct) / 100;
   const loan = P - down;
-  const n = Math.max(1, Math.round(years * 12));
+  // One clamped horizon for both the loop and the appreciation exponent. They were derived
+  // separately from the raw `years`, so a huge tenure gave a bounded loop but an Infinity
+  // homeValue — the two halves of the comparison disagreed about how long it ran.
+  const yrs = clampYears(years);
+  const n = yrs * 12;
   const r = rate / 12 / 100;
   const emi = r > 0 ? (loan * r * (1 + r) ** n) / ((1 + r) ** n - 1) : loan / n;
   const monthlyMaint = (P * maintPct) / 100 / 12;
@@ -214,7 +233,7 @@ export const rentVsBuy = ({
   }
 
   // Round pehle, phir compare — warna screen par dikha gap 1 rupee off ho jata hai.
-  const homeValue = Math.round(P * (1 + appreciation / 100) ** years);
+  const homeValue = Math.round(P * (1 + appreciation / 100) ** yrs);
   const rentCorpus = Math.round(corpus);
   return {
     emi: Math.round(emi),

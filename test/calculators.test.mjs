@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { computeTax, compareRegimes, rentVsBuy } from "../src/utils/calculators.js";
+import { computeTax, compareRegimes, rentVsBuy, sipSeries } from "../src/utils/calculators.js";
 
 test("new regime: 12.75L tak salaried ka tax zero", () => {
   // 12,75,000 − 75,000 std = 12,00,000 taxable → 60,000 slab tax → 87A rebate 60,000
@@ -75,4 +75,71 @@ test("rentVsBuy: mehanga ghar + strong market returns par kiraya behtar", () => 
 test("rentVsBuy: rent har saal barhta hai", () => {
   const r = rentVsBuy({ price: 5000000, rent: 20000, years: 10, rentHike: 5 });
   assert.ok(r.lastRent > 20000);
+});
+
+// QA 10.3 re-report — "NOT FIXED GETS CRASH UI BREAKS".
+//
+// The output guards were already in place; the crash was upstream of them. Every horizon here
+// bounds a loop and each clamped only a FLOOR, so years = 999999999 ran the loop a billion
+// times and the tab died before anything could be rendered. These assert the loops are now
+// bounded (by timing them) and that the results stay finite at both extremes.
+test("a huge horizon returns immediately instead of freezing the tab", () => {
+  const HUGE = 999999999;
+
+  const t0 = Date.now();
+  const series = sipSeries({ monthly: 5000, years: HUGE, cagr: 12 });
+  const elapsed = Date.now() - t0;
+
+  // A billion iterations cannot finish in a second; a clamped one finishes in milliseconds.
+  assert.ok(elapsed < 1000, `sipSeries took ${elapsed}ms — the loop is still unbounded`);
+  // Clamped to a century, so the series is bounded and every point is a real number.
+  assert.ok(series.length <= 100, `got ${series.length} points`);
+  assert.ok(series.every((p) => Number.isFinite(p.value) && Number.isFinite(p.invested)));
+});
+
+test("zero everywhere produces real numbers, not NaN", () => {
+  const series = sipSeries({ monthly: 0, years: 0, cagr: 0 });
+  assert.ok(series.every((p) => Number.isFinite(p.value) && Number.isFinite(p.invested)));
+  // 0% growth over n deposits is worth exactly what went in — the limit, not a division by zero.
+  const flat = sipSeries({ monthly: 1000, years: 2, cagr: 0 });
+  assert.equal(flat.at(-1).value, flat.at(-1).invested);
+});
+
+test("a huge horizon never yields Infinity or NaN from any exported model", async () => {
+  const mod = await import("../src/utils/calculators.js");
+  const HUGE = 1e9;
+
+  const finiteDeep = (v, path = "") => {
+    if (typeof v === "number") {
+      assert.ok(Number.isFinite(v), `${path} is ${v}`);
+      return;
+    }
+    if (Array.isArray(v)) return v.forEach((x, i) => finiteDeep(x, `${path}[${i}]`));
+    if (v && typeof v === "object") {
+      for (const [k, x] of Object.entries(v)) finiteDeep(x, `${path}.${k}`);
+    }
+  };
+
+  // Feed every model the same hostile shape: huge where a horizon goes, 0 where a rate goes.
+  const hostile = {
+    monthly: HUGE, years: HUGE, cagr: 0, rate: 0, months: HUGE, expenses: HUGE,
+    buildMonths: HUGE, amount: HUGE, lumpsum: HUGE, target: HUGE, current: HUGE,
+    salary: HUGE, basic: HUGE, hra: HUGE, rentPaid: HUGE, income: HUGE, deductions: 0,
+    employeePct: 0, employerPct: 0, rent: HUGE, down: HUGE, price: HUGE, loan: HUGE,
+    tenure: HUGE, invReturn: 0, rentHike: 0, monthlyMaint: 0, principal: HUGE, years_: HUGE,
+  };
+
+  for (const [name, fn] of Object.entries(mod)) {
+    if (typeof fn !== "function") continue;
+    let out;
+    const t0 = Date.now();
+    try {
+      out = fn(hostile);
+    } catch {
+      continue; // a model that refuses a nonsense shape outright is fine
+    }
+    const elapsed = Date.now() - t0;
+    assert.ok(elapsed < 1000, `${name} took ${elapsed}ms — unbounded loop`);
+    finiteDeep(out, name);
+  }
 });
