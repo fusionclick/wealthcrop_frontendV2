@@ -249,7 +249,7 @@ const { data: nominees, error, isLoading, refetch } = useQuery({
                 setShowForm(false);
                 setNomineeAdded(true);
               }}
-              className="mb-6 text-blue-900 font-semibold bg-sky-300 px-2 rounded hover:bg-sky-400 dark:bg-sky-400 px-2 rounded dark:hover:bg-sky-500 cursor-pointer"
+              className="mb-6 text-blue-900 font-semibold bg-sky-300 px-2 rounded hover:bg-sky-400 dark:bg-sky-400 px-2 rounded dark:hover:bg-sky-500 cursor-pointer dark:text-[var(--text-primary)]"
             >
               Back
             </span>

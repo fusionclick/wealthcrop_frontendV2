@@ -787,7 +787,7 @@ export default function IndicesDetails() {
               ].map((c, i) => (
                 <div
                   key={i}
-                  className="flex justify-between items-center py-2 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 rounded-md px-2 transition duration-150"
+                  className="flex justify-between items-center py-2 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 rounded-md px-2 transition duration-150 dark:bg-white/5"
                 >
                   <p className="text-slate-800 font-medium dark:text-[var(--text-primary)] ">
                     {c.name}

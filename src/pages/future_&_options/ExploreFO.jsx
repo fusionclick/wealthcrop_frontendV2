@@ -229,8 +229,7 @@ const ExploreFO = () => {
                                       className="
                                         flex items-center gap-3 px-4 py-4 mt-4 w-full text-left transition
                                         hover:bg-gray-100
-                                        dark:hover:bg-[var(--border-color)]
-                                      "
+                                        dark:hover:bg-[var(--border-color)] dark:bg-white/5"
                                     >
                                       {/* Custom radio */}
                                       <span
@@ -599,8 +598,7 @@ const MarketTable = ({ activeTab }) => {
           className="
             border-t hover:bg-gray-50 relative
             dark:border-[var(--border-color)]
-            dark:hover:bg-[var(--white-5)]
-          "
+            dark:hover:bg-[var(--white-5)] dark:bg-white/5"
           onMouseEnter={() => setHoveredRow(index)}
           onMouseLeave={() => setHoveredRow(null)}
         >

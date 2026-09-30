@@ -142,7 +142,7 @@ function LoginPinModal({ onSuccess }) {
               </p>
 
               <div className="mt-3 text-sm">
-                <span className="font-medium text-blue-900">
+                <span className="font-medium text-blue-900 dark:text-[var(--text-primary)]">
                   {email}
                 </span>
                 <button

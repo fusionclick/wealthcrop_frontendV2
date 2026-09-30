@@ -179,8 +179,7 @@ const Dashboard = () => {
             px-3 py-1.5 text-xs font-medium rounded-md border
             border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-blue-800 hover:text-blue-800
             dark:border-[var(--border-color)] dark:text-[var(--text-secondary)]
-            dark:hover:bg-[var(--white-5)] dark:hover:text-[var(--text-primary)]
-          "
+            dark:hover:bg-[var(--white-5)] dark:hover:text-[var(--text-primary)] dark:bg-white/5"
         >
           {b.name}
         </Link>

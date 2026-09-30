@@ -68,7 +68,7 @@ const OrdersFO = () => {
                 <tr
                   key={order.id}
                   className="border-t border-slate-200 dark:border-white/10
-                             hover:bg-slate-50 dark:hover:bg-white/5 transition"
+                             hover:bg-slate-50 dark:hover:bg-white/5 transition dark:bg-[var(--card-bg)]"
                 >
                   <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
                     {order.symbol}

@@ -8,6 +8,7 @@ import { titleCase } from "../../utils/schemeName";
 import { allowedDays, FALLBACK_SIP_DAYS, iso, nextOccurrence, ordinal, smartDefaultDay } from "../../utils/sipDates";
 import OrderDisclaimers, { useDisclaimers } from "../../components/mutual_fund/OrderDisclaimers";
 import EnachAuthorization from "../../components/mutual_fund/EnachAuthorization";
+import { useEffectiveMinimum } from "../../hooks/usePlatformSettings";
 
 // The ceiling the server enforces (MANDATE_MAX_LIMIT). Shown, not chosen: the screen must
 // display the same number the backend will accept, or the investor authorises one thing and
@@ -76,7 +77,10 @@ const SIPSetupPage = () => {
 
   const sipTxn = details?.transactions?.sip || null;
   // BSE's real minimum for this scheme. No 500 floor invented when nobody published one.
-  const minSip = Number(sipTxn?.minAmount) || Number(details?.minSip) || Number(fund.minSip) || 0;
+  // QA 13.7 — the admin's min_sip_amount saved but reached nothing here. Effective minimum is
+  // the higher of the scheme's own (BSE will reject below it) and the platform's own rule.
+  const schemeMinSip = Number(sipTxn?.minAmount) || Number(details?.minSip) || Number(fund.minSip) || 0;
+  const minSip = useEffectiveMinimum("min_sip_amount", schemeMinSip);
   // /scheme-details resolves today's NAV (BSE, then AMFI, then the master row); the list
   // row's `nav` can be a day behind it.
   const currentNav = details?.current_nav ?? fund.nav ?? null;

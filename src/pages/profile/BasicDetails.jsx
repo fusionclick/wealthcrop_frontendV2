@@ -416,8 +416,7 @@ const isKycDone = isKycVerified(userData?.kyc?.kyc_status)
         className="
           p-2 rounded-full transition
           hover:bg-gray-100
-          dark:hover:bg-[var(--white-5)]
-        "
+          dark:hover:bg-[var(--white-5)] dark:bg-white/5"
       >
         <FaArrowLeftLong
           onClick={handleBack}

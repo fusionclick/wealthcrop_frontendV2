@@ -23,7 +23,7 @@ export default function TaxPlanningLearning() {
         {/* HERO */}
         <div className="bg-gradient-to-r from-blue-50 to-white rounded-3xl p-10 shadow-lg border border-blue-200 mb-12 flex flex-col md:flex-row items-center gap-8">
           <div className="flex-1">
-            <h1 className="text-4xl md:text-5xl font-extrabold text-blue-900 mb-4">
+            <h1 className="text-4xl md:text-5xl font-extrabold text-blue-900 mb-4 dark:text-[var(--text-primary)]">
               Tax Planning & Smart Investing
             </h1>
             <p className="text-blue-800 text-lg mb-6">
@@ -57,7 +57,7 @@ export default function TaxPlanningLearning() {
 
         {/* SECTION – Basics */}
         <section className="mb-12">
-          <h2 className="text-3xl font-bold text-blue-900 mb-4">Tax Basics for Investors</h2>
+          <h2 className="text-3xl font-bold text-blue-900 mb-4 dark:text-[var(--text-primary)]">Tax Basics for Investors</h2>
           <p className="text-gray-700 dark:text-[var(--text-secondary)] leading-relaxed mb-4">
             Understand what portions of your investments are taxable and how holding periods impact tax rates.
           </p>
@@ -90,7 +90,7 @@ export default function TaxPlanningLearning() {
 
         {/* SECTION – Strategies */}
         <section className="mb-12 bg-white dark:bg-[var(--card-bg)] p-6 rounded-2xl border border-blue-100 shadow-sm">
-          <h2 className="text-3xl font-bold text-blue-900 mb-4">
+          <h2 className="text-3xl font-bold text-blue-900 mb-4 dark:text-[var(--text-primary)]">
             Tax Efficient Investing Strategies
           </h2>
 
@@ -123,7 +123,7 @@ export default function TaxPlanningLearning() {
 
         {/* TOOLS */}
         <section className="mb-12">
-          <h3 className="text-2xl font-bold text-blue-900 mb-4">Tools & Calculators</h3>
+          <h3 className="text-2xl font-bold text-blue-900 mb-4 dark:text-[var(--text-primary)]">Tools & Calculators</h3>
 
           <div className="grid md:grid-cols-3 gap-6">
             <div className="p-4 bg-white dark:bg-[var(--card-bg)] border border-blue-100 rounded-xl shadow-sm text-center cursor-pointer">
@@ -172,7 +172,7 @@ export default function TaxPlanningLearning() {
 
         {/* FAQ */}
         <section className="mb-20">
-          <h3 className="text-2xl font-bold text-blue-900 mb-4">Frequently Asked Questions</h3>
+          <h3 className="text-2xl font-bold text-blue-900 mb-4 dark:text-[var(--text-primary)]">Frequently Asked Questions</h3>
 
           <div className="space-y-3">
             {faqs.map((f, i) => (

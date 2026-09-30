@@ -134,7 +134,7 @@ const RentCalculator = () => {
 
             {result ? (
               <>
-                <div className="bg-white/20 rounded-xl p-4 shadow-lg backdrop-blur-sm mb-3">
+                <div className="bg-white/20 rounded-xl p-4 shadow-lg backdrop-blur-sm mb-3 dark:bg-[var(--card-bg)]">
                   <p className="text-xs uppercase tracking-wide opacity-80 mb-2">Agar Khareedein</p>
                   <Row label="Down payment" value={money(result.down)} />
                   <Row label="Monthly EMI" value={money(result.emi)} />
@@ -145,7 +145,7 @@ const RentCalculator = () => {
                   </div>
                 </div>
 
-                <div className="bg-white/20 rounded-xl p-4 shadow-lg backdrop-blur-sm mb-3">
+                <div className="bg-white/20 rounded-xl p-4 shadow-lg backdrop-blur-sm mb-3 dark:bg-[var(--card-bg)]">
                   <p className="text-xs uppercase tracking-wide opacity-80 mb-2">Agar Kiraye Par Rahein</p>
                   <Row label="Shuru ka kiraya" value={`${money(rent)}/mo`} />
                   <Row label="Aakhri saal ka kiraya" value={`${money(result.lastRent)}/mo`} />

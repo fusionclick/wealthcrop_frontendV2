@@ -12,6 +12,7 @@ import HoldingSheet from "../../components/mutual_fund/HoldingSheet";
 import PortfolioBar from "../../components/mutual_fund/PortfolioBar";
 import usePortfolios, { holdingKey } from "../../hooks/usePortfolios";
 import { History, Split } from "lucide-react";
+import { useActiveSipCount } from "../../hooks/useActiveSipCount";
 
 const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#6366f1"];
 const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
@@ -72,7 +73,11 @@ const DashBoardMF = () => {
   // worth today. null when the orders cannot produce a rate — a brand new account, or one
   // whose history BSE did not return — and the tile says so rather than printing a 0.
   const xirr = useMemo(() => portfolioXirr(orders || [], currentValue), [orders, currentValue]);
-  const activeSipCount = funds.filter((f) => f.sip_status === "ACTIVE").length;
+  // QA — "SIP active hai phir bhi dashboard par show ni ho rahi". This counted holdings with a
+  // `sip_status` of ACTIVE, but a SIP registration is neither a holding nor an order: it lives in
+  // BSE's sxp list. Nothing ever set `sip_status` on a holding, so the tile could only read 0.
+  // Counted from the same getAllXsp source Manage SIPs uses, so the two cannot disagree.
+  const { activeSipCount } = useActiveSipCount(ucc);
 
   const allocation = useMemo(() => {
     const map = {};
@@ -230,7 +235,7 @@ const DashBoardMF = () => {
               </div>
               <div>
                 <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">Active SIPs</p>
-                <p className="text-sm font-semibold mt-0.5">{activeSipCount}</p>
+                <p className="text-sm font-semibold mt-0.5">{activeSipCount ?? "—"}</p>
               </div>
               <div>
                 <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">XIRR</p>

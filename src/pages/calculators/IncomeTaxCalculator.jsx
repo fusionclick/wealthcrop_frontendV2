@@ -152,7 +152,7 @@ const IncomeTaxCalculator = () => {
 
             {result ? (
               <>
-                <div className="bg-white/20 rounded-xl p-4 shadow-lg backdrop-blur-sm mb-3">
+                <div className="bg-white/20 rounded-xl p-4 shadow-lg backdrop-blur-sm mb-3 dark:bg-[var(--card-bg)]">
                   <p className="text-xs uppercase tracking-wide opacity-80 mb-2">New Regime</p>
                   <Row label="Standard deduction" value={money(result.new.std)} />
                   <Row label="Taxable income" value={money(result.new.taxable)} />
@@ -165,7 +165,7 @@ const IncomeTaxCalculator = () => {
                   </div>
                 </div>
 
-                <div className="bg-white/20 rounded-xl p-4 shadow-lg backdrop-blur-sm mb-3">
+                <div className="bg-white/20 rounded-xl p-4 shadow-lg backdrop-blur-sm mb-3 dark:bg-[var(--card-bg)]">
                   <p className="text-xs uppercase tracking-wide opacity-80 mb-2">Old Regime</p>
                   <Row label="Standard deduction" value={money(result.old.std)} />
                   <Row label="Deductions claimed" value={money(deductions)} />

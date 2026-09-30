@@ -203,7 +203,7 @@ const IpoDashboardPage = () => {
               <tr
                 key={ipo.id}
                 className="border-t border-slate-100 dark:border-white/10
-                hover:bg-slate-50 dark:hover:bg-white/10 transition"
+                hover:bg-slate-50 dark:hover:bg-white/10 transition dark:bg-[var(--card-bg)]"
               >
                 {/* Company */}
                 <td className="px-4 py-3">

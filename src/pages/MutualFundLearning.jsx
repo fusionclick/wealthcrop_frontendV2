@@ -14,7 +14,7 @@ export default function MutualFundLearning() {
         <div className="bg-white dark:bg-[var(--card-bg)] rounded-3xl p-10 shadow-xl border border-blue-200 flex flex-col md:flex-row items-center gap-10">
           
           <div className="flex-1">
-            <h1 className="text-4xl font-extrabold text-blue-900 mb-3">
+            <h1 className="text-4xl font-extrabold text-blue-900 mb-3 dark:text-[var(--text-primary)]">
               Mutual Funds – Complete Learning
             </h1>
             <p className="text-gray-700 dark:text-[var(--text-secondary)] text-lg mb-5">
@@ -32,7 +32,7 @@ export default function MutualFundLearning() {
 
       {/* Section 1 – What are Mutual Funds */}
       <div className="max-w-5xl mx-auto px-6 mb-16">
-        <h2 className="text-3xl font-bold text-blue-900 mb-4">What are Mutual Funds?</h2>
+        <h2 className="text-3xl font-bold text-blue-900 mb-4 dark:text-[var(--text-primary)]">What are Mutual Funds?</h2>
         <p className="text-gray-700 dark:text-[var(--text-secondary)] mb-6 leading-relaxed">
           Mutual funds collect money from investors and invest in stocks, bonds, or other assets.  
           They are managed by experienced fund managers.  
@@ -63,7 +63,7 @@ export default function MutualFundLearning() {
 
       {/* Section 2 – Types */}
       <div className="max-w-6xl mx-auto px-6 mb-16">
-        <h2 className="text-3xl font-bold text-blue-900 mb-6">Types of Mutual Funds</h2>
+        <h2 className="text-3xl font-bold text-blue-900 mb-6 dark:text-[var(--text-primary)]">Types of Mutual Funds</h2>
 
         <div className="grid md:grid-cols-3 gap-10">
           {[
@@ -94,7 +94,7 @@ export default function MutualFundLearning() {
 
       {/* Section 3 – How to Select */}
       <div className="max-w-5xl mx-auto px-6 mb-20">
-        <h2 className="text-3xl font-bold text-blue-900 mb-6">How to Select the Right Mutual Fund?</h2>
+        <h2 className="text-3xl font-bold text-blue-900 mb-6 dark:text-[var(--text-primary)]">How to Select the Right Mutual Fund?</h2>
         
         <div className="space-y-4 text-gray-700 dark:text-[var(--text-secondary)] leading-relaxed">
           <p><b>1. Define your goal:</b> Retirement, education, wealth building, etc.</p>

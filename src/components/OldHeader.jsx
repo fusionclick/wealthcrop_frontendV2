@@ -354,7 +354,7 @@ const email = current?.email
       flex items-center justify-between px-4 py-3 
       border-b border-gray-100 dark:border-gray-700
       hover:bg-gray-50 dark:hover:bg-gray-800
-      transition"
+      transition dark:bg-white/5"
   >
     <div className="flex items-center gap-2">
       <IndianRupee size={18} className="text-gray-600 dark:text-gray-300" />
@@ -381,7 +381,7 @@ const email = current?.email
         flex items-center justify-between px-4 py-2 
         text-gray-800 dark:text-gray-200 
         hover:bg-gray-50 dark:hover:bg-gray-800
-        transition"
+        transition dark:bg-white/5"
     >
       <div className="flex items-center gap-3">
         <FileText size={18} className="dark:text-gray-300" />
@@ -396,7 +396,7 @@ const email = current?.email
         flex items-center justify-between px-4 py-2 
         text-gray-800 dark:text-gray-200 
         hover:bg-gray-50 dark:hover:bg-gray-800
-        transition"
+        transition dark:bg-white/5"
     >
       <div className="flex items-center gap-3">
         <Headphones size={18} className="dark:text-gray-300" />
@@ -418,7 +418,7 @@ const email = current?.email
           flex items-center justify-between px-4 py-2
           text-gray-800 dark:text-gray-200
           hover:bg-gray-50 dark:hover:bg-gray-800
-          transition"
+          transition dark:bg-white/5"
       >
         <div className="flex items-center gap-3">
           <Icon size={18} className="dark:text-gray-300" />

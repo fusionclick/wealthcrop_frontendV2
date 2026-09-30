@@ -1,8 +1,6 @@
 import { Outlet, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import { Ban } from "lucide-react";
-import { getApi } from "../api/api";
-import { laravelUrl } from "../utils/nodeApi";
+import { usePlatformSettings } from "../hooks/usePlatformSettings";
 
 /**
  * Admin ke Settings -> Trading Modules switch. Route par lagta hai, nav par nahi:
@@ -13,18 +11,6 @@ import { laravelUrl } from "../utils/nodeApi";
  * Settings na mile (network/500) to darwaza khula rehta hai: ek transient error par
  * poora section band kar dena us se bura hai jo ye rok raha hai.
  */
-function usePlatformSettings() {
-  return useQuery({
-    queryKey: ["platformSettings"],
-    // getApi returns the parsed body (not the axios response, unlike getApiWithToken),
-    // so the settings object is one `.data` deep, not two.
-    queryFn: () => getApi(laravelUrl("/platform-settings")),
-    select: (res) => res?.data ?? {},
-    staleTime: 5 * 60 * 1000,
-    retry: false,
-  });
-}
-
 export default function ModuleGate({ setting, label }) {
   const navigate = useNavigate();
   const { data, isLoading } = usePlatformSettings();

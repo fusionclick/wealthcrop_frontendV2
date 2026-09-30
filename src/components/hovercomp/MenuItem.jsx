@@ -11,8 +11,7 @@ export default function MenuItem({ icon: Icon, title, desc, onClick }) {
       onClick={onClick}
       className="
         flex gap-3 p-2 rounded-lg cursor-pointer transition
-        hover:bg-blue-50/70 dark:hover:bg-white/5
-      "
+        hover:bg-blue-50/70 dark:hover:bg-white/5 dark:bg-[var(--card-bg)]"
     >
       <Icon size={18} className="mt-1 text-blue-700 dark:text-blue-400" />
       <div>

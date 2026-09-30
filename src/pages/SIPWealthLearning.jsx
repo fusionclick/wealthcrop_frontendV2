@@ -23,7 +23,7 @@ export default function SIPWealthLearning() {
         {/* HERO */}
         <div className="bg-gradient-to-r from-blue-50 to-white rounded-3xl p-10 shadow-lg border border-blue-100 mb-12 flex flex-col md:flex-row items-center gap-8">
           <div className="flex-1">
-            <h1 className="text-4xl md:text-5xl font-extrabold text-blue-900 mb-4">SIP & Wealth Creation</h1>
+            <h1 className="text-4xl md:text-5xl font-extrabold text-blue-900 mb-4 dark:text-[var(--text-primary)]">SIP & Wealth Creation</h1>
             <p className="text-blue-800 text-lg mb-6 leading-relaxed">
               Build long-term wealth using SIPs — a disciplined, low-friction approach. Learn strategies, examples, and how to optimise SIPs for your goals.
             </p>
@@ -55,7 +55,7 @@ export default function SIPWealthLearning() {
 
         {/* WHY SIP */}
         <section className="mb-12">
-          <h2 className="text-3xl font-bold text-blue-900 mb-4">Why SIP works</h2>
+          <h2 className="text-3xl font-bold text-blue-900 mb-4 dark:text-[var(--text-primary)]">Why SIP works</h2>
           <div className="grid md:grid-cols-3 gap-6">
             <div className="p-6 bg-white dark:bg-[var(--card-bg)] rounded-2xl border border-blue-100 shadow-sm">
               <h3 className="font-semibold text-blue-800 mb-2">Rupee-Cost Averaging</h3>
@@ -74,7 +74,7 @@ export default function SIPWealthLearning() {
 
         {/* SIP CALCULATOR EXAMPLE (placeholder) */}
         <section className="mb-12 bg-white dark:bg-[var(--card-bg)] rounded-2xl border border-blue-100 p-6 shadow-sm">
-          <h3 className="text-2xl font-bold text-blue-900 mb-4">SIP Example & Calculator (Estimates)</h3>
+          <h3 className="text-2xl font-bold text-blue-900 mb-4 dark:text-[var(--text-primary)]">SIP Example & Calculator (Estimates)</h3>
           <div className="grid md:grid-cols-2 gap-6 items-center">
             <div>
               <p className="text-gray-700 dark:text-[var(--text-secondary)] mb-4">
@@ -109,7 +109,7 @@ export default function SIPWealthLearning() {
 
         {/* SIP STRATEGIES */}
         <section className="mb-12">
-          <h2 className="text-3xl font-bold text-blue-900 mb-4">Popular SIP Strategies</h2>
+          <h2 className="text-3xl font-bold text-blue-900 mb-4 dark:text-[var(--text-primary)]">Popular SIP Strategies</h2>
 
           <div className="grid md:grid-cols-3 gap-6">
             <div className="bg-white dark:bg-[var(--card-bg)] p-6 rounded-2xl border border-blue-100 shadow-sm">
@@ -131,7 +131,7 @@ export default function SIPWealthLearning() {
 
         {/* PORTFOLIO & ALLOCATION */}
         <section className="mb-12 bg-gradient-to-br from-white to-blue-50 p-6 rounded-2xl border border-blue-100">
-          <h2 className="text-3xl font-bold text-blue-900 mb-4">How to Allocate SIPs</h2>
+          <h2 className="text-3xl font-bold text-blue-900 mb-4 dark:text-[var(--text-primary)]">How to Allocate SIPs</h2>
 
           <div className="grid md:grid-cols-3 gap-6">
             <div className="p-4 bg-white dark:bg-[var(--card-bg)] rounded-xl shadow-sm">
@@ -152,7 +152,7 @@ export default function SIPWealthLearning() {
         {/* PROS & CONS */}
         <section className="mb-12 grid md:grid-cols-2 gap-6">
           <div className="p-6 bg-white dark:bg-[var(--card-bg)] rounded-2xl border border-blue-100 shadow-sm">
-            <h3 className="text-xl font-bold text-blue-900 mb-3">Pros of SIP</h3>
+            <h3 className="text-xl font-bold text-blue-900 mb-3 dark:text-[var(--text-primary)]">Pros of SIP</h3>
             <ul className="list-disc pl-5 text-gray-700 dark:text-[var(--text-secondary)] space-y-2">
               <li>Disciplined investing</li>
               <li>Rupee-cost averaging</li>
@@ -173,7 +173,7 @@ export default function SIPWealthLearning() {
 
         {/* ACTIONABLE TIPS */}
         <section className="mb-12">
-          <h3 className="text-2xl font-bold text-blue-900 mb-3">Actionable Tips</h3>
+          <h3 className="text-2xl font-bold text-blue-900 mb-3 dark:text-[var(--text-primary)]">Actionable Tips</h3>
           <ol className="list-decimal pl-6 text-gray-700 dark:text-[var(--text-secondary)] space-y-3">
             <li>Start early — time in market beats timing the market.</li>
             <li>Automate SIPs via your bank or platform.</li>

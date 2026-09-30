@@ -182,9 +182,16 @@ export default function Advisor() {
             investor with nothing saved yet saw no sign that reopening one was possible and
             reported it as missing. Shown always: the empty version says where past plans
             will appear, which is the difference between "not built" and "not yet used". */}
-        <details className="mb-4 rounded-xl border border-slate-200 dark:border-[var(--border-color)] px-3 py-2">
+        {/* QA 8.9 (re-report) — "can not see any button for reopen an old recommendation". The
+            list was here and worked, but it was a collapsed strip labelled "Past plans" whose
+            rows showed only a date, so nothing on screen used the word the tester was looking
+            for. Open by default once there IS something to reopen, and each row says so. */}
+        <details
+          open={history.length > 0}
+          className="mb-4 rounded-xl border border-slate-200 dark:border-[var(--border-color)] px-3 py-2"
+        >
           <summary className="text-xs font-semibold text-slate-600 dark:text-[#94a3b8] cursor-pointer">
-            Past plans ({history.length})
+            Reopen an earlier recommendation ({history.length})
           </summary>
           {history.length === 0 ? (
             <p className="mt-2 text-xs text-slate-500 dark:text-[var(--text-secondary)]">
@@ -205,6 +212,10 @@ export default function Advisor() {
                     <span className="text-slate-700 dark:text-[var(--text-primary)]">{planDate(h.created_at)}</span>
                     <span className="text-slate-400">
                       {h.risk} · equity {h.allocation?.equity}%
+                    </span>
+                    {/* The row was always clickable; nothing said so. */}
+                    <span className="ml-auto shrink-0 font-semibold text-blue-600">
+                      {viewing?.id === h.id ? "Showing" : "Reopen"}
                     </span>
                   </button>
                 </li>

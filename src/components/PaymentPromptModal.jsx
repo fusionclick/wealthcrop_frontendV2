@@ -59,8 +59,7 @@ export default function PaymentPromptModal({
             className="
               p-2 rounded-full
               hover:bg-gray-100
-              dark:hover:bg-[var(--gray-800)]
-            "
+              dark:hover:bg-[var(--gray-800)] dark:bg-white/5"
           >
             <X className="w-5 h-5 dark:text-[var(--text-primary)]" />
           </button>
@@ -151,8 +150,7 @@ export default function PaymentPromptModal({
 
                 dark:border-[var(--border-color)]
                 dark:text-[var(--text-primary)]
-                dark:hover:bg-[var(--gray-800)]
-              "
+                dark:hover:bg-[var(--gray-800)] dark:bg-white/5"
             >
               {linkLoading ? <Loader /> : "Skip for Now"}
             </button>

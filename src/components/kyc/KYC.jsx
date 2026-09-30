@@ -1609,8 +1609,7 @@ function BankStep({ data, onChange, errors = {}, customBank, setCustomBank, setK
           border border-gray-300
           bg-white text-sm
           outline-none
-          focus:ring-1 focus:ring-blue-800
-        "
+          focus:ring-1 focus:ring-blue-800 dark:bg-[var(--card-bg)]"
       />
     </div>
   )

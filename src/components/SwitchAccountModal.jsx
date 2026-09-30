@@ -84,7 +84,7 @@ export default function SwitchAccountModal({ account, onCancel, onConfirmed }) {
           >
             {busy ? "Checking…" : "Switch account"}
           </button>
-          <button type="button" onClick={onCancel} className="px-4 text-sm text-slate-500 hover:text-slate-700">
+          <button type="button" onClick={onCancel} className="px-4 text-sm text-slate-500 hover:text-slate-700 dark:text-[var(--text-primary)]">
             Cancel
           </button>
         </div>

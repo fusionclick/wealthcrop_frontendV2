@@ -274,7 +274,7 @@ const email = current?.email
             onClick={handleSetting}
             className="flex items-start justify-between px-4 py-3
                        border-b border-gray-100 dark:border-slate-700
-                       hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer"
+                       hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer dark:bg-white/5"
           >
             <div>
               <h3 className="font-semibold text-gray-900 dark:text-gray-100">
@@ -376,7 +376,7 @@ const email = current?.email
                 to={item.to}
                 className="flex items-center gap-3 px-4 py-2
                            text-gray-800 dark:text-gray-200
-                           hover:bg-gray-50 dark:hover:bg-slate-800"
+                           hover:bg-gray-50 dark:hover:bg-slate-800 dark:bg-white/5"
               >
                 {item.icon}
                 <span>{item.label}</span>
@@ -393,7 +393,7 @@ const email = current?.email
                   to={to}
                   className="flex items-center gap-3 px-4 py-2
                              text-gray-800 dark:text-gray-200
-                             hover:bg-gray-50 dark:hover:bg-slate-800"
+                             hover:bg-gray-50 dark:hover:bg-slate-800 dark:bg-white/5"
                 >
                   <Icon size={18} />
                   <span>{label}</span>

@@ -224,7 +224,7 @@ const LTCGCalculator = () => {
         <h3 className="text-xl font-bold mb-4">📈 Capital Gain Summary</h3>
 
         {result ? (
-          <div className="bg-white/20 rounded-xl p-4 shadow-lg backdrop-blur-sm">
+          <div className="bg-white/20 rounded-xl p-4 shadow-lg backdrop-blur-sm dark:bg-[var(--card-bg)]">
             <p className="text-lg">
               <strong>Gain:</strong> ₹{inr(result.gain)}
             </p>

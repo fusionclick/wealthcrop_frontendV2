@@ -158,8 +158,7 @@ const Stocks = () => {
                 hover:bg-gray-50
 
                 dark:border-[var(--border-color)]
-                dark:hover:bg-[var(--white-5)]
-              "
+                dark:hover:bg-[var(--white-5)] dark:bg-white/5"
             >
               <td
                 className="

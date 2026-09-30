@@ -68,11 +68,20 @@ test("the four pages that crashed now reach the payload", () => {
 });
 
 test("getApi consumers are left alone — they are already at the body", () => {
-  // ModuleGate is the counter-example that proves the rule, and its own comment says so.
-  // "Fixing" it to res.data.data would break the platform-settings gate.
+  // The platform-settings fetch is the counter-example that proves the rule, and its own comment
+  // says so. "Fixing" it to res.data.data would break the module gate AND the admin's minimum
+  // lumpsum/SIP amounts, which now read the same hook.
+  //
+  // It used to live inside ModuleGate; it moved to hooks/usePlatformSettings.js when the invest
+  // forms needed it too. The assertion follows the code, not the filename it started in.
+  const hook = readFileSync("src/hooks/usePlatformSettings.js", "utf8");
+  assert.match(hook, /queryFn: \(\) => getApi\(/);
+  assert.match(hook, /select: \(res\) => res\?\.data \?\? \{\}/);
+
+  // And ModuleGate must consume it rather than keeping a second copy that can drift.
   const gate = readFileSync("src/components/ModuleGate.jsx", "utf8");
-  assert.match(gate, /queryFn: \(\) => getApi\(/);
-  assert.match(gate, /select: \(res\) => res\?\.data \?\? \{\}/);
+  assert.match(gate, /usePlatformSettings/);
+  assert.doesNotMatch(gate, /queryKey: \["platformSettings"\]/);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────

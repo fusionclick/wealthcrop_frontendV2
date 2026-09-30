@@ -92,7 +92,7 @@ const StockList = () => {
 
   return (
     <div className="min-h-screen bg-[var(--app-bg)]">
-      <div className="max-w-6xl mx-auto px-4 py-6 text-blue-900">
+      <div className="max-w-6xl mx-auto px-4 py-6 text-blue-900 dark:text-[var(--text-primary)]">
         <div className="mb-6">
           <h1 className="text-xl font-semibold text-blue-900 dark:text-[var(--text-primary)]">
             {title}
@@ -169,7 +169,7 @@ const StockList = () => {
                           to={`/stocks/${item.symbol}`}
                           className="p-1 rounded-lg border border-gray-300 hover:bg-blue-100 dark:border-[var(--border-color)]"
                         >
-                          <CandlestickChart className="text-blue-900" size={20} />
+                          <CandlestickChart className="text-blue-900 dark:text-[var(--text-primary)]" size={20} />
                         </NavLink>
                       </div>
                     )}

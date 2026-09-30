@@ -168,8 +168,7 @@ export default function SearchPopup({ onClose }) {
           className="
             p-2 rounded-full
             hover:bg-gray-100
-            dark:hover:bg-[var(--gray-800)]
-          "
+            dark:hover:bg-[var(--gray-800)] dark:bg-white/5"
         >
           <ArrowLeft className="w-5 h-5 text-gray-700 dark:text-[var(--text-primary)]" />
         </button>
@@ -296,8 +295,7 @@ export default function SearchPopup({ onClose }) {
                 hover:bg-gray-50 text-gray-700
 
                 dark:border-[var(--border-color)]
-                dark:hover:bg-[var(--gray-800)]
-              "
+                dark:hover:bg-[var(--gray-800)] dark:text-[var(--text-primary)] dark:bg-white/5"
             >
               <div>
                 <div className=" text-sm dark:text-[var(--text-primary)]">
@@ -320,8 +318,7 @@ export default function SearchPopup({ onClose }) {
                   p-2 rounded-full
                   hover:bg-gray-100
 
-                  dark:hover:bg-[var(--gray-700)]
-                "
+                  dark:hover:bg-[var(--gray-700)] dark:bg-white/5"
               >
                 <Bookmark
                   className={
@@ -403,8 +400,7 @@ export default function SearchPopup({ onClose }) {
                     flex items-center gap-2
                     text-sm text-gray-700
 
-                    hover:text-green-600
-                  "
+                    hover:text-green-600 dark:text-[var(--text-primary)]"
                 >
                   <Search className="w-4 h-4" />
                   {item}

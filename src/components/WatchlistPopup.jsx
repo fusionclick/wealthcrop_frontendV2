@@ -56,7 +56,7 @@ const WatchlistPopup = ({ onClose }) => {
               key={item.id}
               onClick={() => handleSelectWatchlist(item)}
               className="flex justify-between items-center p-3 rounded-lg cursor-pointer
-              hover:bg-gray-100 dark:hover:bg-white/5 transition"
+              hover:bg-gray-100 dark:hover:bg-white/5 transition dark:bg-[var(--card-bg)]"
             >
               <div className="flex items-center gap-4">
 
@@ -92,7 +92,7 @@ const WatchlistPopup = ({ onClose }) => {
             onClick={handleCreateNew}
             className="flex items-center justify-between p-3 rounded-lg cursor-pointer
             border border-dashed border-gray-300 dark:border-white/20
-            hover:bg-gray-100 dark:hover:bg-white/5 transition"
+            hover:bg-gray-100 dark:hover:bg-white/5 transition dark:bg-[var(--card-bg)]"
           >
             <div className="flex items-center gap-4">
               <div className="h-12 w-12 flex items-center justify-center rounded-md 

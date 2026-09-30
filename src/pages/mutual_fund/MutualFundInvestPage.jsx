@@ -7,6 +7,7 @@ import InvestLoader from "../../components/InvestLoader";
 import PaymentPromptModal from "../../components/PaymentPromptModal";
 import { apiErrorMessage, nodeUrl, laravelUrl, orderErrorMessage, orderRefId, validateInvestorReady } from "../../utils/nodeApi";
 import OrderDisclaimers, { useDisclaimers } from "../../components/mutual_fund/OrderDisclaimers";
+import { useEffectiveMinimum } from "../../hooks/usePlatformSettings";
 
 const MutualFundInvestPage = ({ fundsList: fundsProp, setBuyModal }) => {
   const { isin, code } = useParams();
@@ -40,7 +41,12 @@ const MutualFundInvestPage = ({ fundsList: fundsProp, setBuyModal }) => {
   const schemeCode = fundsList?.scheme_bse_code || code;
   const name = fundsList?.name || "Mutual Fund";
   const nav = Number(fundsList?.nav || 0);
-  const minLumpsum = Number(fundsList?.minLumpsum || 1000);
+  // QA 13.7 — "changing of lumpsum is not working". Admin -> Settings saved
+  // min_lumpsum_amount correctly, but this form only ever read the scheme's own minimum (with an
+  // invented 1000 fallback), so the platform floor reached nothing. The effective minimum is the
+  // higher of the two: BSE rejects anything under the scheme's, and the platform's is the
+  // distributor's own rule. The 1000 fallback stays for a scheme that publishes neither.
+  const minLumpsum = useEffectiveMinimum("min_lumpsum_amount", fundsList?.minLumpsum) || 1000;
   const estimatedUnits = useMemo(() => (amount && nav > 0 ? amount / nav : 0), [amount, nav]);
   // BSE batata hai ke scheme demat mein rakhi ja sakti hai ya sirf physical mein. UCC
   // demat par bana hai, to physical-only scheme ka form bharwana bekaar hai — order

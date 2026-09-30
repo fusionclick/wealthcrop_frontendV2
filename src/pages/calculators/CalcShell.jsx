@@ -45,7 +45,7 @@ export default function CalcShell({ title, blurb, fields, values, onChange, resu
 
           <div className="p-8 bg-linear-to-br from-blue-600 to-indigo-600 dark:from-gray-800 dark:to-gray-800 text-white flex flex-col justify-center">
             <h3 className="text-xl font-bold mb-4">Result</h3>
-            <dl className="bg-white/20 rounded-xl p-4 shadow-lg backdrop-blur-md space-y-2">
+            <dl className="bg-white/20 rounded-xl p-4 shadow-lg backdrop-blur-md space-y-2 dark:bg-[var(--card-bg)]">
               {results.map((r) => (
                 <div key={r.label} className="flex justify-between gap-3">
                   <dt>{r.label}</dt>

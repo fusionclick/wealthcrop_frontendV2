@@ -228,7 +228,7 @@ export default function Goals() {
                 {busy ? "Saving…" : editingId ? "Update goal" : "Save goal"}
               </button>
               {editingId && (
-                <button type="button" onClick={closeForm} className="text-xs font-semibold text-slate-500 hover:text-slate-700 px-3 py-2">
+                <button type="button" onClick={closeForm} className="text-xs font-semibold text-slate-500 hover:text-slate-700 px-3 py-2 dark:text-[var(--text-primary)]">
                   Cancel
                 </button>
               )}
