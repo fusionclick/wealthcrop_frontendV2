@@ -54,21 +54,27 @@ export default function CoursePage() {
   const done = (progress.completed_modules || []).includes(index);
   const finished = Boolean(progress.completed_at);
 
-  // `postApiWithToken` returns the AXIOS RESPONSE, so the Laravel body is `res.data` and the
-  // progress payload it wraps is `res.data.data`. Both handlers below were a level short:
-  // progress was being set to the whole {status, data} envelope, and the quiz result to the
-  // axios response itself — which is why the score line rendered "undefined / undefined
-  // correct" and a newly earned badge never announced itself.
-  const bodyOf = (res) => res?.data;
+  // QA 12.2 / 12.4 — "Mark as read ne progress bar update nahi kia", "Check answer batata hi
+  // nahi ke jawab sahi hai ya ghalat", "magar /learning-centre par module complete dikh raha".
+  //
+  // That last line is the tell: the SERVER recorded everything, only the screen never moved.
+  // postApiWithToken returns the BODY already unwrapped (api.js:77 `return res?.data`) — it is
+  // get/delete that hand back the axios response. A previous pass assumed otherwise and added an
+  // extra unwrapping step here, which reached one level PAST the body into the progress payload.
+  // That object has no `.status`, so the `if` never opened: no setProgress, no setResult, no badge
+  // toast. `res` IS the body.
+  //
+  // (load() above uses getApiWithToken, which really does return the response — that is why it
+  // correctly reads res.data.data / res.data.progress. The two helpers are opposite; do not
+  // "make them consistent".)
 
   const markRead = async () => {
     setBusy(true);
     const res = await postApiWithToken(api(`/learning/courses/${slug}/complete`), { module: index });
     setBusy(false);
-    const body = bodyOf(res);
-    if (body?.status) {
-      setProgress(body.data);
-      if (body.data?.badge) toastSuccess(`Badge earned: ${body.data.badge}`);
+    if (res?.status) {
+      setProgress(res.data);
+      if (res.data?.badge) toastSuccess(`Badge earned: ${res.data.badge}`);
       if (index < modules.length - 1) setIndex(index + 1);
     }
   };
@@ -80,12 +86,11 @@ export default function CoursePage() {
       answers: (module.questions || []).map((_, i) => (answers[i] ?? -1)),
     });
     setBusy(false);
-    const body = bodyOf(res);
-    if (body?.status) {
+    if (res?.status) {
       // score / total / feedback sit on the body beside `data`, not inside it.
-      setResult(body);
-      setProgress(body.data);
-      if (body.data?.badge) toastSuccess(`Badge earned: ${body.data.badge}`);
+      setResult(res);
+      setProgress(res.data);
+      if (res.data?.badge) toastSuccess(`Badge earned: ${res.data.badge}`);
     }
   };
 
@@ -215,8 +220,17 @@ export default function CoursePage() {
                   <p className="text-sm font-semibold text-slate-900 dark:text-white">
                     {result.score} / {result.total} correct
                   </p>
-                  <button onClick={() => setResult(null)} className="text-xs font-semibold text-blue-600 hover:underline">
-                    Try again
+                  {/* QA 12.7 — "no way to retake". This button was always here; it only renders
+                      once `result` is set, and the envelope bug above meant result was never set,
+                      so the quiz stayed stuck on "Check answers". Clearing the picks too gives a
+                      genuinely fresh attempt; the server re-grades and records the new score, and
+                      closeIfFinished already returns early once completed_at is set, so retaking
+                      cannot award the badge twice. */}
+                  <button
+                    onClick={() => { setResult(null); setAnswers({}); }}
+                    className="text-xs font-semibold text-blue-600 hover:underline"
+                  >
+                    Retake quiz
                   </button>
                 </div>
               ) : (

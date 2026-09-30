@@ -20,9 +20,11 @@ export default function ShareButtons({ text, url, className = "" }) {
     ["LinkedIn", `https://www.linkedin.com/sharing/share-offsite/?url=${encoded}`],
   ];
 
+  const payload = `${text ? text + " " : ""}${shareUrl}`;
+
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(`${text ? text + " " : ""}${shareUrl}`);
+      await navigator.clipboard.writeText(payload);
       toastSuccess("Link copied");
     } catch {
       // Clipboard access is blocked on insecure origins and in some in-app browsers.
@@ -30,11 +32,32 @@ export default function ShareButtons({ text, url, className = "" }) {
     }
   };
 
+  /**
+   * QA 12.6 — "copy link working, share link not".
+   *
+   * "Share" was a <span>: it sat next to Copy, looked exactly like the other chips, and did
+   * nothing at all when clicked. It is now the native share sheet where the browser has one
+   * (every mobile browser, and Edge/Safari on desktop), and falls back to copying where it does
+   * not, so the control always does something. The four platform links are unchanged.
+   */
+  const share = async () => {
+    if (!navigator.share) return copy();
+    try {
+      await navigator.share({ title: "WealthCrop", text: text || "", url: shareUrl });
+    } catch {
+      // AbortError just means the user dismissed the sheet — not a failure worth a toast.
+    }
+  };
+
   return (
     <div className={`flex flex-wrap items-center gap-2 ${className}`}>
-      <span className="text-[11px] text-slate-400 flex items-center gap-1">
+      <button
+        type="button"
+        onClick={share}
+        className="text-[11px] font-semibold px-2 py-1 rounded-md bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-white/10 dark:text-[#94a3b8] inline-flex items-center gap-1"
+      >
         <Share2 size={12} /> Share
-      </span>
+      </button>
 
       {links.map(([label, href]) => (
         <a
