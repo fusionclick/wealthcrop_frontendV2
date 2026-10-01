@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { toastSuccess, toastError } from "../utils/notifyCustom";
 import { postApi } from "../api/api";
 import { motion } from "framer-motion";
@@ -65,7 +65,11 @@ function ResetPassword() {
         setError("");
         toastSuccess(res?.message || "Password reset successful");
 
-        navigate("/login");
+        // QA 1.4 — replace(), not push(). The reset link is single-use, so Back must not put
+        // the investor on a form whose token the server has already consumed: pressing Reset
+        // again there answers "invalid or has expired", which reads as the reset having
+        // failed. Same reason api.js uses location.replace when a session ends.
+        navigate("/login", { replace: true });
       } else {
         // Yahan fallback text "Password reset successful" tha — yaani nakami par surkh
         // error toast mein likha aata tha ke password reset ho gaya. Screenshot mein
@@ -171,6 +175,16 @@ function ResetPassword() {
           Reset Password
         </button>
         </form>
+
+        {/* QA 1.4 — this screen is opened from an email link, so it had no way out at all:
+            the only exit was holding the browser's Back button down until it reached /login.
+            Every other auth screen carries this link. */}
+        <Link
+          to="/login"
+          className="mt-5 block w-full text-center text-sm text-blue-800 dark:text-blue-400 hover:text-blue-950 dark:hover:text-blue-300 font-medium"
+        >
+          ← Back to login
+        </Link>
       </div>
     </motion.div>
   );

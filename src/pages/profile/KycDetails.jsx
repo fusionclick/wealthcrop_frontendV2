@@ -3,6 +3,7 @@ import { ShieldCheck } from "lucide-react";
 import { FiEdit2 } from "react-icons/fi";
 import { getApiWithToken, postApiWithToken } from "../../api/api";
 import { toastError, toastSuccess } from "../../utils/notifyCustom";
+import { validateField } from "../../utils/profileFields";
 
 /**
  * SRS §3 — PAN, city and occupation after KYC is done.
@@ -27,7 +28,13 @@ export default function KycDetails({ userData, refetch }) {
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState(null);
+  const [serverLocked, setServerLocked] = useState(false);
   const [form, setForm] = useState({ pan_number: "", city: "", occupation: "" });
+
+  // An approved PAN change clears `pan_verified` on purpose (consent is not verification),
+  // but the PAN stays locked — so the warning has to come from the server's own verdict,
+  // not from the flag.
+  const panLocked = panVerified || serverLocked;
 
   useEffect(() => {
     setForm({
@@ -48,6 +55,7 @@ export default function KycDetails({ userData, refetch }) {
       .then((res) => {
         const row = res?.data?.data;
         setPending(row?.state === "pending" ? row : null);
+        setServerLocked(Boolean(res?.data?.pan_locked));
       })
       .catch(() => {});
 
@@ -60,13 +68,27 @@ export default function KycDetails({ userData, refetch }) {
     if (pan && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(pan)) {
       return toastError("PAN must look like ABCDE1234F.");
     }
+    // QA 2.5 — "Mumbai1" in City answered "Could not save." The server does say
+    // "City may only contain letters…", but `toastError` is a single slot keyed "app-error":
+    // the helper toasted the real 422 and the generic fallback below overwrote it a tick
+    // later. Checked here with the same table /profile/basic already uses, so the investor
+    // is told which field is wrong before a request is made at all. A blank field is not an
+    // error — these three are optional, and the server treats "" as "leave it alone".
+    for (const name of ["city", "occupation"]) {
+      const problem = form[name].trim() && validateField(name, form[name]);
+      if (problem) return toastError(problem);
+    }
     setBusy(true);
     try {
-      const res = await postApiWithToken(api("/kyc/profile"), {
+      // `silent` + `throwOnError`: without them the helper swallowed every 4xx, toasted the
+      // server's reason, returned null, and the `else` branch below replaced that reason with
+      // "Could not save." The catch was written for exactly this and could never run.
+      const payload = {
         pan_number: pan,
         city: form.city.trim(),
         occupation: form.occupation.trim(),
-      });
+      };
+      const res = await postApiWithToken(api("/kyc/profile"), payload, { silent: true, throwOnError: true });
       // QA 2.7 / 2.8 / 2.9 — the opposite of loadPending above. `postApiWithToken` returns
       // the Laravel BODY (api.js:77 `return res?.data`), NOT the axios response, so `status`,
       // `message` and `pan_change_pending` are all top-level on `res`. The previous code read
@@ -182,9 +204,9 @@ export default function KycDetails({ userData, refetch }) {
       {row("city", "City", "City")}
       {row("occupation", "Occupation", "Occupation")}
 
-      {panVerified && editing && (
+      {panLocked && editing && (
         <p className="text-[11px] text-amber-600">
-          Your PAN is verified. Changing it does not take effect immediately — it is sent to
+          Your PAN is on record. Changing it does not take effect immediately — it is sent to
           our team for approval. City and occupation save straight away.
         </p>
       )}

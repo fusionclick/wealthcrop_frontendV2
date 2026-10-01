@@ -58,6 +58,12 @@ export default function OldHeader() {
   const [calcOpen, setCalcOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [showAll, setShowAll] = useState(false)
+  // QA 4.6 — the account menu was hover-only CSS (`group-hover`), so the avatar button did
+  // nothing at all on click. With DevTools open the pointer has to leave the page to reach
+  // the panel, which closes the menu, and in device-emulation mode the browser dispatches
+  // touch events where :hover never applies — either way the menu was unreachable and the
+  // test could not be run. Hover still works; this just gives it a real click toggle.
+  const [acctOpen, setAcctOpen] = useState(false);
 
   const dispatch = useDispatch();
   const { token } = useSelector((state) => state.auth);
@@ -96,6 +102,7 @@ export default function OldHeader() {
   // ✅ Close mobile menu on route change
   useEffect(() => {
     setMenuOpen(false);
+    setAcctOpen(false);
   }, [location.pathname]);
 
   // ✅ Keep Redux in sync if localStorage token removed manually
@@ -259,8 +266,14 @@ const email = current?.email
             )}
           </Link>
 
-          <div className="relative group">
-            <button className="text-[var(--text-primary)] hover:text-[var(--accent)] transition cursor-pointer mt-1.5">
+          <div className="relative group" onMouseLeave={() => setAcctOpen(false)}>
+            <button
+              type="button"
+              onClick={() => setAcctOpen((open) => !open)}
+              aria-expanded={acctOpen}
+              aria-label="Account menu"
+              className="text-[var(--text-primary)] hover:text-[var(--accent)] transition cursor-pointer mt-1.5"
+            >
               <User className="text-3xl" />
             </button>
 
@@ -268,15 +281,16 @@ const email = current?.email
             
                   {/* Dropdown */}
                  <div
-  className="
+  className={`
     absolute -right-2.5 top-full mt-1 w-80
     max-h-[calc(100vh-6rem)] flex flex-col overflow-hidden
     bg-white dark:bg-gray-800
     text-gray-900 dark:text-gray-200
     rounded-xl shadow-xl
     border border-gray-100 dark:border-gray-700
-    opacity-0 invisible group-hover:opacity-100 group-hover:visible group-hover:translate-y-1
-    transition-all duration-300 ease-out z-50"
+    ${acctOpen ? "opacity-100 visible translate-y-1" : "opacity-0 invisible"}
+    group-hover:opacity-100 group-hover:visible group-hover:translate-y-1
+    transition-all duration-300 ease-out z-50`}
 >
   {/* Header */}
   <div
