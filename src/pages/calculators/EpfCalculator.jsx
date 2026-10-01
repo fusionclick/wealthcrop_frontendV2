@@ -13,11 +13,11 @@ const EpfCalculator = () => {
       values={v}
       onChange={set}
       fields={[
-        { key: "basic", label: "Monthly Basic Salary (₹)", placeholder: "50000" },
-        { key: "employeePct", label: "Your Contribution (%)", hint: "Statutory rate is 12%" },
-        { key: "employerPct", label: "Employer Contribution (%)", hint: "Statutory rate is 12%" },
-        { key: "years", label: "Years of Contribution", placeholder: "10" },
-        { key: "rate", label: "Interest Rate (% p.a.)", hint: "EPFO declares this yearly — currently 8.25%" },
+        { key: "basic", label: "Monthly Basic Salary (₹)", placeholder: "50000", max: 1e8 },
+        { key: "employeePct", label: "Your Contribution (%)", hint: "Statutory rate is 12%", max: 100 },
+        { key: "employerPct", label: "Employer Contribution (%)", hint: "Statutory rate is 12%", max: 100 },
+        { key: "years", label: "Years of Contribution", placeholder: "10", max: 60 },
+        { key: "rate", label: "Interest Rate (% p.a.)", hint: "EPFO declares this yearly — currently 8.25%", max: 50 },
       ]}
       results={[
         { label: "Your total contribution", value: r.employee },

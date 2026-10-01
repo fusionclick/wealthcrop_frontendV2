@@ -13,11 +13,11 @@ const GoalBasedCalculator = () => {
       values={v}
       onChange={set}
       fields={[
-        { key: "goal", label: "Goal Amount (₹)", placeholder: "1000000" },
-        { key: "years", label: "Years to Achieve It", placeholder: "10" },
-        { key: "cagr", label: "Expected Annual Return (%)", placeholder: "12" },
-        { key: "current", label: "Current Savings Toward This Goal (₹)", placeholder: "0" },
-        { key: "inflation", label: "Inflation (%)", hint: "Leave at 0 to treat the goal as a today's-rupees figure" },
+        { key: "goal", label: "Goal Amount (₹)", placeholder: "1000000", max: 1e10 },
+        { key: "years", label: "Years to Achieve It", placeholder: "10", max: 60 },
+        { key: "cagr", label: "Expected Annual Return (%)", placeholder: "12", max: 50 },
+        { key: "current", label: "Current Savings Toward This Goal (₹)", placeholder: "0", max: 1e10 },
+        { key: "inflation", label: "Inflation (%)", hint: "Leave at 0 to treat the goal as a today's-rupees figure", max: 50 },
       ]}
       results={[
         { label: "Amount needed on the date", value: r.target },

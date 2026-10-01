@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import CalcShell, { useCalcState } from "./CalcShell";
 import { emergencyFund } from "../../utils/calculators";
+import { inr } from "../../utils/calcSafe";
 
 const EmergencyFundCalculator = () => {
   const [v, set] = useCalcState({ expenses: 40000, months: 6, current: 0, rate: 6, buildMonths: 12 });
@@ -13,11 +14,11 @@ const EmergencyFundCalculator = () => {
       values={v}
       onChange={set}
       fields={[
-        { key: "expenses", label: "Monthly Living Expenses (₹)", placeholder: "40000" },
-        { key: "months", label: "Months to Cover", hint: "Most advisers suggest 6 to 12" },
-        { key: "current", label: "Current Emergency Savings (₹)", placeholder: "0" },
-        { key: "buildMonths", label: "Months to Build the Fund", hint: "How long you give yourself to get there" },
-        { key: "rate", label: "Expected Return if Invested (% p.a.)", hint: "For a liquid or overnight fund" },
+        { key: "expenses", label: "Monthly Living Expenses (₹)", placeholder: "40000", max: 1e8 },
+        { key: "months", label: "Months to Cover", hint: "Most advisers suggest 6 to 12", max: 120 },
+        { key: "current", label: "Current Emergency Savings (₹)", placeholder: "0", max: 1e10 },
+        { key: "buildMonths", label: "Months to Build the Fund", hint: "How long you give yourself to get there", max: 120 },
+        { key: "rate", label: "Expected Return if Invested (% p.a.)", hint: "For a liquid or overnight fund", max: 50 },
       ]}
       results={[
         { label: "Fund required", value: r.required },
@@ -25,7 +26,9 @@ const EmergencyFundCalculator = () => {
         { label: "Save each month", value: r.monthlySaving },
         {
           label: "Income once parked",
-          text: r.annualIncomeIfInvested ? `₹${r.annualIncomeIfInvested.toLocaleString("en-IN")}/yr` : "—",
+          // `toLocaleString` on Infinity is the string "∞" — and the truthy check lets it
+          // through. `inr` is the guard that returns a dash instead.
+          text: r.annualIncomeIfInvested ? `₹${inr(r.annualIncomeIfInvested)}/yr` : "—",
         },
         {
           label: "Status",
