@@ -1,5 +1,5 @@
 import axios from "axios";
-import { toastError } from "../utils/notifyCustom";
+import { holdError, toastError } from "../utils/notifyCustom";
 
 const api = axios.create({ timeout: 120000 });
 
@@ -34,6 +34,20 @@ const authHeaders = () => {
  */
 const SESSION_GONE = /deactivated|session (invalid|revoked)|unauthenticated/i;
 
+// QA 7.1 — the reload below wipes every toast, so /login opened with no word of why. The
+// reason rides across it in sessionStorage and the login screen shows it once.
+const END_REASON = "session_end_reason";
+
+export const takeSessionEndReason = () => {
+  try {
+    const reason = sessionStorage.getItem(END_REASON);
+    sessionStorage.removeItem(END_REASON);
+    return reason;
+  } catch {
+    return null;
+  }
+};
+
 let ending = false;
 
 const endSession = (message) => {
@@ -44,11 +58,14 @@ const endSession = (message) => {
     localStorage.removeItem("token");
     localStorage.removeItem("currentAccount");
     localStorage.removeItem("accounts");
+    sessionStorage.setItem(END_REASON, message);
   } catch {
     // Storage can throw in private mode; the redirect still has to happen.
   }
 
-  toastError(message);
+  // Held, not just shown: with the token gone, every request still in flight fails too, and
+  // their "User not authenticated" used to replace this in the single error slot.
+  holdError(message);
   // A beat so the toast is readable, then replace() rather than assign(): the dead page must
   // not come back with the Back button.
   setTimeout(() => window.location.replace("/login"), 1200);

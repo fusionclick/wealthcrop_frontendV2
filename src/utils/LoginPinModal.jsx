@@ -104,14 +104,16 @@ function LoginPinModal({ onSuccess }) {
     try {
       const res = await postApi(url, { email });
 
+      // postApi already returns the body — `res.data` was one level too deep, so the toast
+      // read "Done" instead of "OTP sent successfully" and nothing said an OTP had gone out.
       if (res?.status === 200 || res?.status === true) {
-        if (res?.data?.auto_reset && res?.data?.pin) {
-          toastSuccess(`New PIN: ${res.data?.pin}`);
+        if (res?.auto_reset && res?.pin) {
+          toastSuccess(`New PIN: ${res.pin}`);
           setPin(["", "", "", ""]);
           setError("");
           return;
         }
-        toastSuccess(res?.data?.message);
+        toastSuccess(res?.message);
         setMode("reset");
       }
     } catch (error) {

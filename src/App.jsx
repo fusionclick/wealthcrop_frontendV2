@@ -122,6 +122,7 @@ import StockList from "./pages/stocks/StockList";
 import PageLoader from "./components/PageLoader";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { clearToasts, toastError } from "./utils/notifyCustom";
+import { capCalcInput } from "./utils/calcSafe";
 import { getApiWithToken } from "./api/api";
 import { fetchInvestorData } from "./redux/investorDataSlice";
 
@@ -668,11 +669,17 @@ useEffect(() => {
             {/* <Route path="/kyc" element={<VideoKYC />} /> */}
             <Route path="/kyc" element={guard(<KYC />)} />
 
+            {/* QA 5.1 — no calculator field takes more than 12 digits; the 13th is refused
+                as it is typed. `contents` keeps the wrapper out of the layout. */}
             {calculatorRoutes.map((route, i) => (
               <Route
                 key={i}
                 path={`/calculator/${route.path}`}
-                element={route.element}
+                element={
+                  <div className="contents" onChangeCapture={capCalcInput}>
+                    {route.element}
+                  </div>
+                }
               />
             ))}
           </Routes>

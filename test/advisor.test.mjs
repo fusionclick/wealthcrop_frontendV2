@@ -116,3 +116,24 @@ test("past plans are listed with their date and reopened inside the advisor", ()
   // Start over still only clears the live conversation.
   assert.match(advisor, /const restart = \(\) => \{\s*setAnswers\(\{\}\)/);
 });
+
+// QA 8.1 — "Save this plan", 👍 and 👎 all called the same savePlan() → POST /advice, so each
+// click stored another copy of the plan: three buttons, one behaviour, and a list of duplicates.
+test("save keeps the plan once; a vote is feedback on that row, never another saved copy", () => {
+  const advisor = readFileSync("src/pages/Advisor.jsx", "utf8");
+
+  // The thumbs no longer go through Save.
+  assert.doesNotMatch(advisor, /savePlan\("(up|down)"\)/);
+  assert.match(advisor, /onClick=\{\(\) => rate\("up"\)\}/);
+  assert.match(advisor, /onClick=\{\(\) => rate\("down"\)\}/);
+
+  // A vote on a plan nobody saved is stored as saved: false, which keeps it out of the list.
+  // Once the plan has a row, a vote or a save updates that row instead of posting a copy.
+  assert.match(advisor, /\{ \.\.\.plan\(\), saved: false, feedback \}/);
+  assert.match(advisor, /\{ \.\.\.plan\(\), saved: true \}/);
+  assert.match(advisor, /api\(`\/advice\/\$\{mark\.id\}\/feedback`\)/);
+  assert.match(advisor, /api\(`\/advice\/\$\{mark\.id\}\/save`\)/);
+
+  // Saved once: the button cannot store the same plan twice.
+  assert.match(advisor, /disabled=\{busy \|\| mark\.saved\}/);
+});

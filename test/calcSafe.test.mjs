@@ -6,7 +6,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync} from "node:fs";
 import { join } from "node:path";
-import { annuityFactor, clampNum, finiteOr, inr, num } from "../src/utils/calcSafe.js";
+import { annuityFactor, capCalcInput, clampNum, finiteOr, inr, MAX_CALC_INPUT, num } from "../src/utils/calcSafe.js";
 
 test("num coerces input strings and refuses anything that is not a real number", () => {
   assert.equal(num("1500"), 1500);
@@ -125,4 +125,32 @@ test("no calculator prints a number without the guard", () => {
   }
 
   assert.deepEqual(offenders, [], "these print a raw number and will show NaN or ∞:\n" + offenders.join("\n"));
+});
+
+// QA 5.1 (re-report) — "999999999999 tak hi daal paye": the cap used to be applied on blur, so
+// 20 digits could still be typed in. Every calculator now refuses the 13th digit as it is typed.
+test("a calculator field refuses the keystroke that would pass twelve digits", () => {
+  const typed = (value, type = "number") => {
+    let refused = false;
+    capCalcInput({ target: { type, value }, stopPropagation: () => { refused = true; } });
+    return refused;
+  };
+
+  assert.equal(MAX_CALC_INPUT, 999999999999);
+  assert.equal(typed("999999999999"), false, "twelve nines is the ceiling itself");
+  assert.equal(typed("123456789012.75"), false, "decimals do not count against it");
+  assert.equal(typed(""), false, "clearing the field is always allowed");
+  assert.equal(typed("1000000000000"), true, "the thirteenth digit is refused");
+  assert.equal(typed("999999999999999999999999999"), true);
+  assert.equal(typed("-1000000000000"), true);
+  assert.equal(typed("1e15"), true, "scientific notation is not a way around it");
+  assert.equal(typed("1000000000000", "range"), false, "a slider carries its own max");
+});
+
+test("every calculator route is wrapped in that one guard", () => {
+  const app = readFileSync("src/App.jsx", "utf8");
+  assert.match(
+    app,
+    /path=\{`\/calculator\/\$\{route\.path\}`\}\s*element=\{\s*<div className="contents" onChangeCapture=\{capCalcInput\}>\s*\{route\.element\}/
+  );
 });

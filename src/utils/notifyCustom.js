@@ -9,8 +9,20 @@ const icon = (Cmp, color) => React.createElement(Cmp, { size: 18, color });
 export const toastSuccess = (msg) => toast.success(msg || "Done");
 
 // Single error slot: a new error replaces the old one instead of stacking.
+//
+// QA 7.1 — except after holdError(). A session that has just ended takes every request still
+// in flight down with it, and each failure toasted into this same slot, so the real reason
+// ("This account has been deactivated…") lost to whichever "User not authenticated" landed
+// last. Nothing releases the hold: the page reloads to /login, which starts fresh.
+let held = false;
+
 export const toastError = (msg) =>
-  toast.error(msg || "Something went wrong", { id: "app-error" });
+  held ? undefined : toast.error(msg || "Something went wrong", { id: "app-error" });
+
+export const holdError = (msg) => {
+  toast.error(msg, { id: "app-error" });
+  held = true;
+};
 
 export const toastInfo = (msg) =>
   toast(msg, { icon: icon(FiInfo, "#3b82f6") });

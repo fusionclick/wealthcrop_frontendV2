@@ -52,3 +52,18 @@ test("the SESSION_GONE pattern matches the server's real messages and not a pass
   assert.ok(!re.test("Invalid OTP"));
   assert.ok(!re.test("These credentials do not match our records."));
 });
+
+// QA 7.1 — an erased investor was shown "User not authenticated". With the token removed, every
+// request still in flight failed too and toasted into the single error slot, replacing the real
+// reason; then the reload to /login wiped the toast, so the login screen said nothing at all.
+test("the reason a session ended is held on screen and shown again on /login", () => {
+  assert.match(src, /holdError\(message\)/);
+  assert.match(src, /sessionStorage\.setItem\(END_REASON, message\)/);
+
+  const toasts = readFileSync("src/utils/notifyCustom.js", "utf8");
+  assert.match(toasts, /held \? undefined : toast\.error/);
+
+  const login = readFileSync("src/auth/Login.jsx", "utf8");
+  assert.match(login, /useState\(takeSessionEndReason\)/);
+  assert.match(login, /role="alert"[\s\S]{0,300}\{endedReason\}/);
+});

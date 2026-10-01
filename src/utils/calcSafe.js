@@ -90,3 +90,22 @@ export const inr = (v, { maximumFractionDigits = 2, fallback = "—" } = {}) => 
   const n = Number(v);
   return Number.isFinite(n) ? n.toLocaleString("en-IN", { maximumFractionDigits }) : fallback;
 };
+
+/**
+ * QA 5.1 — the largest figure any calculator field takes: ₹9,99,99,99,99,999, twelve digits.
+ * Past any real salary, corpus or loan, and it stops a 20-digit entry from being typed at all
+ * rather than tidying it up afterwards.
+ */
+export const MAX_CALC_INPUT = 999999999999;
+
+/**
+ * Refuses the keystroke that would cross that ceiling. Wired once, as `onChangeCapture` around
+ * every calculator route (App.jsx), instead of into every input of all 21 calculators. Stopping the
+ * change before the field's own onChange sees it leaves the controlled value as it was, so the
+ * extra digit simply never appears. Sliders are left alone — they carry their own max.
+ */
+export const capCalcInput = (e) => {
+  if (e.target.type === "number" && Math.abs(Number(e.target.value)) > MAX_CALC_INPUT) {
+    e.stopPropagation();
+  }
+};

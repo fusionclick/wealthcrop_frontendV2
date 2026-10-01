@@ -37,9 +37,11 @@ export default function Advisor() {
 
   const [answers, setAnswers] = useState({});
   const [tilt, setTilt] = useState(0);
-  const [saved, setSaved] = useState(false);
-  // QA 8.9 — which way the investor voted on this plan, so the buttons can show it.
-  const [vote, setVote] = useState(null);
+  // QA 8.1 — per plan: the row it was stored as, whether it was saved, and the vote (QA 8.9:
+  // the buttons show it). Keyed by the inputs below, so "Make it bolder" is a different plan
+  // with its own Save and thumbs, and switching back finds the first one as it was left.
+  const [marks, setMarks] = useState({});
+  const [busy, setBusy] = useState(false);
   // The past plan being reopened, straight off the row as it was saved. Null = live advice.
   const [viewing, setViewing] = useState(null);
   const endRef = useRef(null);
@@ -59,6 +61,8 @@ export default function Advisor() {
   const lifeStage = answers.lifeStage || "mid";
   const horizonYears = answers.horizonYears || 10;
   const monthlyAmount = answers.monthlyAmount || 0;
+  const planKey = [risk, lifeStage, horizonYears, monthlyAmount, tilt].join("|");
+  const mark = marks[planKey] || {};
 
   const alloc = useMemo(
     () => allocationFor({ risk, lifeStage, horizonYears, tilt }),
@@ -127,36 +131,57 @@ export default function Advisor() {
 
   const answer = (key, value) => {
     setAnswers((prev) => ({ ...prev, [key]: value }));
-    setSaved(false);
   };
 
   const restart = () => {
     setAnswers({});
     setTilt(0);
-    setSaved(false);
-    setVote(null);
   };
 
-  const savePlan = async (feedback = null) => {
-    const res = await postApiWithToken(api("/advice"), {
-      risk,
-      life_stage: lifeStage,
-      horizon_years: horizonYears,
-      monthly_amount: monthlyAmount,
-      allocation: finalAlloc,
-      sleeves,
-      rationale,
-      feedback,
-    });
-    if (res?.status) {
-      setSaved(true);
-      // QA 8.9 — the thumbs posted correctly and then looked exactly as they had a moment
-      // earlier, so "nothing happened" was the only reasonable reading. A toast that has
-      // already faded is not feedback about feedback.
-      if (feedback) setVote(feedback);
+  // QA 8.1 — Save, 👍 and 👎 all posted a new copy of the plan, so the three did the same
+  // thing and every vote added a duplicate to "Reopen an earlier recommendation". Now Save
+  // keeps the plan (once), and a vote is feedback on it that never adds to that list. The
+  // first click on a plan creates its row; every later one updates that same row.
+  const record = async (request, change) => {
+    setBusy(true);
+    const res = await request;
+    setBusy(false);
+    if (!res?.status) return false;
+    setMarks((m) => ({ ...m, [planKey]: { ...m[planKey], id: res.data.id, ...change } }));
+    return true;
+  };
+
+  const plan = () => ({
+    risk,
+    life_stage: lifeStage,
+    horizon_years: horizonYears,
+    monthly_amount: monthlyAmount,
+    allocation: finalAlloc,
+    sleeves,
+    rationale,
+  });
+
+  const savePlan = async () => {
+    const ok = await record(
+      mark.id
+        ? postApiWithToken(api(`/advice/${mark.id}/save`), {})
+        : postApiWithToken(api("/advice"), { ...plan(), saved: true }),
+      { saved: true }
+    );
+    if (ok) {
       refetchHistory();
-      toastSuccess(feedback ? "Thanks — noted" : "Plan saved");
+      toastSuccess("Plan saved — reopen it any time from the list at the top");
     }
+  };
+
+  const rate = async (feedback) => {
+    const ok = await record(
+      mark.id
+        ? postApiWithToken(api(`/advice/${mark.id}/feedback`), { feedback })
+        : postApiWithToken(api("/advice"), { ...plan(), saved: false, feedback }),
+      { vote: feedback }
+    );
+    if (ok) toastSuccess("Thanks for the feedback");
   };
 
   return (
@@ -461,10 +486,11 @@ export default function Advisor() {
 
               <div className="ml-10 flex flex-wrap items-center gap-2 pt-2">
                 <button
-                  onClick={() => savePlan()}
-                  className="inline-flex items-center gap-1 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md"
+                  onClick={savePlan}
+                  disabled={busy || mark.saved}
+                  className="inline-flex items-center gap-1 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md disabled:opacity-60 disabled:cursor-default"
                 >
-                  <Save size={13} /> {saved ? "Saved" : "Save this plan"}
+                  <Save size={13} /> {mark.saved ? "Saved" : "Save this plan"}
                 </button>
                 <button
                   onClick={() => navigate("/goals")}
@@ -474,23 +500,25 @@ export default function Advisor() {
                 </button>
 
                 <span className="text-xs text-slate-400 ml-auto">
-                  {vote ? "Thanks — noted" : "Was this useful?"}
+                  {mark.vote ? "Thanks — noted" : "Was this useful?"}
                 </span>
                 <button
-                  onClick={() => savePlan("up")}
+                  onClick={() => rate("up")}
+                  disabled={busy || mark.vote === "up"}
                   aria-label="Helpful"
-                  aria-pressed={vote === "up"}
-                  className={vote === "up" ? "text-emerald-600" : "text-slate-400 hover:text-emerald-600"}
+                  aria-pressed={mark.vote === "up"}
+                  className={mark.vote === "up" ? "text-emerald-600" : "text-slate-400 hover:text-emerald-600"}
                 >
-                  <ThumbsUp size={15} fill={vote === "up" ? "currentColor" : "none"} />
+                  <ThumbsUp size={15} fill={mark.vote === "up" ? "currentColor" : "none"} />
                 </button>
                 <button
-                  onClick={() => savePlan("down")}
+                  onClick={() => rate("down")}
+                  disabled={busy || mark.vote === "down"}
                   aria-label="Not helpful"
-                  aria-pressed={vote === "down"}
-                  className={vote === "down" ? "text-rose-600" : "text-slate-400 hover:text-rose-600"}
+                  aria-pressed={mark.vote === "down"}
+                  className={mark.vote === "down" ? "text-rose-600" : "text-slate-400 hover:text-rose-600"}
                 >
-                  <ThumbsDown size={15} fill={vote === "down" ? "currentColor" : "none"} />
+                  <ThumbsDown size={15} fill={mark.vote === "down" ? "currentColor" : "none"} />
                 </button>
               </div>
             </>

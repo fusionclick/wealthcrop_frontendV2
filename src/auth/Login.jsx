@@ -7,7 +7,7 @@ import { passwordLoginSchema, otpLoginSchema } from "../utils/FormSchema";
 import { toastError, toastSuccess } from "../utils/notifyCustom";
 import { useDispatch } from "react-redux";
 import { login } from "../redux/authenticationSlice";
-import { postApi } from "../api/api";
+import { postApi, takeSessionEndReason } from "../api/api";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import LoginPinModal from "../utils/LoginPinModal";
 import ForgotPassword from "../components/ForgotPassword";
@@ -23,6 +23,9 @@ function LoginPage() {
   const [forgotPassword, setForgotPassword] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [locked, setLocked] = useState(false);
+  // QA 7.1 — why the last session was ended (an erased account, a revoked token). Read once,
+  // so a later visit to /login does not repeat it.
+  const [endedReason] = useState(takeSessionEndReason);
 
   const dispatch = useDispatch()
   const navigate = useNavigate()
@@ -232,6 +235,12 @@ if (!otpSent) {
         Login to continue investing with Wealthcrop
       </p>
     </div>
+
+    {endedReason && (
+      <p role="alert" className="mb-6 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
+        {endedReason}
+      </p>
+    )}
 
     {/* Tabs */}
     <div className="flex mb-6 border border-gray-200 dark:border-white/10 rounded-lg overflow-hidden ">
