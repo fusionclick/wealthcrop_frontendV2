@@ -307,9 +307,16 @@ const pctOf = (key) => {
 
   if (isLoading) return <FundDetailsPageSkeleton />;  
 
+  // QA 10.1 — `text-[#1A1A1A]` on the wrapper below had no dark counterpart. This page's own
+  // rows mostly set a colour of their own, so the page itself looked fine; the damage was to
+  // everything below that relies on INHERITANCE. The Invest Now modal renders inside this
+  // subtree, which is why /mutual_fund/:isin/:code/buy as a route was readable while the
+  // identical component inside the modal was not — its heading, NAV, Minimum lumpsum, the
+  // Amount label and the Cancel button all inherit, so they came out near-black on a
+  // near-black card. The NAV chart's axis dates and the "One-Time" toggle went the same way.
   return (
 
-    <div className="w-full bg-gray-50 dark:bg-[var(--app-bg)] text-[#1A1A1A] py-10 px-5 lg:px-24 space-y-10">
+    <div className="w-full bg-gray-50 dark:bg-[var(--app-bg)] text-[#1A1A1A] dark:text-[var(--text-primary)] py-10 px-5 lg:px-24 space-y-10">
       {/* HEADER */}
  <header className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start"> 
 
