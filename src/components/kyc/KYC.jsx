@@ -417,7 +417,9 @@ const uploadDocument = async (type, file, meta = {}) => {
       body: formData,
     });
 
-    if (!res.data?.ok) throw new Error("Upload failed");
+    // A raw fetch Response, not an axios one: `ok` sits on the response itself. Reading
+    // `res.data?.ok` (8eb9cd7) failed every upload on screen although the server kept the file.
+    if (!res.ok) throw new Error("Upload failed");
 
     const data = await res.json();
 

@@ -57,7 +57,7 @@ const CasImport = ({ open, onClose, existing = [], onSave, onDone }) => {
       });
       // postApiWithToken already shows the server's message on a non-2xx and returns null.
       if (!res) return;
-      if (res.status !== "success") return setError(res.data?.message || "Could not read that statement.");
+      if (res.status !== "success") return setError(res.message || "Could not read that statement.");
 
       const found = markCasDuplicates(res.data?.holdings || [], existing);
       setRows(found);

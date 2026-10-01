@@ -88,12 +88,14 @@ export const riskQuestions = [
     id: 7,
     question: "How much temporary loss can you emotionally tolerate in your investments?",
     subText: "(Numeric drawdown tolerance — very high predictive value)",
+    // Was reversed: "<=5%" scored 5, so the most loss-averse answer counted as the most
+    // aggressive. Same scale as the server's own q7_loss_tolerance (RiskProfileController).
     options: [
-      { label: "<=5%", score: 5 },
-      { label: "5-10%", score: 4 },
-      { label: "10-20%", score: 3 },
-      { label: "20-30%", score: 2 },
-      { label: "30%", score: 1 },
+      { label: "More than 30%", score: 5 },
+      { label: "20–30%", score: 4 },
+      { label: "10–20%", score: 3 },
+      { label: "5–10%", score: 2 },
+      { label: "Up to 5%", score: 1 },
     ],
   },
    {

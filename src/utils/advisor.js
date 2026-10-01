@@ -142,10 +142,19 @@ export function rationaleFor({ risk, lifeStage, horizonYears, alloc, goalName })
  *
  * @param {Array<{order_type?: string, trxn_type?: string, created_at?: string, order_date?: string, inv_amo?: number|string}>} orders
  */
-export function behaviourInsights(orders = []) {
-  if (!Array.isArray(orders) || orders.length === 0) return [];
+export function behaviourInsights(all = []) {
+  if (!Array.isArray(all) || all.length === 0) return [];
+  // A rejected, failed or cancelled order never happened as far as the money is concerned,
+  // so it is not behaviour — the QA book's one rejected purchase was being counted as an 8th.
+  const orders = all.filter((o) => !/reject|fail|cancel/i.test(String(o.status || "")));
 
-  const kind = (o) => String(o.order_type || o.trxn_type || "").toLowerCase();
+  // /orderHistory hands back `type` and `amount` (normalised in the Node controller), not
+  // BSE's raw `order_type` / `inv_amo` — reading only the raw names skipped every order, so
+  // this section never rendered. BSE may also say just "P" / "R".
+  const kind = (o) => {
+    const t = String(o.type || o.order_type || o.trxn_type || "").toLowerCase();
+    return t === "p" ? "purchase" : t === "r" ? "redemption" : t;
+  };
   const buys = orders.filter((o) => /purchase|buy|sip|additional/.test(kind(o)));
   const sells = orders.filter((o) => /redeem|redemption|sell|swp/.test(kind(o)));
   const sips = orders.filter((o) => /sip|xsp|systematic/.test(kind(o)));
@@ -171,7 +180,7 @@ export function behaviourInsights(orders = []) {
     });
   }
 
-  const amounts = buys.map((o) => Number(o.inv_amo) || 0).filter((n) => n > 0);
+  const amounts = buys.map((o) => Number(o.amount ?? o.inv_amo) || 0).filter((n) => n > 0);
   if (amounts.length >= 3) {
     const avg = amounts.reduce((a, b) => a + b, 0) / amounts.length;
     const biggest = Math.max(...amounts);

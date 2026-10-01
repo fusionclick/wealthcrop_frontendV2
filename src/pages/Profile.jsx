@@ -28,6 +28,7 @@ import { canRetakeRiskProfile } from "../utils/riskLock";
 // on every run and userData stayed permanently undefined on this screen.
 import { getApiWithToken } from "../api/api";
 import { ACCOUNT_LINKS } from "../utils/accountLinks";
+import SwitchAccountModal from "../components/SwitchAccountModal";
 
 const Profile = () => {
 
@@ -116,7 +117,14 @@ const userName = current?.name
 const email = current?.email
 
   //! For switch account
-    const handleSwitch = (acc) => {
+  // SRS "Switch Accounts" — re-authentication first, as the desktop header already does. This
+  // mobile list used to switch on a single tap, so anyone holding an unlocked phone could
+  // move between the linked accounts.
+  const [pendingAccount, setPendingAccount] = useState(null);
+  const handleSwitch = (acc) => setPendingAccount(acc);
+
+    const completeSwitch = (acc) => {
+    setPendingAccount(null);
     localStorage.setItem("currentAccount", JSON.stringify(acc));
   
     dispatch(login(acc.token));
@@ -420,6 +428,14 @@ const email = current?.email
           </div>
         </div>
       </div>
+
+      {pendingAccount && (
+        <SwitchAccountModal
+          account={pendingAccount}
+          onCancel={() => setPendingAccount(null)}
+          onConfirmed={completeSwitch}
+        />
+      )}
     </>
   );
 };

@@ -75,12 +75,14 @@ const RiskProfilingPage = () => {
 
     try {
       const res = await postApiWithToken(`${import.meta.env.VITE_URL}/risk/calculate`, payload);
-      if (res?.status === 200 || res?.status === true || res?.data?.success) {
-        toastSuccess(res?.data?.message || "Risk profile saved!");
-        const d = res?.data || res;
+      // postApiWithToken returns the body, and this endpoint answers `{ success, data }` — the
+      // old check read `status` / `data.success`, never matched, and the result screen never
+      // appeared although the profile had been saved.
+      if (res?.success) {
+        toastSuccess("Risk profile saved!");
         setResult({
-          score: d?.score,
-          category: d?.category || d?.profile,
+          score: res.data?.score,
+          category: res.data?.profile,
         });
       }
     } finally {

@@ -258,12 +258,12 @@ const ManageSipPage = () => {
       },
     });
     if (!res) return; // the server's reason has already been shown; stay on the form
-    // `postApiWithToken` returns the AXIOS RESPONSE, so `res.status` is the HTTP code — a
-    // number, never the string "partial". This branch could therefore never fire, and
-    // "partial" is precisely the case where the replacement SIP is live AND the old one was
-    // not cancelled. Reporting that as "SIP updated." is how somebody gets debited twice.
-    if (res.data?.status === "partial") {
-      toastError(res.data?.message);
+    // `postApiWithToken` returns the BODY (api.js `return res?.data`), and /modifyXsp answers
+    // 207 `{ status: "partial", message }` when the replacement SIP is live AND the old one
+    // was not cancelled. Reporting that as "SIP updated." is how somebody gets debited twice.
+    // (8eb9cd7 read `res.data?.status` here — one level too deep — and the warning never fired.)
+    if (res.status === "partial") {
+      toastError(res.message);
     } else {
       toastSuccess("SIP updated.");
     }

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { KeyRound, X } from "lucide-react";
-import { postApi, postApiWithToken } from "../api/api";
+import { postApi } from "../api/api";
 import { toastError } from "../utils/notifyCustom";
 
 /**
@@ -10,42 +10,79 @@ import { toastError } from "../utils/notifyCustom";
  * Switching used to write the new account into localStorage and reload — anyone holding an
  * unlocked phone could move between linked accounts. This is the missing step.
  *
- * The PIN is checked when one is set, because it is the credential this app already asks
- * for on re-entry; otherwise the account's own password is. Neither is stored, and the
- * switch only happens after the server says the credential was right.
+ * The credential is the TARGET account's: its PIN, checked with that account's own token, or
+ * its password. (The PIN used to be checked with the CURRENT account's token, which proved
+ * nothing about the account being opened, and the fresh token a check returns was thrown away
+ * in favour of a stored one that may have expired.) Neither is stored.
  */
+const PIN_URL = () => `${import.meta.env.VITE_URL}/login-pin`;
+
+// fetch, not axios: the target's stored token may have expired, and an axios 401 on a bearer
+// request ends the CURRENT session (api.js interceptor) — the wrong account would be logged out.
+const checkPin = async (token, pin) => {
+  const r = await fetch(PIN_URL(), {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ pin }),
+  });
+  const body = await r.json().catch(() => ({}));
+  // 401 "Invalid PIN" is a wrong PIN; any other 401 means this account's session is gone.
+  return { body, sessionGone: r.status === 401 && body?.message !== "Invalid PIN" };
+};
+
 export default function SwitchAccountModal({ account, onCancel, onConfirmed }) {
-  const hasPin = localStorage.getItem("pin_set") === "true";
+  const [mode, setMode] = useState(account?.token ? "pin" : "password");
   const [secret, setSecret] = useState("");
   const [busy, setBusy] = useState(false);
+  const usingPin = mode === "pin";
+
+  const finish = (token, pinSet) => {
+    const fresh = { ...account, token: token || account.token };
+    try {
+      // Keep the stored list current, so switching back later does not reuse a stale token.
+      const list = JSON.parse(localStorage.getItem("accounts")) || [];
+      localStorage.setItem("accounts", JSON.stringify(list.map((a) => (a.userId === fresh.userId ? fresh : a))));
+      // The PIN gate's flags describe the account being opened, as saveSession sets them.
+      localStorage.setItem("pin_set", pinSet ? "true" : "false");
+      localStorage.setItem("pin_expiry", Date.now() + 30 * 60 * 1000);
+    } catch {
+      // Storage can throw in private mode; the switch itself still proceeds.
+    }
+    onConfirmed(fresh);
+  };
 
   const verify = async (e) => {
     e.preventDefault();
 
-    if (hasPin && secret.length !== 4) return toastError("Enter your 4-digit PIN.");
-    if (!hasPin && secret.length < 6) return toastError("Enter your password.");
+    if (usingPin && secret.length !== 4) return toastError("Enter the 4-digit PIN of that account.");
+    if (!usingPin && secret.length < 6) return toastError("Enter that account's password.");
 
     setBusy(true);
     try {
-      const res = hasPin
-        ? await postApiWithToken(`${import.meta.env.VITE_URL}/login-pin`, { pin: secret }, { silent: true })
-        : await postApi(`${import.meta.env.VITE_URL}/login`, {
-            email: account?.email || localStorage.getItem("email"),
-            password: secret,
-          });
-
-      if (res?.status) {
-        onConfirmed(account);
-      } else {
-        toastError(res?.message || (hasPin ? "Wrong PIN." : "Wrong password."));
+      if (usingPin) {
+        const { body, sessionGone } = await checkPin(account?.token, secret);
+        if (body?.status) return finish(body.token, true);
+        if (sessionGone) {
+          setMode("password");
+          setSecret("");
+          return toastError("That account's session has expired. Enter its password instead.");
+        }
+        return toastError(body?.message || "Wrong PIN.");
       }
+
+      // postApi shows the server's reason itself on a wrong password and returns null.
+      const res = await postApi(`${import.meta.env.VITE_URL}/login`, { email: account?.email, password: secret });
+      if (res?.status) finish(res.token, res.pin_set);
+    } catch {
+      toastError("Could not check that right now. Try again.");
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+    // Above the mobile Profile screen, which is itself a full-screen layer at z-[99999].
+    <div className="fixed inset-0 z-[100000] bg-black/50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
       <form onSubmit={verify} className="w-full max-w-sm rounded-2xl bg-white dark:bg-[#0b1220] p-5 shadow-xl">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -65,16 +102,29 @@ export default function SwitchAccountModal({ account, onCancel, onConfirmed }) {
         </div>
 
         <input
+          key={mode}
           type="password"
-          inputMode={hasPin ? "numeric" : "text"}
-          maxLength={hasPin ? 4 : undefined}
+          inputMode={usingPin ? "numeric" : "text"}
+          maxLength={usingPin ? 4 : undefined}
           value={secret}
-          onChange={(e) => setSecret(hasPin ? e.target.value.replace(/\D/g, "") : e.target.value)}
-          placeholder={hasPin ? "4-digit PIN" : "Account password"}
-          aria-label={hasPin ? "PIN" : "Password"}
+          onChange={(e) => setSecret(usingPin ? e.target.value.replace(/\D/g, "") : e.target.value)}
+          placeholder={usingPin ? "PIN of that account" : "Password of that account"}
+          aria-label={usingPin ? "PIN" : "Password"}
           autoFocus
           className="mt-4 w-full border border-slate-200 rounded-md px-3 py-2 text-sm bg-white dark:bg-white/5 dark:border-white/10 dark:text-white"
         />
+
+        <button
+          type="button"
+          onClick={() => {
+            setMode(usingPin ? "password" : "pin");
+            setSecret("");
+          }}
+          disabled={!account?.token && !usingPin}
+          className="mt-2 text-xs text-blue-600 hover:underline disabled:hidden"
+        >
+          {usingPin ? "Use password instead" : "Use PIN instead"}
+        </button>
 
         <div className="mt-4 flex gap-2">
           <button

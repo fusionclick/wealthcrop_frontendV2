@@ -71,3 +71,29 @@ test("the account menu caps its height and scrolls the links, not the logout foo
   // And the footer holding Log out cannot be squeezed out.
   assert.match(src, /shrink-0 flex items-center justify-between px-4 py-3/);
 });
+
+// QA (audit #39) — the mobile account list switched on one tap with no re-authentication, and
+// the desktop check proved the wrong thing: it verified the PIN with the CURRENT account's
+// token and then switched using a stored token that might have expired.
+test("switching accounts re-authenticates the TARGET account on both layouts", () => {
+  for (const f of ["src/components/OldHeader.jsx", "src/pages/Profile.jsx"]) {
+    const src = readFileSync(f, "utf8");
+    assert.match(src, /<SwitchAccountModal/, `${f} switches without re-authentication`);
+    assert.match(src, /const handleSwitch = \(acc\) => setPendingAccount\(acc\)/, f);
+  }
+
+  const modal = readFileSync("src/components/SwitchAccountModal.jsx", "utf8");
+  // The PIN is checked with the target's own token, via fetch so a stale token cannot trip the
+  // global "session ended" interceptor and log out the account the user is still in.
+  assert.match(modal, /checkPin\(account\?\.token, secret\)/);
+  assert.match(modal, /await fetch\(PIN_URL\(\)/);
+  assert.doesNotMatch(modal, /postApiWithToken/);
+  // The fresh token from either check is what the switch uses.
+  assert.match(modal, /finish\(body\.token, true\)/);
+  assert.match(modal, /finish\(res\.token, res\.pin_set\)/);
+
+  // The mobile Profile screen is itself a full-screen layer; the dialog sat underneath it and
+  // the switch looked dead. It has to stack above every layer it can be opened from.
+  const z = (src) => Math.max(...[...src.matchAll(/z-\[(\d+)\]/g)].map((m) => Number(m[1])));
+  assert.ok(z(modal) > z(readFileSync("src/pages/Profile.jsx", "utf8")), "the switch dialog opens underneath the Profile screen");
+});

@@ -137,3 +137,35 @@ test("save keeps the plan once; a vote is feedback on that row, never another sa
   // Saved once: the button cannot store the same plan twice.
   assert.match(advisor, /disabled=\{busy \|\| mark\.saved\}/);
 });
+
+// The rows the Advisor actually receives: /orderHistory normalises BSE and Laravel orders to
+// `type` / `amount`. The insights only read the raw `order_type` / `inv_amo`, so every real
+// order was skipped and "What your own orders show" never appeared.
+test("behaviour insights read the order shape /orderHistory really returns", () => {
+  const redeemer = behaviourInsights([
+    { type: "Redemption", amount: 5000 },
+    { type: "R", amount: 2000 },
+    { type: "Purchase", amount: 10000 },
+  ]);
+  assert.ok(redeemer.some((i) => i.tag === "Redeems often"));
+
+  const lumpy = behaviourInsights([
+    { type: "Purchase", amount: 1000 },
+    { type: "P", amount: 1000 },
+    { type: "Purchase", amount: 1000 },
+    { type: "Purchase", amount: 50000 },
+  ]);
+  assert.ok(lumpy.some((i) => i.tag === "Invests in lumps"));
+  assert.ok(lumpy.some((i) => i.tag === "Uneven amounts"));
+
+  assert.ok(behaviourInsights([{ type: "SIP", amount: 500 }]).some((i) => i.tag === "Invests on a schedule"));
+
+  // A rejected order is not behaviour: three purchases, one of them rejected, is two — under
+  // the "Invests in lumps" threshold of three.
+  const withRejected = behaviourInsights([
+    { type: "P", amount: 1000, status: "ALLOTTED" },
+    { type: "P", amount: 1000, status: "ALLOTTED" },
+    { type: "P", amount: 1000, status: "REJECTED" },
+  ]);
+  assert.ok(!withRejected.some((i) => i.tag === "Invests in lumps"));
+});

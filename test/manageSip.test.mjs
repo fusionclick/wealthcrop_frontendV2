@@ -49,12 +49,14 @@ test("ticket 21: modification is persisted in the backend, not 'updated locally'
   // 207 means the new SIP is live and the old one is not cancelled. Reporting that as
   // success is how somebody gets debited twice.
   //
-  // Both reads must be against the BODY. postApiWithToken hands back the axios response, so
-  // `res.status` is the HTTP code and could never equal "partial" — this branch was
-  // unreachable for as long as it was written that way, and `res.message` was undefined, so
-  // even had it fired it would have toasted nothing.
-  assert.match(fn, /res\.data\?\.status === "partial"/);
-  assert.match(fn, /toastError\(res\.data\?\.message\)/);
+  // Both reads must be against the BODY, and postApiWithToken already returns the body. An
+  // earlier pass assumed it returned the axios response and read `res.data?.status`, one level
+  // too deep, which made the warning unreachable. Pin the helper's contract too, so the two
+  // cannot drift apart again.
+  const api = fs.readFileSync("src/api/api.js", "utf8");
+  assert.match(api, /const res = await axios\.post\(url, data, \{ headers \}\);\s*return res\?\.data;/);
+  assert.match(fn, /res\.status === "partial"/);
+  assert.match(fn, /toastError\(res\.message\)/);
 });
 
 test("ticket 21: the SIP list is re-read after a modify, not patched locally", () => {
