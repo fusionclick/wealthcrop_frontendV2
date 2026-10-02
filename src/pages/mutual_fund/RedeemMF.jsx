@@ -12,9 +12,16 @@ import { matchLots, isoDay } from "../../utils/taxlots";
 import { lockinSplit } from "../../utils/lockin";
 import { fmtDate } from "../../utils/schemeName";
 
+// Audit #42 — money leaves only for a verified PAN. The server refuses without it; the page
+// says so first. Same flag the server reads (investor-data's profile.pan_verified).
+export const PAN_NOT_VERIFIED =
+  "Withdrawals need a verified PAN, and yours is not verified yet. Open KYC to verify it, then try again.";
+export const panVerified = (investorData) => [true, 1, "1", "true"].includes(investorData?.profile?.pan_verified);
+
 export async function submitRedeemOrder({ investorData, holding, redeemAll, redeemAmount, acknowledged = [], queryClient }) {
   const err = validateInvestorReady(investorData);
   if (err) return { ok: false, message: err };
+  if (!panVerified(investorData)) return { ok: false, message: PAN_NOT_VERIFIED };
   if (!holding) return { ok: false, message: "Please select a fund to redeem." };
   if (!holding.folio) return { ok: false, message: "Folio is missing on this holding. Cannot redeem." };
   if (!redeemAll && (!redeemAmount || Number(redeemAmount) <= 0)) {
@@ -91,6 +98,7 @@ export async function submitRedeemOrder({ investorData, holding, redeemAll, rede
 export async function registerSwp({ investorData, holding, amount, sched, acknowledged = [], queryClient }) {
   const err = validateInvestorReady(investorData);
   if (err) return { ok: false, message: err };
+  if (!panVerified(investorData)) return { ok: false, message: PAN_NOT_VERIFIED };
   const bad = sxpIntentError({ type: "swp", source: holding, amount, schedule: sched });
   if (bad) return { ok: false, message: bad };
 
@@ -158,14 +166,27 @@ export function RedeemForm({ holding, locked, onCancel, onSuccess, replaceRegNo,
   // is the one FundDetails already caches, so that path usually refetches nothing.
   const schemeIsin = holding?.scheme_isin || holding?.isin || "";
   const schemeCode = holding?.scheme_bse_code || holding?.scheme_code || "";
-  const { data: lockIn = null } = useQuery({
+  const { data: schemeInfo = null } = useQuery({
     queryKey: ["FUND_FULL_DETAILS", schemeIsin, schemeCode],
     queryFn: () =>
       postApi(nodeUrl(import.meta.env.VITE_SCHEME_DETAILS || "/scheme-details"), { isin: schemeIsin, scheme_code: schemeCode }),
-    select: (res) => res?.data?.scheme_info?.lockIn || null,
+    select: (res) => res?.data?.scheme_info || null,
     enabled: Boolean(schemeIsin || schemeCode),
     staleTime: 1000 * 60 * 2,
   });
+  const lockIn = schemeInfo?.lockIn || null;
+  // Audit #18 — BSE's own word on whether this scheme takes an SWP (true / false / null =
+  // never said). Only true offers the schedule; the form says which of the other two it is.
+  const swpOffered = schemeInfo ? (schemeInfo.txn?.swp ?? null) : null;
+  const { setOn: setSchedOn } = sched;
+  useEffect(() => {
+    if (swpOffered !== true) setSchedOn(false);
+  }, [swpOffered, setSchedOn]);
+  // Audit #42 — said before the button is pressed; the server refuses it either way.
+  const panOk = panVerified(investorData);
+  // Audit #18 — mirrors the server: one instalment cannot exceed what the holding is worth.
+  const worth = Number(holding?.current_value);
+  const swpTooBig = sched.on && worth > 0 && Number(redeemAmount) > worth;
 
   // QA 3.8 (still) — /scheme-details carries no lock-in on this host for most schemes, so the
   // guard fell through for ELSS too and the redemption reached BSE. ELSS has a STATUTORY
@@ -328,6 +349,12 @@ export function RedeemForm({ holding, locked, onCancel, onSuccess, replaceRegNo,
               exact units are set by the NAV on the day the order executes.
             </p>
           ) : null}
+          {swpTooBig ? (
+            <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+              Each SWP instalment is more than this holding is worth today (₹{worth.toLocaleString("en-IN")}). Choose a
+              smaller amount.
+            </p>
+          ) : null}
         </div>
       )}
 
@@ -340,7 +367,16 @@ export function RedeemForm({ holding, locked, onCancel, onSuccess, replaceRegNo,
       {/* QA 3.8 — said before the button is pressed, not only on refusal. */}
       {lockNotice ? <p className="text-xs text-amber-700 dark:text-amber-400">{lockNotice}</p> : null}
 
-      <SxpSchedule {...sched} amount={redeemAmount} />
+      <SxpSchedule {...sched} amount={redeemAmount} offered={swpOffered} />
+
+      {!panOk ? (
+        <p role="alert" className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 dark:text-amber-300 dark:bg-amber-500/10 dark:border-amber-500/30">
+          {PAN_NOT_VERIFIED}{" "}
+          <button type="button" onClick={() => navigate("/kyc")} className="font-semibold underline">
+            Open KYC
+          </button>
+        </p>
+      ) : null}
 
       <OrderDisclaimers {...disc} />
 
@@ -357,7 +393,7 @@ export function RedeemForm({ holding, locked, onCancel, onSuccess, replaceRegNo,
         <button
           type="button"
           onClick={handleRedeem}
-          disabled={submitting || (locked && !holding) || !sched.ready || mustAck || Boolean(refusal)}
+          disabled={submitting || (locked && !holding) || !sched.ready || mustAck || Boolean(refusal) || !panOk || swpTooBig}
           className="flex-1 py-3 rounded-lg bg-red-600 text-white font-medium disabled:opacity-50"
         >
           {submitting ? "Processing…" : sched.on ? "Start SWP" : "Redeem"}

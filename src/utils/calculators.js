@@ -1,3 +1,5 @@
+import { annuityFactor, clampNum, num } from "./calcSafe.js";
+
 /**
  * Income Tax — FY 2025-26 / AY 2026-27 (Budget 2025 slabs).
  * ponytail: sirf salaried/individual (<60) ka case. Senior citizen ki alag old-regime
@@ -136,23 +138,216 @@ export const epf = ({ basic, employeePct = 12, employerPct = 12, years, rate = 8
  *
  * ponytail: `buildMonths` is how long the investor gives themselves to close the gap,
  * because "monthly savings required" has no answer without a horizon and the SRS does
- * not name one. Returns are ignored while building: a fund you may need next month
- * should not be budgeted as if it compounds first.
+ * not name one.
+ *
+ * Audit #68 — the expected return used to move nothing but the "income once parked" line, so
+ * any rate could be typed and the monthly figure never changed. Money parked in a liquid or
+ * overnight fund while the fund is being built does earn it: the deposits and what is already
+ * saved both compound until the deadline, so the monthly figure now counts that. The TARGET is
+ * still never discounted by the return — the full amount has to be there the month it is
+ * needed. At 0% this is exactly the old gap / months.
  */
 export const emergencyFund = ({ expenses, months = 6, current = 0, rate = 0, buildMonths = 12 }) => {
   const need = Math.max(0, Number(expenses) || 0) * clampMonths(months);
   const have = Math.max(0, Number(current) || 0);
   const gap = Math.max(0, need - have);
   const build = clampMonths(buildMonths);
-  const r = Math.max(0, Number(rate) || 0) / 100;
+  const r = clampNum(rate, 0, 100, 0) / 100;
+  const monthly = r / 12;
+  const stillShort = Math.max(0, need - have * (1 + monthly) ** build);
   return {
     required: Math.round(need),
     shortfall: Math.round(gap),
-    monthlySaving: Math.round(gap / build),
+    monthlySaving: Math.round(stillShort / annuityFactor(monthly, build)),
     // Only meaningful once the fund is built and parked somewhere.
     annualIncomeIfInvested: Math.round(need * r),
     funded: gap === 0,
   };
+};
+
+/**
+ * Audit #68 — which catalogue rows to offer as a home for the emergency fund.
+ *
+ * The master lists every plan and option of a fund as its own scheme, so this keeps one line
+ * per fund, Growth option only (an IDCW option pays the money back out, the opposite of
+ * parking it). ponytail: the exclusions are name heuristics — AMFI rows carry no "open for
+ * purchase" flag, so ETFs (bought on an exchange, not as an MF order), unclaimed-money plans
+ * and the closed retail/institutional plans are known only by what they are called. Swap in a
+ * BSE purchase flag once every row has one.
+ */
+const NOT_FOR_PARKING = /\b(?:etf|bees)\b|unclaimed|institutional|retail/i;
+
+export const parkingFunds = (rows, n = 3) => {
+  if (!Array.isArray(rows)) return [];
+  const seen = new Set();
+  const out = [];
+  for (const f of rows) {
+    if (out.length >= n) break;
+    if (f?.payout !== "Growth" || NOT_FOR_PARKING.test(`${f.name || ""} ${f.scheme_option || ""}`)) continue;
+    // "ICICI Prudential Liquid Fund -" and "ICICI Prudential Liquid Fund" are one fund.
+    const key = String(f.name || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(f);
+  }
+  return out;
+};
+
+/**
+ * The year-by-year path both life-goal planners draw: what is saved today, grown monthly at
+ * `monthlyRate` with `monthlySIP` added each month, to the end of each year of age.
+ */
+const savingYears = ({ age, years, savings, monthlyRate, monthlySIP }) => {
+  const yearGrowth = (1 + monthlyRate) ** 12;
+  const yearOfSip = monthlySIP * annuityFactor(monthlyRate, 12);
+  let balance = savings;
+  const rows = [{ age, phase: "Today", paidIn: 0, paidOut: 0, balance }];
+  for (let y = 1; y <= years; y++) {
+    balance = balance * yearGrowth + yearOfSip;
+    rows.push({ age: age + y, phase: "Saving", paidIn: monthlySIP * 12, paidOut: 0, balance });
+  }
+  return rows;
+};
+
+// Whole rupees for the screen. Math.max also turns a float-noise "-0" at the end of a fully
+// spent plan into a plain 0 — toLocaleString prints -0 as "-0".
+const rupees = (rows) =>
+  rows.map((r) => ({
+    ...r,
+    paidIn: Math.round(r.paidIn),
+    paidOut: Math.round(r.paidOut),
+    balance: Math.max(0, Math.round(r.balance)),
+  }));
+
+// Ages are whole years (the projection steps a year at a time) and 120 bounds every loop.
+const wholeAge = (v) => Math.round(clampNum(v, 0, 120, 0));
+
+/**
+ * Audit #66 — retirement plan, with the inputs and outputs the spec names: the corpus needed
+ * on retirement day, what today's savings grow to by then, the monthly SIP that closes the
+ * gap, and the path there and back down, year by year.
+ *
+ * The old page hid a fixed 6% post-retirement return and a fixed 30-year retirement; both are
+ * inputs now (the second as life expectancy). Before retirement everything compounds monthly
+ * at the pre-retirement return — the convention sipSeries and sipForGoal already use, so the
+ * tools agree. In retirement each year's expenses are drawn at the start of that year and keep
+ * rising with inflation, while what is left earns the post-retirement return. The corpus is
+ * exactly what that stream costs, so a plan that follows the SIP runs out in the year of the
+ * life expectancy, not before.
+ */
+export const retirementPlan = ({
+  currentAge, retirementAge, lifeExpectancy, monthlyExpense,
+  inflation = 0, preReturn = 0, postReturn = 0, currentSavings = 0,
+}) => {
+  const age = wholeAge(currentAge);
+  const retire = wholeAge(retirementAge);
+  const life = wholeAge(lifeExpectancy);
+  if (retire <= age) return { error: "Retirement age has to be later than your current age." };
+  if (life <= retire) return { error: "Life expectancy has to be later than your retirement age." };
+
+  const yearsToRetire = retire - age;
+  const yearsRetired = life - retire;
+  const g = clampNum(inflation, 0, 100, 0) / 100;
+  const pre = clampNum(preReturn, 0, 100, 0) / 100 / 12;
+  const post = clampNum(postReturn, 0, 100, 0) / 100;
+  const savings = Math.max(0, num(currentSavings));
+
+  const expenseAtRetirement = Math.max(0, num(monthlyExpense)) * (1 + g) ** yearsToRetire;
+  const firstYear = expenseAtRetirement * 12;
+  // firstYear × Σ q^k over the retirement years, q = (1+g)/(1+post). q = 1 (return equals
+  // inflation) is the 0/0 limit of the closed form: every year then costs the first year's sum.
+  const q = (1 + g) / (1 + post);
+  const corpus = q === 1 ? firstYear * yearsRetired : (firstYear * (1 - q ** yearsRetired)) / (1 - q);
+
+  const months = yearsToRetire * 12;
+  const savingsAtRetirement = savings * (1 + pre) ** months;
+  const monthlySIP = Math.max(0, corpus - savingsAtRetirement) / annuityFactor(pre, months);
+
+  const projection = savingYears({ age, years: yearsToRetire, savings, monthlyRate: pre, monthlySIP });
+  let balance = projection.at(-1).balance;
+  for (let y = 0; y < yearsRetired; y++) {
+    const spend = firstYear * (1 + g) ** y;
+    balance = (balance - spend) * (1 + post);
+    projection.push({ age: retire + y + 1, phase: "Retired", paidIn: 0, paidOut: spend, balance });
+  }
+
+  return {
+    // The ages actually used — a typed 60.4 is planned as 60, and the page labels it so.
+    retirementAge: retire,
+    yearsToRetire,
+    yearsRetired,
+    expenseAtRetirement: Math.round(expenseAtRetirement),
+    corpus: Math.round(corpus),
+    savingsAtRetirement: Math.round(savingsAtRetirement),
+    monthlySIP: Math.round(monthlySIP),
+    projection: rupees(projection),
+  };
+};
+
+/**
+ * Audit #67 — education plan: the child's age now and when the course starts, the fee per
+ * year in today's money and how many years the course runs. Returns the total needed by the
+ * start, what today's savings grow to by then, the monthly SIP for the rest, and the path.
+ *
+ * Each year's fee is inflated to the year it is actually paid, so a four-year course costs
+ * more than four times its first year. Once the course starts the money is treated as parked
+ * safely and drawn as fees fall due — not as still earning the market return, the same rule
+ * the emergency fund keeps for money that will be needed soon.
+ */
+export const educationPlan = ({
+  childAge, startAge, annualCost, courseYears,
+  inflation = 0, expectedReturn = 0, currentSavings = 0,
+}) => {
+  const age = wholeAge(childAge);
+  const start = wholeAge(startAge);
+  const course = Math.round(clampNum(courseYears, 0, 20, 0));
+  if (start <= age) return { error: "Higher education has to start after the child's current age." };
+  if (course < 1) return { error: "The course has to last at least one year." };
+
+  const yearsToStart = start - age;
+  const g = clampNum(inflation, 0, 100, 0) / 100;
+  const r = clampNum(expectedReturn, 0, 100, 0) / 100 / 12;
+  const savings = Math.max(0, num(currentSavings));
+  const feeToday = Math.max(0, num(annualCost));
+
+  const fees = Array.from({ length: course }, (_, k) => feeToday * (1 + g) ** (yearsToStart + k));
+  const totalNeeded = fees.reduce((a, b) => a + b, 0);
+  const months = yearsToStart * 12;
+  const savingsAtStart = savings * (1 + r) ** months;
+  const monthlySIP = Math.max(0, totalNeeded - savingsAtStart) / annuityFactor(r, months);
+
+  const projection = savingYears({ age, years: yearsToStart, savings, monthlyRate: r, monthlySIP });
+  let balance = projection.at(-1).balance;
+  fees.forEach((fee, k) => {
+    balance -= fee;
+    projection.push({ age: start + k + 1, phase: "Studying", paidIn: 0, paidOut: fee, balance });
+  });
+
+  return {
+    startAge: start,
+    yearsToStart,
+    firstYearFee: Math.round(fees[0]),
+    totalNeeded: Math.round(totalNeeded),
+    savingsAtStart: Math.round(savingsAtStart),
+    monthlySIP: Math.round(monthlySIP),
+    projection: rupees(projection),
+  };
+};
+
+/**
+ * Audit #69 — FD maturity at the bank's own compounding frequency (`perYear`: 12 monthly,
+ * 4 quarterly, 2 half-yearly, 1 yearly). The page compounded yearly only, but most Indian
+ * banks compound quarterly, which pays more at the same rate — so it undersold every FD.
+ * Paise are kept; the page rounds for display.
+ */
+export const fdMaturity = ({ amount, rate, years, perYear = 4 }) => {
+  const p = Math.max(0, num(amount));
+  const r = clampNum(rate, 0, 100, 0) / 100;
+  // QA 10.3 — the tenure drives an exponent, so it is bounded like every other horizon here.
+  const y = clampNum(years, 0, MAX_YEARS, 0);
+  const m = Math.round(clampNum(perYear, 1, 365, 4));
+  const maturity = p * (1 + r / m) ** (m * y);
+  return { maturity, interest: maturity - p };
 };
 
 export const computeTax = ({ gross, regime = "new", deductions = 0, salaried = true }) => {

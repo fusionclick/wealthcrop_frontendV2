@@ -114,6 +114,7 @@ const CHROME_FREE_ROUTES = PIN_FREE_ROUTES;
 import KotakGate from "./components/stocks/KotakGate";
 import ModuleGate from "./components/ModuleGate";
 import LoginPinModal from "./utils/LoginPinModal";
+import KycPrompt from "./components/kyc/KycPrompt";
 import ResetPassword from "./pages/ResetPassword";
 import SocketHandler from "./utils/socketHandler";
 // ResetPin is rendered inline by LoginPinModal (the "Forgot PIN?" flow), not as a route.
@@ -378,6 +379,8 @@ useEffect(() => {
     <QueryClientProvider client={queryClient}>
       <SocketHandler />
       {locked && <LoginPinModal onSuccess={() => setLocked(false)} />}
+      {/* Audit #44 — the KYC pop-up: signed in, off the onboarding routes, never over the PIN modal. */}
+      {token && !locked && !PIN_FREE_ROUTES.some((p) => pathname.startsWith(p)) && <KycPrompt />}
       {/*  Always on top of everything */}
       {/* <div className="fixed top-0 left-0 w-full z-[60]">
       <MutualFundCarousel />
@@ -451,6 +454,9 @@ useEffect(() => {
                   src_scheme to BSE. Declared before /:isin/:code so the literal segments
                   above cannot be swallowed by the dynamic pair. */}
               <Route path="/mutual_fund/:isin/:code/sip" element={<SIPSetupPage />} />
+              {/* Audit #1 — the ISIN-only form fundSipPath builds now; the two-segment
+                  route above stays for old links. The page resolves the code itself. */}
+              <Route path="/mutual_fund/:isin/sip" element={<SIPSetupPage />} />
               <Route path="/mutual_fund/redeem" element={<RedeemMF />} />
               <Route path="/mutual_fund/switch" element={<SwitchMF />} />
               {/* SRS §4 — a lump sum split across funds, and optionally across time. */}
@@ -600,6 +606,17 @@ useEffect(() => {
               path="/mutual_fund/:isin/:code"
               element={
                 <Suspense fallback={<PageLoader/>} >
+                  <FundDetails />
+                </Suspense>
+              }
+            />
+            {/* Audit #1 — the fund page by ISIN alone (fundPath). Literal pages such as
+                /mutual_fund/compare still win: React Router ranks a static segment above
+                :isin wherever it is declared. */}
+            <Route
+              path="/mutual_fund/:isin"
+              element={
+                <Suspense fallback={<PageLoader />}>
                   <FundDetails />
                 </Suspense>
               }

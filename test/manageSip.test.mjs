@@ -126,7 +126,8 @@ test("the top-up modal asks the scheme for its minimum instead of inventing one"
 
 test("the top-up minimum is shown, and blocks the button rather than only toasting", () => {
   assert.match(code, /Minimum for this fund: ₹\{minTopup/, "the number is on screen before you press");
-  assert.match(code, /disabled=\{saving \|\| belowMin\}/);
+  // (Audit #32 added `|| !disc.ready` — the top-up now takes the disclaimer gate too.)
+  assert.match(code, /disabled=\{saving \|\| belowMin( \|\| !disc\.ready)?\}/);
 });
 
 test("a typed top-up amount is never overwritten by the scheme minimum", () => {

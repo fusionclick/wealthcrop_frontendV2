@@ -1,28 +1,45 @@
-﻿import React, { useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import { FiShare2 } from "react-icons/fi";
 import { AiOutlineStar } from "react-icons/ai";
 import { MdOutlineInfo } from "react-icons/md";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import DonutChart, { sliceColor } from "../../components/DonutChart";
 import MFChart from "../../components/chart/MFChart";
 import MutualFundInvestPage from "./MutualFundInvestPage";
 import { RedeemForm } from "./RedeemMF";
 import Riskometer from "../../components/Riskometer";
-import FundBadges from "../../components/FundBadges";
+import FundBadges, { DIRECT_NOT_OFFERED, isDirectPlan } from "../../components/FundBadges";
+import AddToBasket from "../../components/AddToBasket";
 import { getApi, postApi, postApiWithToken } from "../../api/api";
 import { useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
 import FundDetailsPageSkeleton from "../../components/ui/skeleton/main/FundDetailsPageSkeleton";
-import { fundSipPath, holdingMatchesScheme, isMfSaved, nodeUrl, toggleMfWatchlist } from "../../utils/nodeApi";
+import { fundCodeFor, fundPath, fundSipPath, holdingMatchesScheme, isMfSaved, nodeUrl, toggleMfWatchlist } from "../../utils/nodeApi";
 import { toastSuccess } from "../../utils/notifyCustom";
 import { titleCase, fmtAge, fmtDate, fmtRatio, fmtExitLoad } from "../../utils/schemeName";
 
 const fmtPct = (v) => (v == null || Number.isNaN(Number(v)) ? "—" : `${Number(v).toFixed(2)}%`);
 const inr = (v) => (v == null || Number.isNaN(Number(v)) ? "—" : `₹${Number(v).toLocaleString("en-IN")}`);
 
+// Audit #2 — a minimum says where it came from: BSE's own figure as is, the admin's platform
+// floor labelled as the platform's rule, and "N/A" — never an invented 500 / 5,000 — when
+// neither exists.
+const minText = (amount, source) =>
+  amount == null ? "N/A" : `${inr(amount)}${source === "platform" ? " (platform minimum)" : ""}`;
+
+// The windows the backend's rollingReturns() measures, in years.
+const ROLLING_WINDOWS = { "1Y": 1, "3Y": 3, "5Y": 5 };
+
 const FundDetails = () => {
-  const { isin } = useParams();
-  const { code } = useParams();
+  // Audit #1 — the address bar carries the ISIN alone (/mutual_fund/:isin). The exact BSE code
+  // arrives from an old two-segment link, in router state from Explore/Search/Compare, or from
+  // the link the investor clicked this session (fundCodeFor); otherwise /scheme-details
+  // resolves it from the ISIN — and from `?option=`, because BSE files an IDCW payout and a
+  // reinvestment option under one ISIN.
+  const { isin, code: codeParam } = useParams();
+  const location = useLocation();
+  const code = codeParam || location.state?.code || fundCodeFor(isin) || undefined;
+  const option = new URLSearchParams(location.search).get("option") || undefined;
   const navigate = useNavigate();
   const { data: investorData } = useSelector((state) => state.investorData);
   const ucc = investorData?.kyc?.ucc_code;
@@ -33,15 +50,20 @@ const FundDetails = () => {
   const [hoverIndex, setHoverIndex] = useState(null);
   const [hoverIndex2, setHoverIndex2] = useState(null);
   const [saved, setSaved] = useState(() => isMfSaved(isin, code));
-  const [buyModal, setBuyModal] = useState(false);
+  // Audit #11 — Explore's "Invest Now" lands here with `buy: true` and opens this page's own
+  // Invest modal: the same target the button on this page uses, with the exact scheme.
+  const [buyModal, setBuyModal] = useState(() => location.state?.buy === true);
   const [sellModal, setSellModal] = useState(false);
-  
+
     const detailsUrl = nodeUrl(import.meta.env.VITE_SCHEME_DETAILS || "/scheme-details");
-  
+
   const { data: details, isLoading } = useQuery({
-    queryKey: ["FUND_FULL_DETAILS", isin, code],
-    queryFn: async () => postApi(detailsUrl, { isin, scheme_code: code }),
-    enabled: !!isin && !!code,
+    // The option only matters while the code is unknown; keying on it once the code is known
+    // would refetch the page the moment the address is tidied.
+    queryKey: ["FUND_FULL_DETAILS", isin, code || option],
+    queryFn: async () => postApi(detailsUrl, { isin, scheme_code: code, option }),
+    // The ISIN alone is enough: the backend resolves the BSE code from it.
+    enabled: !!isin,
     staleTime: 1000 * 60 * 2,
     refetchInterval: 1000 * 60 * 5,
     refetchOnWindowFocus: true,
@@ -79,9 +101,13 @@ const FundDetails = () => {
       returns,
       name: schemeInfo?.name || base.name,
       category: schemeInfo?.category || extra.scheme_info?.category || base.category,
-      minSip: schemeInfo?.minSip ?? base.minSip ?? 500,
-      minLumpsum: schemeInfo?.minLumpsum ?? base.minLumpsum ?? 5000,
-      minRedeem: schemeInfo?.minRedeem ?? base.minRedeem ?? 1000,
+      // Audit #2 — no invented 500 / 5,000 / 1,000 when BSE published nothing: null, and the
+      // page says N/A (or names the platform's own minimum, which the backend marks).
+      minSip: schemeInfo?.minSip ?? base.minSip ?? null,
+      minLumpsum: schemeInfo?.minLumpsum ?? base.minLumpsum ?? null,
+      minRedeem: schemeInfo?.minRedeem ?? base.minRedeem ?? null,
+      minAdditional: schemeInfo?.minAdditional ?? null,
+      minSource: schemeInfo?.minSource || base.minSource || {},
       expense: schemeInfo?.expense ?? base.expense,
       exitLoad: schemeInfo?.exitLoad ?? base.exitLoad,
       risk: schemeInfo?.risk ?? base.risk,
@@ -107,7 +133,8 @@ const FundDetails = () => {
       riskMetrics: extra.riskMetrics || null,
       fundManagers: schemeInfo?.fundManagers || [],
       objective: schemeInfo?.objective || null,
-      factsheetUrl: schemeInfo?.factsheetUrl || null,
+      // Audit #5 — only a SID / KIM / SAI page; the backend drops any other AMC link.
+      documentsUrl: schemeInfo?.documentsUrl || null,
       inceptionDate: schemeInfo?.inceptionDate || null,
       ageYears: schemeInfo?.ageYears ?? null,
       // Ticket 3 — fund size, already normalised to ₹ crore by the backend.
@@ -118,6 +145,25 @@ const FundDetails = () => {
       txn: schemeInfo?.txn || base.txn || null,
     };
   }, [details, schemeInfo]);
+
+  // Audit #1 — an old /:isin/:code link, or a code-only one, is rewritten in place to the
+  // ISIN-only address as soon as the scheme is known. The code moves into router state, so
+  // the query key — and the page on screen — stay as they are. An IDCW plan's address also
+  // names its option, so the link Share copies opens this exact option and not its sibling
+  // under the same ISIN.
+  const realIsin = schemeInfo?.scheme_isin;
+  const realOption = /^IDCW/.test(schemeInfo?.payout || "") ? schemeInfo.payout.toLowerCase().replace(/\s+/g, "-") : "";
+  useEffect(() => {
+    if (!realIsin) return;
+    const canonical = `${fundPath(realIsin, schemeInfo.scheme_bse_code)}${realOption ? `?option=${realOption}` : ""}`;
+    if (`${location.pathname}${location.search}` === canonical) return;
+    navigate(canonical, { replace: true, state: { ...location.state, code: schemeInfo.scheme_bse_code } });
+  }, [realIsin, schemeInfo?.scheme_bse_code]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The watchlist is keyed on ISIN + BSE code, and on an ISIN-only address the code is only
+  // known once the scheme has loaded.
+  const schemeCode = code || schemeInfo?.scheme_bse_code;
+  useEffect(() => setSaved(isMfSaved(isin, schemeCode)), [isin, schemeCode]);
 
   const thisHolding = useMemo(
     () =>
@@ -203,7 +249,7 @@ const FundDetails = () => {
   const toggleSave = () => {
     const nowSaved = toggleMfWatchlist({
       isin,
-      code,
+      code: schemeCode,
       name: fundsList?.name || "Fund",
       nav: fundsList?.nav,
     });
@@ -216,6 +262,10 @@ const FundDetails = () => {
   const closeModal = () => {
     setBuyModal(false);
     setSellModal(false);
+    // Arrived from a card's Invest Now: drop the flag, or a refresh would reopen the modal.
+    if (location.state?.buy) {
+      navigate(`${location.pathname}${location.search}`, { replace: true, state: { ...location.state, buy: false } });
+    }
   };
 
 
@@ -233,6 +283,19 @@ const FundDetails = () => {
 // ];
 
 const ratios = fundsList?.advancedRatios;
+// Audit #5 — when the backend could not measure Alpha/Beta it now says why
+// (`alphaBetaNa`: "no benchmark series" for debt, hybrid, gold, international…). The two
+// tiles then read "N/A" with that reason instead of silently disappearing.
+const abNa = ratios?.alphaBetaNa ? "N/A" : undefined;
+
+// Audit #2 — a scheme that does not take a SIP never shows a SIP minimum (the platform floor
+// used to fill one in for it).
+const sipOffered = fundsList?.sip_allowed !== false && fundsList?.txn?.sip !== false;
+const minSipText = sipOffered ? minText(fundsList?.minSip, fundsList?.minSource?.sip) : "SIP not offered";
+
+// Compliance #31 — the server refuses a Direct-plan purchase (direct_plan_not_offered), so a
+// Direct plan's page offers no way to buy it — no Invest, SIP or basket button — and says why.
+const direct = isDirectPlan(fundsList);
 
 // Only metrics the published NAV series can actually support, and a metric is shown only
 // when it was measured. Top 5 / Top 20 needed portfolio holdings, and Alpha / Beta needed
@@ -250,8 +313,8 @@ const fundamentals = [
   // the scheme's own benchmark where BSE names one, otherwise the index SEBI prescribes for
   // its category. Which of the two it was is on the tooltip, so a category benchmark is
   // never read as the AMC's own. No index the backend can price = no tiles, as before.
-  { label: "Alpha", value: ratios?.alpha, suffix: "%", vs: ratios?.benchmark },
-  { label: "Beta", value: ratios?.beta, vs: ratios?.benchmark },
+  { label: "Alpha", value: ratios?.alpha ?? abNa, suffix: ratios?.alpha != null ? "%" : "", vs: ratios?.benchmark, na: ratios?.alphaBetaNa },
+  { label: "Beta", value: ratios?.beta ?? abNa, vs: ratios?.benchmark, na: ratios?.alphaBetaNa },
   { label: "P/E Ratio", value: ratios?.peRatio },
   { label: "P/B Ratio", value: ratios?.pbRatio },
 ].filter((m) => m.value != null);
@@ -450,6 +513,11 @@ const pctOf = (key) => {
 
     {/* INVEST */}
     <div className="flex gap-3 items-center flex-wrap">
+      {direct ? (
+        <p className="px-3 py-2 rounded-xl text-sm font-medium bg-amber-50 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+          {DIRECT_NOT_OFFERED}
+        </p>
+      ) : (
       <button
         onClick={openBuy}
         className="
@@ -460,6 +528,7 @@ const pctOf = (key) => {
       >
         {thisHolding ? "Invest more" : "Invest Now"}
       </button>
+      )}
       <button
         onClick={openSell}
         className="
@@ -474,8 +543,8 @@ const pctOf = (key) => {
       {/* The SIP setup page needs a fund, and until now nothing passed it one — its only
           entry point was a promo link carrying no state, so every registration reached BSE
           with an empty src_scheme. This is that entry point. Shown only where BSE says the
-          scheme accepts a SIP. */}
-      {fundsList?.sip_allowed === true && (
+          scheme accepts a SIP — and never on a Direct plan (Compliance #31). */}
+      {fundsList?.sip_allowed === true && !direct && (
         <button
           onClick={() => navigate(fundSipPath(fundsList?.scheme_isin || isin, fundsList?.scheme_bse_code || code), {
             state: {
@@ -498,6 +567,15 @@ const pctOf = (key) => {
         </button>
       )}
 
+      {/* Audit #11 — the same action Explore's cards have (a Direct plan cannot be bought, in
+          a basket or otherwise). */}
+      {fundsList?.name && !direct ? (
+        <AddToBasket
+          fund={fundsList}
+          className="px-5 py-2 rounded-xl border border-[var(--border-color)] text-[var(--text-primary)] font-semibold hover:bg-[var(--white-5)]"
+        />
+      ) : null}
+
       <div className="text-right text-sm text-[var(--text-secondary)]">
         <div>
           Nav:
@@ -505,14 +583,12 @@ const pctOf = (key) => {
             {fundsList?.nav != null ? `₹${Number(fundsList.nav).toFixed(2)}` : "—"}
           </span>
         </div>
-        {fundsList?.minLumpsum ? (
         <div>
           Min lumpsum:
           <span className="text-[var(--text-primary)] font-medium ml-1">
-            ₹{fundsList.minLumpsum}
+            {minText(fundsList?.minLumpsum, fundsList?.minSource?.lumpsum)}
           </span>
         </div>
-        ) : null}
       </div>
     </div>
 
@@ -554,9 +630,9 @@ const pctOf = (key) => {
     </div>
     ) : null}
 
-    {/* CORE SCHEME PARAMETERS — each one drawn only when it is actually known. A tile that
-        says "—" is the "incorrect or hardcoded placeholder" the brief rules out; an absent
-        tile is the honest form of "not published". */}
+    {/* CORE SCHEME PARAMETERS — Audit #3: every tile is always drawn, and one with nothing
+        published says "N/A" (the client asked for exactly that) instead of disappearing.
+        Still never a placeholder number: N/A is the honest form of "not published". */}
     {[
       ["ISIN", fundsList?.scheme_isin, "The public identifier printed on your CAS"],
       // Ticket 3 — the backend hands this over already in ₹ crore, unit verified against
@@ -570,15 +646,20 @@ const pctOf = (key) => {
       ["Plan inception", fmtDate(fundsList?.inceptionDate), "When this plan started — not necessarily when the scheme launched"],
       ["Fund age", fmtAge(fundsList?.ageYears), null],
       ["Lock-in", fundsList?.lockIn?.label, "Units cannot be redeemed during this period"],
-      ["Benchmark", fundsList?.benchmark, "The index this scheme measures itself against"],
+      // BSE's own benchmark; failing that, the index Alpha/Beta below were measured against,
+      // saying when it is the category's standard index rather than the AMC's choice.
+      [
+        "Benchmark",
+        fundsList?.benchmark ||
+          (ratios?.benchmark ? `${ratios.benchmark}${ratios.benchmarkSource === "category" ? " (category standard)" : ""}` : null),
+        "The index this scheme measures itself against",
+      ],
       ["Rating", fundsList?.fundRating ? `${fundsList.fundRating} / 5` : null, null],
-    ]
-      .filter(([, v]) => v)
-      .map(([label, value, hint]) => (
+    ].map(([label, value, hint]) => (
         <div key={label} className="bg-[var(--white-5)] p-3 rounded-lg dark:border border-[var(--border-color)]" title={hint || undefined}>
           <p className="text-xs text-[var(--text-secondary)]">{label}</p>
           <p className={`font-semibold text-[var(--text-primary)] ${label === "ISIN" ? "text-xs font-mono break-all" : "text-sm"}`}>
-            {value}
+            {value || "N/A"}
           </p>
         </div>
       ))}
@@ -661,7 +742,7 @@ const pctOf = (key) => {
           text-gray-900 dark:text-[var(--text-primary)]
         "
       >
-        {inr(fundsList?.minSip)}
+        {minSipText}
       </p>
     </div>
   </div>
@@ -702,6 +783,9 @@ const pctOf = (key) => {
 
                 <p className="font-semibold mt-1 dark:text-[var(--text-primary)]">
                   {item.value}{item.suffix || ""}
+                  {item.value === "N/A" && item.na ? (
+                    <span className="block text-[11px] font-normal text-slate-500 dark:text-[var(--text-secondary)]">— {item.na}</span>
+                  ) : null}
                 </p>
 
                 {activeInfo === index && (
@@ -800,7 +884,7 @@ const pctOf = (key) => {
 
                 {/* The investor has just chosen an amount and a duration here; carrying
                     both into the setup form beats making them type it again. */}
-                {fundsList?.sip_allowed === true && (
+                {fundsList?.sip_allowed === true && !direct && (
                   <button
                     onClick={() =>
                       navigate(fundSipPath(fundsList?.scheme_isin || isin, fundsList?.scheme_bse_code || code), {
@@ -892,17 +976,19 @@ const pctOf = (key) => {
           <div className="flex flex-col gap-4">
             <div className="flex justify-between border-b py-2">
               <span className="text-gray-600 dark:text-[var(--text-secondary)]">Min. for 1st investment</span>
-              <span className="font-semibold dark:text-[var(--text-primary)]">{inr(fundsList?.minLumpsum)}</span>
+              <span className="font-semibold dark:text-[var(--text-primary)]">{minText(fundsList?.minLumpsum, fundsList?.minSource?.lumpsum)}</span>
             </div>
+            {/* Audit #2 — BSE's additional-purchase minimum. This line used to print the
+                REDEMPTION minimum, which is a different rule about money going the other way. */}
             <div className="flex justify-between border-b py-2">
               <span className="text-gray-600 dark:text-[var(--text-secondary)]">
                 Min. for 2nd investment onwards
               </span>
-              <span className="font-semibold dark:text-[var(--text-primary)]">{inr(fundsList?.minRedeem || fundsList?.minLumpsum)}</span>
+              <span className="font-semibold dark:text-[var(--text-primary)]">{minText(fundsList?.minAdditional, fundsList?.minSource?.additional)}</span>
             </div>
             <div className="flex justify-between py-2">
               <span className="text-gray-600 dark:text-[var(--text-secondary)]">Min. for SIP</span>
-              <span className="font-semibold dark:text-[var(--text-primary)]">{inr(fundsList?.minSip)}</span>
+              <span className="font-semibold dark:text-[var(--text-primary)]">{minSipText}</span>
             </div>
           </div>
         </div>
@@ -1021,23 +1107,27 @@ const pctOf = (key) => {
               <p className="text-sm text-[var(--text-primary)] leading-relaxed">{fundsList.objective}</p>
             </div>
           ) : null}
-          {fundsList.factsheetUrl ? (
+          {/* Audit #5 — no redirect to the AMC's site from here, with one exception SEBI
+              requires: the scheme's offer documents. `documentsUrl` is set only when the link
+              IS the SID / KIM / SAI page, and the link says that is what it opens. */}
+          {fundsList.documentsUrl ? (
             <a
-              href={fundsList.factsheetUrl}
+              href={fundsList.documentsUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block mt-4 text-sm font-medium text-blue-600 hover:underline"
+              className="inline-block mt-4 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"
             >
-              Scheme documents from the AMC →
+              Scheme documents (SID / KIM / SAI)
             </a>
           ) : null}
         </div>
       ) : null}
 
       {/* ROLLING RETURNS — what EVERY window in this fund's history returned, not the one
-          window that happens to end today. Computed from the same NAV series as the chart;
-          a period the fund is too young for is simply absent. */}
-      {fundsList?.rolling && Object.values(fundsList.rolling).some(Boolean) ? (
+          window that happens to end today. Computed from the same NAV series as the chart.
+          Audit #8 — a window the fund is too young for gets a row that says so (it used to
+          vanish, and with under a year of history the whole card went with it). */}
+      {fundsList?.rolling ? (
         <div className="bg-[var(--white-10)] border border-[var(--border-color)] shadow-lg rounded-2xl p-6">
           <h2 className="text-2xl font-semibold mb-1 text-[var(--text-primary)]">Rolling returns</h2>
           <p className="text-xs text-[var(--text-secondary)] mb-4">
@@ -1057,9 +1147,21 @@ const pctOf = (key) => {
                 </tr>
               </thead>
               <tbody>
-                {Object.entries(fundsList.rolling)
-                  .filter(([, v]) => v)
-                  .map(([period, v]) => (
+                {Object.entries(ROLLING_WINDOWS).map(([period, years]) => {
+                  const v = fundsList.rolling[period];
+                  if (!v) {
+                    const started = fmtDate(periodReturns?.inceptionDate || fundsList?.inceptionDate);
+                    return (
+                      <tr key={period} className="border-t border-[var(--border-color)]">
+                        <td className="py-2 pr-4 font-medium text-[var(--text-primary)]">{period}</td>
+                        <td colSpan={6} className="py-2 text-[var(--text-secondary)]">
+                          Needs {years} year{years > 1 ? "s" : ""} of history —{" "}
+                          {started ? `this fund started on ${started}` : "no NAV history has been published for it yet"}
+                        </td>
+                      </tr>
+                    );
+                  }
+                  return (
                     <tr key={period} className="border-t border-[var(--border-color)]">
                       <td className="py-2 pr-4 font-medium text-[var(--text-primary)]">{period}</td>
                       <td className="py-2 pr-4 text-[var(--text-primary)]">{fmtPct(v.average)}{v.annualised ? " p.a." : ""}</td>
@@ -1069,7 +1171,8 @@ const pctOf = (key) => {
                       <td className="py-2 pr-4 text-[var(--text-primary)]">{fmtPct(v.positivePct)}</td>
                       <td className="py-2 text-[var(--text-secondary)]">{v.windows}</td>
                     </tr>
-                  ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1158,29 +1261,18 @@ const pctOf = (key) => {
       ) : null}
 
       {/* Portfolio composition — holdings, asset split and sectors — comes from the AMC's
-          monthly disclosure, which no feed wired into this platform publishes. Rather than
-          three silently missing cards, say so once and point at the document that does have
-          it: the factsheet URL we already hold for this exact scheme. */}
+          monthly disclosure, uploaded through the admin panel. Rather than three silently
+          missing cards, say so once. Audit #5 — in-app only: this used to send the investor
+          off to the AMC's factsheet, and the client wants no redirect out of a fund page. */}
       {!(fundsList?.holdings || []).length &&
       !(fundsList?.assetSplit || []).length &&
       !(fundsList?.sectors || []).length ? (
         <div className="bg-[var(--white-10)] border border-[var(--border-color)] shadow-lg rounded-2xl p-6 max-w-4xl mt-10">
           <h2 className="text-2xl font-semibold mb-2 text-[var(--text-primary)]">Portfolio &amp; Top Holdings</h2>
           <p className="text-sm text-[var(--text-secondary)]">
-            This scheme&apos;s holdings are published by the AMC in its monthly portfolio
-            disclosure, which this platform does not yet receive as a data feed.
-            {fundsList?.factsheetUrl ? " The AMC's own factsheet has the current list:" : ""}
+            Holdings for this scheme have not been published here yet. They appear on this page
+            once the AMC&apos;s monthly portfolio disclosure is added.
           </p>
-          {fundsList?.factsheetUrl ? (
-            <a
-              href={fundsList.factsheetUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block mt-3 text-sm font-medium text-emerald-600 dark:text-emerald-400 underline"
-            >
-              View the factsheet for {titleCase(fundsList?.name || "this scheme")} →
-            </a>
-          ) : null}
         </div>
       ) : null}
 
@@ -1404,7 +1496,7 @@ const pctOf = (key) => {
 
 
           {
-            buyModal && (
+            buyModal && !direct && (
              <div
   onClick={closeModal}
   className="
@@ -1487,6 +1579,7 @@ pt-5 p-4
                 ) : (
                   <div className="text-sm text-slate-500 dark:text-[var(--text-secondary)] space-y-4">
                     <p>You don’t hold this fund yet, so there’s nothing to redeem.</p>
+                    {!direct && (
                     <button
                       type="button"
                       onClick={() => {
@@ -1497,6 +1590,7 @@ pt-5 p-4
                     >
                       Invest Now
                     </button>
+                    )}
                   </div>
                 )}
               </div>

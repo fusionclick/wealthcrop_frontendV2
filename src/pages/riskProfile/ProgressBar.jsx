@@ -10,8 +10,9 @@ const ProgressBar = ({ current, total }) => {
           style={{ width: `${percent}%` }}
         />
       </div>
-      <p className="text-sm text-gray-500 mt-2">
-        Question {current + 1} of {total}
+      {/* "Step", not "Question": step 1 is "About you" (Audit #56), which is not scored. */}
+      <p className="text-sm text-gray-500 dark:text-[var(--text-secondary)] mt-2">
+        Step {current + 1} of {total}
       </p>
     </div>
   );

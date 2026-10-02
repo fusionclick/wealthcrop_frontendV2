@@ -24,6 +24,8 @@ import { validateKycStep } from "../../utils/FormSchema";
 import { PAN_REGEX, bankFromIfsc, lookupPincode, panNameMismatch, readPan } from "../../utils/kycAutofill";
 import { KYC_DEMO } from "../../utils/kycDemoData";
 import { verdictFrom, verdictFromAddUcc, isKycVerified, reviewCopy, BSE_UNREACHABLE, VERIFIED_VERDICT } from "../../utils/kycVerdict";
+import { uploadKycDocument } from "./uploadKycDocument";
+import AadhaarSides from "./AadhaarSides";
 
 const steps = ["Personal", "Bank", "Docs", "Nominee", "Review"];
 
@@ -402,40 +404,19 @@ const callStepApi = async (step, data) => {
 //! For document only
 const uploadDocument = async (type, file, meta = {}) => {
   try {
-    const formData = new FormData();
-    formData.append("type", type);
-    formData.append("file", file);
-    // SRS p.3 — a secondary ID carries its number and which side this image is.
-    if (meta.document_number) formData.append("document_number", meta.document_number);
-    if (meta.side) formData.append("side", meta.side);
+    // Audit #43 — the request itself lives in uploadKycDocument, shared with Profile →
+    // Documents; it rejects with the server's reason (a one-sided Aadhaar, a locked document).
+    const data = await uploadKycDocument(type, file, meta);
 
-    const res = await fetch(`${import.meta.env.VITE_URL}/kyc/document`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-      body: formData,
-    });
+    toastSuccess(data?.message);
 
-    // A raw fetch Response, not an axios one: `ok` sits on the response itself. Reading
-    // `res.data?.ok` (8eb9cd7) failed every upload on screen although the server kept the file.
-    if (!res.ok) throw new Error("Upload failed");
+    // mark individual doc uploaded
+    setDocUploaded((prev) => ({
+      ...prev,
+      [type]: true,
+    }));
 
-    const data = await res.json();
-
-    if (data?.status === true || data?.status === 200) {
-      toastSuccess(data?.message);
-
-      // mark individual doc uploaded
-      setDocUploaded((prev) => ({
-        ...prev,
-        [type]: true,
-      }));
-
-      return data;
-    } else {
-      toastError(data?.message || "Upload failed");
-    }
+    return data;
   } catch (err) {
     toastError(err?.message)
     console.error(err);
@@ -1687,38 +1668,26 @@ function DocsStep({ data, onChange, errors = {}, uploadDocument }) {
   }}
 />
       </label>
-      <label
-        className="
-      flex items-center justify-between gap-3 border border-dashed rounded-xl p-4 cursor-pointer border-gray-300
-      dark:border-white/10 bg-gray-50 dark:bg-white/5 hove:bg-gray-100 dark:hover:bg-white/10 transition
-      "
-      >
+      {/* Audit #43 — this slot took one file, so an Aadhaar could be stored with its address
+          side missing. Front and back now go up together; the server refuses either alone. */}
+      <div className="border border-dashed rounded-xl p-4 border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-white/5 space-y-3">
         <div className="flex items-center gap-3 dark:text-white">
           <FileText size={20} />
           <div>
-            <p className="text-sm font-medium ">Upload Aadhaar <span className="font-normal text-gray-400 dark:text-gray-500">(optional)</span></p>
-            {data.documentA && (
-              <p className="text-xs text-green-600">{data.documentA.name}</p>
-            )}
+            <p className="text-sm font-medium ">Upload Aadhaar — front and back <span className="font-normal text-gray-400 dark:text-gray-500">(optional)</span></p>
             {errors.documentA && (
               <p role="alert" className="text-xs text-red-600">{errors.documentA}</p>
             )}
           </div>
         </div>
-        <Upload size={18} className="dark:text-white" />
-<input
-  type="file"
-  className="hidden"
-  onChange={async (e) => {
-    const file = e.target.files[0];
-    onChange("documentA", file);
-
-    if (file) {
-      await uploadDocument("aadhaar", file);
-    }
-  }}
-/>
-      </label>
+        <AadhaarSides
+          onUpload={async (front, back) => {
+            const ok = await uploadDocument("aadhaar", front, { back });
+            if (ok) onChange("documentA", front);
+            return ok;
+          }}
+        />
+      </div>
 
       {/* SRS page 3 — Secondary Identity Documents. */}
       <SecondaryIdUpload uploadDocument={uploadDocument} />
@@ -1734,6 +1703,7 @@ function DocsStep({ data, onChange, errors = {}, uploadDocument }) {
  * A passport's back holds the address page and a Voter ID's back holds the address too, so
  * the second side is offered for every type except the driving licence's single card face —
  * and skipping it is allowed, because an investor who only has one side should not be stuck.
+ * The exception is Aadhaar (Audit #43): its back is the address proof, so both sides are required.
  */
 function SecondaryIdUpload({ uploadDocument }) {
   const [type, setType] = useState("voter_id");
@@ -1760,6 +1730,15 @@ function SecondaryIdUpload({ uploadDocument }) {
     setBusy(false);
 
     if (res?.status) setSides((prev) => ({ ...prev, [side]: file.name }));
+  };
+
+  // Audit #43 — an Aadhaar is never one side: both are held and sent as a pair.
+  const sendPair = (front, back) => {
+    if (!number.trim()) {
+      toastError("Enter the document number first.");
+      return null;
+    }
+    return uploadDocument(type, front, { document_number: number.trim(), back });
   };
 
   const box =
@@ -1802,6 +1781,9 @@ function SecondaryIdUpload({ uploadDocument }) {
         />
       </div>
 
+      {type === "aadhaar" ? (
+        <AadhaarSides onUpload={sendPair} />
+      ) : (
       <div className="flex flex-col sm:flex-row gap-2">
         {["front", "back"].map((side) => (
           <label key={side} className={box}>
@@ -1820,6 +1802,7 @@ function SecondaryIdUpload({ uploadDocument }) {
           </label>
         ))}
       </div>
+      )}
     </div>
   );
 }

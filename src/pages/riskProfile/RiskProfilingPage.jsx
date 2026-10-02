@@ -1,34 +1,81 @@
 // RiskProfilingPage.jsx
 import { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import ProgressBar from "./ProgressBar";
-import { riskQuestions } from "./riskQuestions";
-import axios from "axios";
+import { profileLabel, profileQuestions, riskQuestions } from "./riskQuestions";
 import { getApiWithToken, postApiWithToken } from "../../api/api";
 import { toastSuccess } from "../../utils/notifyCustom";
-import { useNavigate } from "react-router-dom";
+import { yearsSince } from "../../utils/profileFields";
+import { fetchInvestorData } from "../../redux/investorDataSlice";
+
+const categoryColor = {
+  Conservative: "text-blue-600 dark:text-blue-400",
+  Moderate: "text-amber-600 dark:text-amber-400",
+  Aggressive: "text-red-600 dark:text-red-400",
+};
+
+const fmtDate = (d) =>
+  d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "";
+
+// Audit #56 — one line, wherever the profile answers appear, so nobody reads them as scored.
+const CONTEXT_NOTE =
+  "These describe you — they do not change your risk score. The Advisor uses your age to suggest a life stage and your goal to suggest a time horizon.";
+
+const ABOUT_KEYS = ["age", ...profileQuestions.map((q) => q.key)];
+const aboutComplete = (a) =>
+  Number.isInteger(Number(a.age)) && Number(a.age) >= 18 && Number(a.age) <= 100 && profileQuestions.every((q) => a[q.key]);
+
+/** "Age 34 · Salaried · ₹10–25 lakh …" — the stored codes, read back as their labels. */
+function AboutSummary({ context }) {
+  if (!context) return null;
+  return (
+    <div className="rounded-xl p-3 text-left bg-gray-50 dark:bg-[var(--white-5)] space-y-1">
+      <p className="text-xs font-semibold text-gray-700 dark:text-[var(--text-primary)]">About you</p>
+      <p className="text-xs text-gray-600 dark:text-[var(--text-secondary)]">
+        {[
+          context.age ? `Age ${context.age}` : null,
+          ...profileQuestions.map((q) => (context[q.key] ? `${q.question}: ${profileLabel(q.key, context[q.key])}` : null)),
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+      </p>
+      <p className="text-[11px] text-gray-500 dark:text-[var(--text-secondary)]">{CONTEXT_NOTE}</p>
+    </div>
+  );
+}
 
 const RiskProfilingPage = () => {
-  const [currentQ, setCurrentQ] = useState(0);
+  const [overview, setOverview] = useState(null); // null = still asking the server
+  const [started, setStarted] = useState(false);
+  const [about, setAbout] = useState({});
+  const [currentQ, setCurrentQ] = useState(-1); // -1 = "About you"
   const [answers, setAnswers] = useState({});
-  const [result, setResult] = useState(null); // { score, category }
+  const [result, setResult] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  const [lock, setLock] = useState(null); // null = abhi pooch rahe hain
 
-  const navigate = useNavigate()
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { data: investorData } = useSelector((state) => state.investorData);
 
-  // Server 6 mahine se pehle retake nahi deta. Pehle ye sirf Submit ke 403 se pata chalta
-  // tha — yaani nau sawal bharne ke baad. Ab wohi jawab shuru mein maang lete hain.
-  // Request nakaam ho to `{}` rakho: sawal dikhte rahen, faisla POST par server karega.
+  // Audit #23 / #70 — there is no lock to check any more. This reads the current profile, when
+  // it is due for review, the attempt before it and the history; "About you" starts from the
+  // last attempt's answers (or the profile's date of birth) so a retake is not a re-typing job.
   useEffect(() => {
-    getApiWithToken(`${import.meta.env.VITE_URL}/risk/profile`).then((res) =>
-      setLock(res?.data?.data || {})
-    );
+    getApiWithToken(`${import.meta.env.VITE_URL}/risk/profile`).then((res) => {
+      const data = res?.data?.data || {};
+      const dob = new Date(investorData?.profile?.dob || "");
+      setOverview(data);
+      setAbout({ age: Number.isNaN(dob.getTime()) ? "" : yearsSince(dob), ...(data.context || {}) });
+    });
+    // Mount only: the overview is read once per visit, and a retake replaces it with the result.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const asking = started || (overview && !overview.current);
   const question = riskQuestions[currentQ];
 
   const handleSelect = (score) => {
-    
     setAnswers({
       ...answers,
       [question.id]: score, //  ONLY SCORE STORED
@@ -42,7 +89,7 @@ const RiskProfilingPage = () => {
   };
 
   const back = () => {
-    if (currentQ > 0) {
+    if (currentQ > -1) {
       setCurrentQ((p) => p - 1);
     }
   };
@@ -60,11 +107,16 @@ const RiskProfilingPage = () => {
       8: "q8_crash_behavior",
       9: "q9_herd_behavior",
     };
-    const formattedAnswers = Object.keys(answers).reduce((acc, key) => {
-      const newKey = keyMap[key];
-      if (newKey) acc[newKey] = answers[key];
-      return acc;
-    }, {});
+    // The nine scored answers, plus the Audit #56 profile answers alongside them (the server
+    // stores both with this attempt and scores only the nine).
+    const formattedAnswers = Object.keys(answers).reduce(
+      (acc, key) => {
+        const newKey = keyMap[key];
+        if (newKey) acc[newKey] = answers[key];
+        return acc;
+      },
+      { ...Object.fromEntries(ABOUT_KEYS.map((k) => [k, about[k]])), age: Number(about.age) }
+    );
 
     // Backend nau jawab TOP LEVEL par mangta hai (RiskProfileRequest ke rules aur uska
     // apna GET risk/questions dono `q1_income_stability` waghera flat dete hain). Yahan
@@ -80,19 +132,24 @@ const RiskProfilingPage = () => {
       // appeared although the profile had been saved.
       if (res?.success) {
         toastSuccess("Risk profile saved!");
-        setResult({
-          score: res.data?.score,
-          category: res.data?.profile,
-        });
+        setResult(res.data);
+        // The Advisor and checkout read the profile from the store; the retake must reach them.
+        dispatch(fetchInvestorData());
       }
     } finally {
       setSubmitting(false);
     }
   };
 
-  const categoryColor = { Conservative: "text-blue-600", Moderate: "text-amber-600", Aggressive: "text-red-600" };
+  const shell = (children) => (
+    <div className="min-h-screen flex justify-center items-center p-6 bg-gray-50 dark:bg-[var(--app-bg)]">
+      <div className="w-full max-w-md rounded-2xl shadow-lg p-8 bg-white dark:bg-[var(--card-bg)] dark:border dark:border-[var(--border-color)] text-center space-y-4">
+        {children}
+      </div>
+    </div>
+  );
 
-  if (!lock) {
+  if (!overview) {
     return (
       <div className="min-h-screen flex justify-center items-center p-6 bg-gray-50 dark:bg-[var(--app-bg)]">
         <p className="text-gray-500 dark:text-[var(--text-secondary)]">Checking your risk profile…</p>
@@ -100,72 +157,131 @@ const RiskProfilingPage = () => {
     );
   }
 
-  if (lock.locked) {
-    return (
-      <div className="min-h-screen flex justify-center items-center p-6 bg-gray-50 dark:bg-[var(--app-bg)]">
-        <div className="w-full max-w-md rounded-2xl shadow-lg p-8 bg-white dark:bg-[var(--card-bg)] dark:border dark:border-[var(--border-color)] text-center space-y-4">
-          <div className="text-5xl">🔒</div>
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-[var(--text-primary)]">Risk Profile Locked</h2>
-          <p className="text-gray-500 dark:text-[var(--text-secondary)]">
-            {lock.message || "You can retake the risk profiler after 6 months."}
-          </p>
-
-          {/* Locked ka matlab profile chhup jana nahi — jo chal raha hai wo parhna zaroori hai. */}
-          {lock.current_profile && (
-            <div className="rounded-xl p-4 space-y-1 bg-gray-50 dark:bg-[var(--white-5)] text-left">
-              <p className="text-lg font-semibold text-center">
-                Profile: <span className={categoryColor[lock.current_profile] || "text-gray-700"}>{lock.current_profile}</span>
-              </p>
-              {lock.score != null && (
-                <p className="text-gray-500 dark:text-[var(--text-secondary)]">Score: <span className="font-semibold text-gray-800 dark:text-[var(--text-primary)]">{lock.score}</span></p>
-              )}
-              {lock.meaning && (
-                <p className="text-sm text-gray-500 dark:text-[var(--text-secondary)]">{lock.meaning}</p>
-              )}
-              {lock.profiled_at && (
-                <p className="text-xs text-gray-500">Taken on: {lock.profiled_at}</p>
-              )}
-              {lock.next_allowed_at && (
-                <p className="text-xs text-gray-500">Retake allowed from: {lock.next_allowed_at}</p>
-              )}
-            </div>
-          )}
-
-          <button
-            onClick={() => navigate("/profile/basic")}
-            className="mt-4 w-full px-6 py-3 rounded-lg bg-blue-600 text-white font-medium dark:bg-blue-500"
-          >
-            Back to Profile
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   if (result) {
-    return (
-      <div className="min-h-screen flex justify-center items-center p-6 bg-gray-50 dark:bg-[var(--app-bg)]">
-        <div className="w-full max-w-md rounded-2xl shadow-lg p-8 bg-white dark:bg-[var(--card-bg)] dark:border dark:border-[var(--border-color)] text-center space-y-4">
-          <div className="text-5xl">✅</div>
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-[var(--text-primary)]">Risk Profile Complete</h2>
-          {result.score != null && (
-            <p className="text-gray-500 dark:text-[var(--text-secondary)]">Score: <span className="font-semibold text-gray-800 dark:text-[var(--text-primary)]">{result.score}</span></p>
-          )}
-          {result.category && (
-            <p className="text-lg font-semibold">
-              Profile: <span className={categoryColor[result.category] || "text-gray-700"}>{result.category}</span>
-            </p>
-          )}
+    const before = result.previous;
+    return shell(
+      <>
+        <div className="text-5xl">✅</div>
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-[var(--text-primary)]">Risk Profile Complete</h2>
+        {result.score != null && (
+          <p className="text-gray-500 dark:text-[var(--text-secondary)]">
+            Score: <span className="font-semibold text-gray-800 dark:text-[var(--text-primary)]">{result.score}</span>
+          </p>
+        )}
+        {result.profile && (
+          <p className="text-lg font-semibold text-gray-800 dark:text-[var(--text-primary)]">
+            Profile: <span className={categoryColor[result.profile] || ""}>{result.profile}</span>
+          </p>
+        )}
+        {result.meaning && <p className="text-sm text-gray-500 dark:text-[var(--text-secondary)]">{result.meaning}</p>}
+
+        {/* Audit #23 — the attempt this one replaced, and its date. Nothing is overwritten. */}
+        <p className="text-sm text-gray-600 dark:text-[var(--text-secondary)]">
+          {before
+            ? `Previously ${before.profile} (score ${before.score}) on ${fmtDate(before.profiled_at)}${
+                before.profile === result.profile ? " — unchanged." : ` — now ${result.profile}.`
+              }`
+            : "This is your first risk profile."}
+        </p>
+        {result.review_due_at && (
+          <p className="text-xs text-gray-500 dark:text-[var(--text-secondary)]">
+            We will remind you to review it on {fmtDate(result.review_due_at)}. You can retake it at any time.
+          </p>
+        )}
+
+        <AboutSummary context={result.context} />
+
+        <div className="flex gap-2">
+          <button
+            onClick={() => navigate("/advisor")}
+            className="flex-1 px-4 py-3 rounded-lg bg-blue-600 text-white font-medium dark:bg-blue-500"
+          >
+            Open the Advisor
+          </button>
           <button
             onClick={() => navigate("/profile/basic")}
-            className="mt-4 w-full px-6 py-3 rounded-lg bg-blue-600 text-white font-medium dark:bg-blue-500"
+            className="flex-1 px-4 py-3 rounded-lg border border-gray-300 text-gray-700 dark:border-[var(--border-color)] dark:text-[var(--text-primary)]"
           >
             Continue to Profile
           </button>
         </div>
-      </div>
+      </>
     );
   }
+
+  if (!asking) {
+    const { current, previous, history = [] } = overview;
+    return shell(
+      <>
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-[var(--text-primary)]">Your risk profile</h2>
+
+        <div className="rounded-xl p-4 space-y-1 bg-gray-50 dark:bg-[var(--white-5)]">
+          <p className="text-lg font-semibold text-gray-800 dark:text-[var(--text-primary)]">
+            Profile: <span className={categoryColor[current.profile] || ""}>{current.profile}</span>
+          </p>
+          <p className="text-gray-500 dark:text-[var(--text-secondary)]">
+            Score: <span className="font-semibold text-gray-800 dark:text-[var(--text-primary)]">{current.score}</span>
+          </p>
+          {current.meaning && <p className="text-sm text-gray-500 dark:text-[var(--text-secondary)]">{current.meaning}</p>}
+          <p className="text-xs text-gray-500 dark:text-[var(--text-secondary)]">Taken on {fmtDate(current.profiled_at)}</p>
+        </div>
+
+        {/* Audit #23 — the old 6-month lock date, now only a reminder. */}
+        {overview.review_due ? (
+          <p className="rounded-lg px-3 py-2 text-sm bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
+            Review due since {fmtDate(overview.review_due_at)} — retake it so your plan and fund suggestions match you today.
+          </p>
+        ) : (
+          overview.review_due_at && (
+            <p className="text-xs text-gray-500 dark:text-[var(--text-secondary)]">
+              Next review due {fmtDate(overview.review_due_at)}. You can retake it at any time.
+            </p>
+          )
+        )}
+
+        {previous && (
+          <p className="text-sm text-gray-600 dark:text-[var(--text-secondary)]">
+            Before that: {previous.profile} (score {previous.score}) on {fmtDate(previous.profiled_at)}
+          </p>
+        )}
+
+        <AboutSummary context={overview.context} />
+
+        {history.length > 1 && (
+          <details className="text-left">
+            <summary className="text-xs font-semibold text-gray-600 dark:text-[var(--text-secondary)] cursor-pointer">
+              Every attempt ({history.length})
+            </summary>
+            <ul className="mt-2 space-y-1">
+              {history.map((h, i) => (
+                <li key={`${h.profiled_at}-${i}`} className="text-xs text-gray-600 dark:text-[var(--text-secondary)]">
+                  {fmtDate(h.profiled_at)} · <span className={categoryColor[h.profile] || ""}>{h.profile}</span> · score {h.score}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+
+        <div className="flex gap-2">
+          <button
+            onClick={() => setStarted(true)}
+            className="flex-1 px-4 py-3 rounded-lg bg-blue-600 text-white font-medium dark:bg-blue-500"
+          >
+            Retake questionnaire
+          </button>
+          <button
+            onClick={() => navigate("/profile/basic")}
+            className="flex-1 px-4 py-3 rounded-lg border border-gray-300 text-gray-700 dark:border-[var(--border-color)] dark:text-[var(--text-primary)]"
+          >
+            Back to Profile
+          </button>
+        </div>
+      </>
+    );
+  }
+
+  const field =
+    "w-full mt-1 border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white text-gray-800 dark:bg-[var(--white-10)] dark:border-[var(--border-color)] dark:text-[var(--text-primary)]";
 
   return (
     <div
@@ -186,10 +302,47 @@ const RiskProfilingPage = () => {
   >
     {/* Progress */}
     <ProgressBar
-      current={currentQ}
-      total={riskQuestions.length}
+      current={currentQ + 1}
+      total={riskQuestions.length + 1}
     />
 
+    {currentQ === -1 ? (
+      <>
+        {/* Audit #56 — the spec's profile questions, asked first and kept with this attempt. */}
+        <h2 className="text-xl font-semibold mb-1 text-gray-800 dark:text-[var(--text-primary)]">About you</h2>
+        <p className="text-xs text-gray-500 dark:text-[var(--text-secondary)] mb-4">{CONTEXT_NOTE}</p>
+
+        <div className="grid sm:grid-cols-2 gap-3">
+          <label className="text-sm text-gray-600 dark:text-[var(--text-secondary)]">
+            Age
+            <input
+              type="number"
+              min={18}
+              max={100}
+              value={about.age ?? ""}
+              onChange={(e) => setAbout({ ...about, age: e.target.value })}
+              className={field}
+            />
+          </label>
+          {profileQuestions.map((q) => (
+            <label key={q.key} className="text-sm text-gray-600 dark:text-[var(--text-secondary)]">
+              {q.question}
+              <select value={about[q.key] || ""} onChange={(e) => setAbout({ ...about, [q.key]: e.target.value })} className={field}>
+                <option value="" disabled>
+                  Choose…
+                </option>
+                {q.options.map(([code, label]) => (
+                  <option key={code} value={code}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ))}
+        </div>
+      </>
+    ) : (
+      <>
     {/* Question */}
     <h2
       className="
@@ -234,12 +387,14 @@ const RiskProfilingPage = () => {
         </label>
       ))}
     </div>
+      </>
+    )}
 
     {/* Navigation */}
     <div className="flex justify-between mt-8">
       <button
         onClick={back}
-        disabled={currentQ === 0}
+        disabled={currentQ === -1}
         className="
           px-5 py-2 rounded-lg border transition
           border-gray-300 text-gray-700 disabled:opacity-40
@@ -254,7 +409,7 @@ const RiskProfilingPage = () => {
       {currentQ === riskQuestions.length - 1 ? (
         <button
           onClick={submitRiskProfile}
-          disabled={Object.keys(answers).length !== riskQuestions.length || submitting}
+          disabled={Object.keys(answers).length !== riskQuestions.length || !aboutComplete(about) || submitting}
           className="
             px-6 py-2 rounded-lg transition
             bg-blue-600 text-white disabled:opacity-50
@@ -268,7 +423,7 @@ const RiskProfilingPage = () => {
       ) : (
         <button
           onClick={next}
-          disabled={answers[question.id] == null}
+          disabled={currentQ === -1 ? !aboutComplete(about) : answers[question.id] == null}
           className="
             px-6 py-2 rounded-lg transition
             bg-blue-600 text-white disabled:opacity-50

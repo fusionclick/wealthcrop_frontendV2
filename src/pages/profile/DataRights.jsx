@@ -13,15 +13,29 @@ import { toastError, toastSuccess } from "../../utils/notifyCustom";
  */
 const api = (path) => `${import.meta.env.VITE_URL}${path}`;
 
+// Audit #33 — the consent trail the order path writes (§2 / §4.1), in the investor's words.
+const CONSENT_LABEL = {
+  execution_only: "Execution-only declaration (no advice from our staff)",
+  rm_assisted: "Placed with a relationship manager's help",
+  regular_plan_commission: "Regular Plan and trail commission disclosure",
+  scheme_documents: "Read the scheme documents (SID / SAI / KIM)",
+  enach_authorization: "Auto-debit (mandate) authorisation",
+};
+
 export default function DataRights() {
   const [request, setRequest] = useState(null);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [consents, setConsents] = useState(null);
 
   useEffect(() => {
     getApiWithToken(api("/privacy/erasure")).then((res) => {
       setRequest(res?.data?.data ?? null);
+    });
+    getApiWithToken(api("/consents")).then((res) => {
+      const rows = res?.data?.data;
+      setConsents(Array.isArray(rows) ? rows : []);
     });
   }, []);
 
@@ -95,6 +109,39 @@ export default function DataRights() {
         >
           {busy ? "Preparing…" : "Download my data"}
         </button>
+      </div>
+
+      {/* Audit #33 — profile → Consents. Every declaration recorded against an order, kept for
+          eight years and never edited; read-only here because it is evidence. */}
+      <div className="border-t border-gray-200 dark:border-[var(--border-color)] pt-6 mb-8" id="consents">
+        <div className="flex items-center gap-2 mb-2">
+          <ShieldCheck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          <h3 className="font-semibold text-blue-950 dark:text-[var(--text-primary)]">Consents</h3>
+        </div>
+        <p className="text-sm text-gray-600 dark:text-[var(--text-secondary)] mb-3">
+          The declarations you made when placing orders and mandates, as we recorded them. They are kept
+          for eight years and cannot be changed.
+        </p>
+        {consents === null ? (
+          <p className="text-sm text-gray-500 dark:text-[var(--text-secondary)]">Loading…</p>
+        ) : consents.length === 0 ? (
+          <p className="text-sm text-gray-500 dark:text-[var(--text-secondary)]">No consents recorded yet.</p>
+        ) : (
+          <ul className="max-h-80 overflow-y-auto divide-y divide-gray-100 dark:divide-[var(--border-color)] text-sm">
+            {consents.map((c) => (
+              <li key={c.id} className="py-2 flex flex-wrap justify-between gap-x-4 gap-y-1">
+                <span className="text-gray-800 dark:text-[var(--text-primary)]">
+                  {CONSENT_LABEL[c.consent_type] || c.consent_type}
+                  {c.euin_number ? ` · EUIN ${c.euin_number}` : ""}
+                </span>
+                <span className="text-xs text-gray-500 dark:text-[var(--text-secondary)]">
+                  {c.order_id ? `Order ${c.order_id} · ` : c.mandate_id ? `Mandate ${c.mandate_id} · ` : ""}
+                  {new Date(c.created_at).toLocaleString("en-GB")} · v{c.consent_text_version}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div className="border-t border-gray-200 dark:border-[var(--border-color)] pt-6">

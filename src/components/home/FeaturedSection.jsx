@@ -23,7 +23,7 @@ const features = [
   {
     icon: <FaPiggyBank className="text-3xl text-red-600" />,
     title: "Goal-based Investing",
-    text: "Plan your future with personalized investment strategies.",
+    text: "Work towards each goal with Goal-based SIPs and an Asset Allocation you can see.",
   },
   {
     icon: <FaClock className="text-3xl text-blue-950 dark:text-[var(--text-primary)]" />,
@@ -32,13 +32,14 @@ const features = [
   },
   {
     icon: <FaUserTie className="text-3xl text-red-600" />,
-    title: "Expert Advisory",
-    text: "Get insights from certified financial experts whenever you need them.",
+    // Audit #34 — an AMFI-registered distributor offers no advisory service.
+    title: "Product Suitability Assessment",
+    text: "Answer a short risk questionnaire and see which schemes match your risk profile before you invest.",
   },
   {
     icon: <FaGlobeAsia className="text-3xl text-blue-950 dark:text-[var(--text-primary)]" />,
     title: "Global Access",
-    text: "Invest across top-performing global mutual funds and ETFs with ease.",
+    text: "Invest across global mutual funds and ETFs with ease.",
   },
 ];
 

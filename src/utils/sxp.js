@@ -46,8 +46,9 @@ export function buildSxpIntent({ type, source = {}, destCode, amount, schedule =
  * Why this instruction cannot be sent yet, or null.
  *
  * The server validates all of it again — this only exists so the investor is told before a
- * round trip. Units held are deliberately not checked here: the page's idea of the holding
- * comes from a portfolio call that may be minutes old, and the server asks BSE.
+ * round trip. Units held are not checked here (the server asks BSE), but an SWP instalment
+ * above what the holding is worth today is (Audit #18): that figure is on the holding row,
+ * priced the same way the server prices it, and it is the mistake an investor actually makes.
  */
 export function sxpIntentError({ type, source, destCode, amount, schedule }) {
   const what = SXP_LABEL[type] || "instruction";
@@ -60,6 +61,10 @@ export function sxpIntentError({ type, source, destCode, amount, schedule }) {
     }
   }
   if (!amount || Number(amount) <= 0) return `Enter a ${what} amount.`;
+  const worth = Number(source.current_value);
+  if (type === "swp" && worth > 0 && Number(amount) > worth) {
+    return `Each SWP instalment (₹${Number(amount).toLocaleString("en-IN")}) is more than this holding is worth today (₹${worth.toLocaleString("en-IN")}). Choose a smaller amount.`;
+  }
   if (!schedule?.installments) return "End date must be after the start date.";
   if (schedule.startDayInvalid) return `This scheme does not start a ${what} on that date.`;
   return null;

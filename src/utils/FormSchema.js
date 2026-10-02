@@ -36,8 +36,21 @@ export const formSchema = z.object({
 });
 
 
+// Audit #37 — SRS 2.2: sign in with the registered email OR the verified mobile number. The
+// box keeps its `email` name; loginIdentity() decides which field the server is sent.
+const MOBILE = /^(?:\+?91|0)?[6-9]\d{9}$/;
+export const isMobile = (value) => MOBILE.test(String(value ?? "").replace(/[\s-]/g, ""));
+export const loginIdentity = (value) => {
+  const v = String(value ?? "").trim();
+  return isMobile(v) ? { phone: v.replace(/[\s-]/g, "") } : { email: v };
+};
+const EMAIL_OR_MOBILE = z
+  .string()
+  .trim()
+  .refine((v) => isMobile(v) || z.string().email().safeParse(v).success, "Enter your email or 10-digit mobile number");
+
 export const passwordLoginSchema = z.object({
-  email: z.string().email("Invalid email address"),
+  email: EMAIL_OR_MOBILE,
 
   password: z
     .string()
@@ -56,7 +69,7 @@ export const resetPasswordSchema = z.object({
 })
 
 export const otpLoginSchema = z.object({
-  email: z.string().email("Invalid email address"),
+  email: EMAIL_OR_MOBILE,
   otp: z
     .string()
     .optional()

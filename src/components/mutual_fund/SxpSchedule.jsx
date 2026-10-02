@@ -129,11 +129,25 @@ export default function SxpSchedule({
   startDayInvalid,
   minAmount,
   amount,
+  offered,
 }) {
   const what = SXP_LABEL[type];
   const verb = type === "swp" ? "withdrawal" : "transfer";
   // `allowed` is BSE's word, and null means it never said — only a flat false is a refusal.
   const refused = on && txn && txn.allowed === false;
+
+  // Audit #18 — the schedule is offered only where the scheme's catalogue row says it takes
+  // one (`offered` = txn.swp). It used to be ticked first and refused after. A caller that
+  // passes nothing keeps the old behaviour (the switch form's STP).
+  if (offered !== undefined && offered !== true) {
+    return (
+      <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">
+        {offered === false
+          ? `${what} not offered by this scheme.`
+          : `${what} not available for this scheme — BSE has not confirmed it takes one.`}
+      </p>
+    );
+  }
 
   return (
     <div className="space-y-4">

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { clampNum, inr } from "../../utils/calcSafe";
+import { blank, clampNum, inr } from "../../utils/calcSafe";
 
 /**
  * The input/result frame the three SRS planning tools share.
@@ -8,9 +8,17 @@ import { clampNum, inr } from "../../utils/calcSafe";
  * of this chrome plus an FAQ and a related-links rail; rewriting them onto this is a
  * refactor nobody asked for, so they are left alone.
  */
-const money = (v) => `₹${inr(v || 0)}`;
+// Audit #69 — a value that was never computed prints as a dash; `v || 0` printed it as ₹0.
+const money = (v) => {
+  const text = inr(v, { fallback: null });
+  return text === null ? "—" : `₹${text}`;
+};
 
-export default function CalcShell({ title, blurb, fields, values, onChange, results, note }) {
+export default function CalcShell({ title, blurb, fields, values, onChange, results, note, children }) {
+  // Audit #69 — absent is not zero. The models read a cleared field as 0, so clearing
+  // "Monthly Living Expenses" printed "Fund required ₹0". Until every field has a value
+  // there is no answer to show.
+  const incomplete = fields.some((f) => blank(values[f.key]));
   return (
     <div className="min-h-screen bg-linear-to-r from-blue-100 to-green-100 dark:from-gray-900 dark:to-gray-800">
       <div className="py-8 px-6 text-center">
@@ -68,14 +76,16 @@ export default function CalcShell({ title, blurb, fields, values, onChange, resu
               {results.map((r) => (
                 <div key={r.label} className="flex justify-between gap-3">
                   <dt className="min-w-0">{r.label}</dt>
-                  <dd className="font-semibold min-w-0 break-all text-right">{r.text ?? money(r.value)}</dd>
+                  <dd className="font-semibold min-w-0 break-all text-right">{incomplete ? "—" : r.text ?? money(r.value)}</dd>
                 </div>
               ))}
             </dl>
+            {incomplete && <p className="mt-3 text-sm opacity-90">Fill in every field to see the result.</p>}
             {note && <p className="mt-6 text-sm opacity-90">{note}</p>}
           </div>
         </div>
       </div>
+      {children}
       <div className="pb-10" />
     </div>
   );

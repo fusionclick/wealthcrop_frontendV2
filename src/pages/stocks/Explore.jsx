@@ -63,7 +63,9 @@ const formatVolume = (vol) => {
 };
 
 const deriveMovers = (stocks, tab) => {
-  const sorted = [...stocks];
+  // Audit #52 — a row with no price has a pChange of 0 by default, not a real move, so it
+  // cannot rank as a gainer or loser. It still shows in the full list, as "—".
+  const sorted = stocks.filter((s) => Number(s.lastPrice) > 0);
   if (tab === "Losers") sorted.sort((a, b) => a.pChange - b.pChange);
   else if (tab === "Volume shockers") sorted.sort((a, b) => (b.totalTradedVolume ?? 0) - (a.totalTradedVolume ?? 0));
   else sorted.sort((a, b) => b.pChange - a.pChange);
@@ -217,6 +219,10 @@ const stockList =  useSelector((state) => state.stocks.stockList)
       : (stockList ?? []).map(toStock);
 
   const moversData = deriveMovers(displayStocks, activeTab);
+  const mostTraded = displayStocks
+    .filter((s) => Number(s.lastPrice) > 0)
+    .sort((a, b) => (Number(b.totalTradedVolume) || 0) - (Number(a.totalTradedVolume) || 0))
+    .slice(0, 4);
   const mobileGainers = deriveMovers(displayStocks, "Gainers").map(toMobileCard);
   const mobileLosers = deriveMovers(displayStocks, "Losers").map(toMobileCard);
 
@@ -346,8 +352,10 @@ const stockList =  useSelector((state) => state.stocks.stockList)
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
               {/* Left Section */}
               <div className="lg:col-span-2">
+                {/* Audit #52 — was "Most bought stocks on Wealthcrop", but these are the first
+                    rows of a fixed list of popular large caps, not anybody's purchases. */}
                 <h2 className="font-semibold text-xl mb-6 text-blue-950 dark:text-(--text-primary)">
-                  Most bought stocks on Wealthcrop
+                  Popular stocks
                 </h2>
 
                 {/* Stock grid */}
@@ -438,16 +446,15 @@ const stockList =  useSelector((state) => state.stocks.stockList)
 
         <p
           className={`text-sm font-medium ${
-            stock?.pChange > 0
-            
+            !stock?.lastPrice
+              ? "text-gray-500 dark:text-[var(--text-secondary)]"
+              : stock?.pChange > 0
               ? "text-green-600"
               : "text-red-600"
           }`}
         >
-          {stock?.pChange > 0 ? "+" : ""}
-          {/* {Math.random() > 0.5 ? "+" : "-"} */}
-          {/* {(Math.random() * 2).toFixed(2)}% */}
-          {stock?.pChange}%
+          {/* Audit #52 — no price means no change either: "—", not "0%". */}
+          {stock?.lastPrice ? `${stock.pChange > 0 ? "+" : ""}${stock.pChange}%` : "—"}
         </p>
       </div>
     </div>
@@ -591,12 +598,13 @@ const stockList =  useSelector((state) => state.stocks.stockList)
         dark:text-[var(--text-primary)]
       "
     >
-      Top intraday stocks
+      Most traded today
     </h2>
 
-    {/* Stock grid */}
+    {/* Stock grid — Audit #52: was "Top intraday stocks" over the same first four rows
+        as the grid above. Now actually ranked, by today's traded volume. */}
     <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6 relative">
-      {displayStocks.slice(0, 4).map((stock, index) => (
+      {mostTraded.map((stock, index) => (
         <div
           key={stock.symbol || index}
           className="
@@ -1054,88 +1062,8 @@ const stockList =  useSelector((state) => state.stocks.stockList)
 </div>
 
 
-        {/* Stocks in news */}
-       <div>
-  {/* HEADER — NEVER SCROLLS */}
-  <div className="flex items-center justify-between mb-3">
-    <h2 className="font-semibold text-gray-800 dark:text-[var(--text-primary)]">
-      Stocks in News{" "}
-      <span className="text-xs text-gray-500 dark:text-[var(--text-secondary)]">
-        NIFTY100
-      </span>
-    </h2>
-
-    <button
-      className="
-        text-xs font-medium px-3 py-1 rounded-full
-        bg-green-100 text-green-700
-        dark:bg-emerald-500/10 dark:text-emerald-400
-      "
-    >
-      NEWS
-    </button>
-  </div>
-
-  {/* ONLY THIS ROW SCROLLS */}
-  <div
-    className="
-      flex gap-3
-      overflow-x-auto overflow-y-hidden
-      scrollbar-hide
-      pr-6
-      snap-x snap-mandatory
-      scroll-smooth
-      overscroll-x-contain
-    "
-  >
-    {mobileGainers.map((item, i) => (
-      <div
-        key={i}
-        onClick={() => showStockPage(item.symbol)}
-        className="
-          min-w-[130px]
-          h-[180px]
-          rounded-xl
-          p-4
-          flex flex-col justify-between
-          items-center text-center
-          snap-start cursor-pointer
-          bg-white border border-gray-100 shadow
-          dark:bg-[var(--card-bg)]
-          dark:border-[var(--border-color)]
-        "
-      >
-        {/* TOP */}
-        <div className="flex flex-col items-center">
-          <div className="w-10 h-10 mb-2 rounded-md bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-xs">
-            {(item.name || "?").slice(0, 2)}
-          </div>
-
-          <h3
-            className="
-              text-sm font-medium
-              text-gray-800 dark:text-[var(--text-primary)]
-              line-clamp-2
-              min-h-[36px]
-            "
-          >
-            {item.name}
-          </h3>
-        </div>
-
-        {/* BOTTOM */}
-        <div>
-          <p className="font-semibold text-base text-gray-900 dark:text-[var(--text-primary)]">
-            {item.price}
-          </p>
-          <span className="text-sm text-green-600 dark:text-emerald-400">
-            {item.change}
-          </span>
-        </div>
-      </div>
-    ))}
-  </div>
-</div>
+        {/* Audit #52 — "Stocks in News" stood here: the gainers list above, again, under a
+            news label. There is no news feed (see /market-news), so the strip is gone. */}
 
 
         {/* Top Loosers */}
@@ -1289,83 +1217,8 @@ const stockList =  useSelector((state) => state.stocks.stockList)
 </div>
 
 
-        {/* Most Valuable */}
-        <div>
-  {/* HEADER (never scrolls) */}
-  <div className="flex items-center justify-between mb-3">
-    <h2 className="font-semibold text-[var(--text-primary)]">
-      Most Valuable{" "}
-      <span className="text-xs text-[var(--text-secondary)]">
-        NIFTY100
-      </span>
-    </h2>
-  </div>
-
-  {/* SCROLLABLE ROW ONLY */}
-  <div
-    className="
-      flex gap-3
-      overflow-x-auto overflow-y-hidden
-      scrollbar-hide
-      pr-6
-      snap-x snap-mandatory
-      scroll-smooth
-      overscroll-x-contain
-    "
-  >
-    {mobileGainers.map((item, i) => (
-      <div
-        key={i}
-        onClick={() => showStockPage(item.symbol)}
-        className="
-          min-w-[130px]
-          h-[180px]
-          rounded-xl
-          shadow-sm
-          p-4
-          flex flex-col
-          justify-between
-          items-center
-          text-center
-          snap-start
-          cursor-pointer
-          transition
-
-          bg-[var(--card-bg)]
-          dark:border border-[var(--border-color)]
-        "
-      >
-        {/* TOP */}
-        <div className="flex flex-col items-center">
-          <div className="w-10 h-10 mb-2 rounded-md bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-xs">
-            {(item.name || "?").slice(0, 2)}
-          </div>
-
-          <h3
-            className="
-              text-sm font-medium
-              text-[var(--text-primary)]
-              line-clamp-2
-              min-h-[36px]
-            "
-          >
-            {item.name}
-          </h3>
-        </div>
-
-        {/* BOTTOM */}
-        <div>
-          <p className="text-base font-semibold text-[var(--text-primary)]">
-            {item.price}
-          </p>
-          <span className="text-sm text-emerald-600">
-            {item.change}
-          </span>
-        </div>
-      </div>
-    ))}
-  </div>
-</div>
+        {/* Audit #52 — a "Most Valuable" strip stood here. It rendered the gainers list again
+            under a market-cap heading; there is no market-cap ranking behind it. */}
 
 
       </div>

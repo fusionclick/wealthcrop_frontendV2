@@ -16,10 +16,13 @@ const base = () => `${import.meta.env.VITE_URL}/portfolios`;
 /**
  * How a holding is named to the server. Must match PortfolioItem::bseKey exactly — the
  * same scheme in two folios is two holdings, so the folio is part of the identity.
+ * Audit #54 — a stock is `stk:<SYMBOL>`; the broker reports one line per symbol.
  */
 export const holdingKey = (holding, source = "internal") =>
   source === "external"
     ? `ext:${holding?.id}`
+    : source === "stock"
+    ? `stk:${String(holding?.symbol || "").trim().toUpperCase()}`
     : `bse:${String(holding?.scheme_bse_code || holding?.code || "").trim()}|${String(holding?.folio || "").trim()}`;
 
 export default function usePortfolios(enabled = true) {

@@ -26,8 +26,8 @@ const HeroSection = () => {
     
 
     <p className="text-lg text-blue-900 dark:text-gray-300 max-w-2xl mx-auto mb-8">
-      Invest confidently with India’s most user-friendly mutual fund and
-      wealth management platform.
+      Invest in mutual funds through a simple, user-friendly distribution
+      platform.
     </p>
 
     <div className="flex justify-center gap-4">
@@ -74,15 +74,17 @@ const HeroSection = () => {
       </h2>
 
       <p className="text-lg text-blue-900 dark:text-gray-300 leading-relaxed">
-        Wealthcrop helps you build financial freedom with curated mutual
-        funds, smart insights, and expert-backed investment plans — designed
-        for growth and security.
+        Wealthcrop helps you invest through Curated Mutual Fund Baskets,
+        Goal-based SIPs and Asset Allocation tools, with a Product Suitability
+        Assessment before you buy.
       </p>
 
       <ul className="text-left text-blue-900 dark:text-gray-300 space-y-2 list-disc list-inside">
         <li>Real-time performance tracking</li>
-        <li>Top-performing SIP recommendations</li>
-        <li>Secure, SEBI-registered platform</li>
+        {/* Audit #34 — "SEBI-registered platform" was false (the entity is an AMFI-registered
+            distributor) and "top-performing recommendations" is advice. */}
+        <li>Goal-based SIPs</li>
+        <li>Orders placed through BSE StarMF</li>
         <li>24×7 investor support</li>
       </ul>
 

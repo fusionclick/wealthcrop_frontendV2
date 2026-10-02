@@ -4,6 +4,7 @@ import { toastError, toastSuccess } from "../../utils/notifyCustom";
 import { useSelector } from "react-redux";
 import { nodeUrl, mapXspToSip, xspItems, holdingMatchesScheme } from "../../utils/nodeApi";
 import { allowedDays, FALLBACK_SIP_DAYS, nextOccurrence, ordinal, smartDefaultDay } from "../../utils/sipDates";
+import { fmtExitLoad } from "../../utils/schemeName";
 import OrderDisclaimers, { useDisclaimers } from "../mutual_fund/OrderDisclaimers";
 
 const SIP_HISTORY_PLACEHOLDER = [];
@@ -24,6 +25,8 @@ const ManageSipPage = () => {
   // A modify replaces the registration and a top-up changes it, so both re-read the list
   // from BSE rather than patching a card that no longer describes anything real.
   const [refreshKey, setRefreshKey] = useState(0);
+  // Audit #22 — the investor's mandates as filed in Laravel, read for the card's chip.
+  const [mandates, setMandates] = useState([]);
 
   useEffect(() => {
     const fetchSips = async () => {
@@ -44,12 +47,18 @@ const ManageSipPage = () => {
               sxp_type: "SIP",
               ucc,
             },
+            // Audit #20 — cancelled registrations come back too, for the Cancelled tab. The
+            // server drops them for every other reader (dashboard count, SIPs page).
+            include_cancelled: true,
           },
         };
-        const [res, portfolio] = await Promise.all([
+        const [res, portfolio, mandateRes] = await Promise.all([
           postApiWithToken(url, payload),
           postApiWithToken(nodeUrl("/getClientPortfolio"), { data: { ucc } }).catch(() => null),
+          // Audit #22 — the investor's real mandates (BSE re-read for any still pending).
+          postApiWithToken(nodeUrl("/mandateStatus"), {}, { silent: true }).catch(() => null),
         ]);
+        setMandates(Array.isArray(mandateRes?.data?.mandates) ? mandateRes.data.mandates : []);
         const items = xspItems(res);
         if (Array.isArray(items) && items.length) {
           // Value the units the way the portfolio values them. BSE's `current_value` on the
@@ -61,7 +70,9 @@ const ManageSipPage = () => {
           const holdings = Array.isArray(portfolio?.data?.holdings) ? portfolio.data.holdings : [];
           setSips(
             items.map((item, i) => {
-              const sip = mapXspToSip(item, i);
+              const mapped = mapXspToSip(item, i);
+              // BSE spells a cancelled registration more than one way; the tab reads one.
+              const sip = /cancel/i.test(mapped.status) ? { ...mapped, status: "CANCELLED" } : mapped;
               const held = holdings.find((h) =>
                 holdingMatchesScheme(h, { isin: sip.schemeIsin, code: sip.schemeCode })
               );
@@ -100,15 +111,19 @@ const ManageSipPage = () => {
   // ---- Derived summary values ----
   const summary = useMemo(() => {
     const activeSips = sips.filter((s) => s.status === "ACTIVE");
+    // Audit #20 — cancelled SIPs are listed now, but the totals stay what they were: the
+    // SIPs still running. A cancelled SIP's units also sit in the same holding a running one
+    // is valued from, so counting both would value that holding twice.
+    const running = sips.filter((s) => s.status !== "CANCELLED");
     const totalMonthlyOutgo = activeSips.reduce(
       (acc, sip) => acc + sip.sipAmount,
       0
     );
-    const totalInvested = sips.reduce(
+    const totalInvested = running.reduce(
       (acc, sip) => acc + sip.investedSoFar,
       0
     );
-    const totalCurrent = sips.reduce(
+    const totalCurrent = running.reduce(
       (acc, sip) => acc + sip.currentValue,
       0
     );
@@ -130,6 +145,21 @@ const ManageSipPage = () => {
   }, [sips, statusFilter]);
 
   // ---- Helpers ----
+  // Audit #22 — the chip reads a real status: BSE's own on the registration when it sends
+  // one, else the investor's mandate filed for this SIP, else plainly none.
+  const MANDATE_WORDS = { approved: "Active", pending: "Awaiting your approval", failed: "Not set up — try again", rejected: "Rejected by the bank", cancelled: "Cancelled" };
+  const mandateOf = (sip) =>
+    mandates.find((m) => (sip.mandateId && String(m.exch_mandate_id) === String(sip.mandateId)) || (m.sip_reg_no && m.sip_reg_no === sip.reg_no)) || null;
+  const mandateChip = (sip) => {
+    if (sip.mandateStatus) {
+      const s = String(sip.mandateStatus).toLowerCase();
+      return { text: /approv|active|verified/.test(s) ? "Active" : sip.mandateStatus, link: null };
+    }
+    const m = mandateOf(sip);
+    if (!m) return { text: "None — pay each instalment yourself", link: null };
+    return { text: MANDATE_WORDS[m.status] || m.status, link: m.status === "pending" ? m.approval_link : null };
+  };
+
   const getReturnPercent = (sip) => {
     if (!sip.investedSoFar) return 0;
     return ((sip.currentValue - sip.investedSoFar) / sip.investedSoFar) * 100;
@@ -274,7 +304,7 @@ const ManageSipPage = () => {
     setRefreshKey((k) => k + 1);
   };
 
-  const confirmTopUp = async ({ amount, freq, startDate }) => {
+  const confirmTopUp = async ({ amount, freq, startDate, acknowledged }) => {
     if (!selectedSip) return;
     const res = await postApiWithToken(nodeUrl("/topupXsp"), {
       data: {
@@ -282,6 +312,8 @@ const ManageSipPage = () => {
         amount: Number(amount),
         freq,
         ...(startDate ? { start_date: startDate } : {}),
+        // Audit #32 — a top-up now takes the same disclaimer gate as the SIP it extends.
+        acknowledged,
       },
     });
     if (!res) return;
@@ -430,7 +462,18 @@ const ManageSipPage = () => {
                         : "Cancelled"}
                     </span>
                     <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-[var(--text-secondary)]">
-                      Mandate: {sip.mandateStatus}
+                      Mandate: {mandateChip(sip).text}
+                      {/* BSE's approval page, while the investor still has to approve. */}
+                      {mandateChip(sip).link ? (
+                        <a
+                          href={mandateChip(sip).link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="ml-1 font-medium text-blue-600 underline dark:text-blue-400"
+                        >
+                          Approve
+                        </a>
+                      ) : null}
                     </span>
                     <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-[var(--text-secondary)]">
                       {sip.frequency} • {sip.sipDay.toString().padStart(2, "0")}{" "}
@@ -715,6 +758,19 @@ const PauseSipModal = ({ sip, onClose, onConfirm }) => {
 
 const CancelSipModal = ({ sip, onClose, onConfirm }) => {
   const [reason, setReason] = useState("");
+  // Audit #20 — what cancelling costs, said before the click. The exit load is the scheme's
+  // own published figure; unknown stays unknown rather than a guessed percentage.
+  const [exitLoad, setExitLoad] = useState(null);
+  useEffect(() => {
+    if (!sip.schemeCode) return;
+    let live = true;
+    postApi(nodeUrl(import.meta.env.VITE_SCHEME_DETAILS || "/scheme-details"), { scheme_code: sip.schemeCode })
+      .then((res) => live && setExitLoad(fmtExitLoad(res?.data?.scheme_info?.exitLoad)))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [sip.schemeCode]);
 
   const handleSubmit = () => {
     onConfirm({ reason });
@@ -733,6 +789,15 @@ const CancelSipModal = ({ sip, onClose, onConfirm }) => {
           </span>{" "}
           will not be deducted. You can always start a new SIP later.
         </p>
+
+        <ul className="mb-3 space-y-1 rounded-lg bg-slate-50 dark:bg-[var(--white-5)] p-3 text-[11px] text-slate-600 dark:text-[var(--text-secondary)]">
+          <li>WealthCrop charges nothing for cancelling a SIP.</li>
+          <li>Units already allotted stay invested in the fund — cancelling sells nothing.</li>
+          <li>
+            Exit load applies only when you redeem units
+            {exitLoad ? `: ${exitLoad} for this scheme.` : ", as set in this scheme's documents."}
+          </li>
+        </ul>
 
         <label className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mb-1 block">
           Reason (optional)
@@ -811,6 +876,9 @@ const TopUpSipModal = ({ sip, onClose, onConfirm }) => {
   const [freq, setFreq] = useState("y");
   const [saving, setSaving] = useState(false);
   const belowMin = minTopup > 0 && Number(amount) < minTopup;
+  // Audit #32 — a top-up buys more of the scheme, so the server now runs it through the same
+  // disclaimer gate as the SIP; the boxes have to be on this screen or every top-up is refused.
+  const disc = useDisclaimers();
 
   const handleSubmit = async () => {
     if (!amount || Number(amount) <= 0) {
@@ -824,13 +892,13 @@ const TopUpSipModal = ({ sip, onClose, onConfirm }) => {
     setSaving(true);
     // The scheme's real minimum is checked on the server against BSE's own master — this
     // form does not invent a floor of its own.
-    await onConfirm({ amount, freq });
+    await onConfirm({ amount, freq, acknowledged: disc.acked });
     setSaving(false);
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-md bg-white dark:bg-[var(--card-bg)] rounded-2xl shadow-lg p-5">
+      <div className="w-full max-w-md max-h-[90vh] overflow-y-auto bg-white dark:bg-[var(--card-bg)] rounded-2xl shadow-lg p-5">
         <h2 className="text-sm font-semibold text-slate-900 dark:text-[var(--text-primary)] mb-1">Top up this SIP</h2>
         <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mb-3">
           Increase what you invest in <span className="font-medium text-slate-800 dark:text-[var(--text-primary)]">{sip.schemeName}</span> over
@@ -868,13 +936,15 @@ const TopUpSipModal = ({ sip, onClose, onConfirm }) => {
           ))}
         </select>
 
+        <OrderDisclaimers {...disc} schemeName={sip.schemeName} className="mt-3" />
+
         <div className="mt-4 flex justify-end gap-3 text-xs">
           <button onClick={onClose} className="px-4 py-2 rounded-lg border border-slate-200 dark:border-[var(--border-color)] text-slate-600 dark:text-[var(--text-secondary)]">
             Close
           </button>
           <button
             onClick={handleSubmit}
-            disabled={saving || belowMin}
+            disabled={saving || belowMin || !disc.ready}
             className="px-4 py-2 rounded-lg bg-emerald-600 text-white font-medium disabled:opacity-50"
           >
             {saving ? "Adding…" : "Add Top-Up"}
@@ -1027,7 +1097,7 @@ const ModifySipPage = ({ sip, onBack, onSave }) => {
               and never sent the acknowledgement, so every save came back "Please read and
               accept the required disclaimers", naming something that was not on the page.
               Same component and hook the SIP and lumpsum checkouts already use. */}
-          <OrderDisclaimers {...disc} className="pt-2 border-t border-slate-100 dark:border-[var(--border-color)] mt-2" />
+          <OrderDisclaimers {...disc} schemeName={sip.schemeName} className="pt-2 border-t border-slate-100 dark:border-[var(--border-color)] mt-2" />
 
           <div className="pt-2 border-t border-slate-100 dark:border-[var(--border-color)] mt-2 flex items-center justify-between gap-3">
             {/* Not a euphemism: BSE has no way to edit a SIP, so this really does register a

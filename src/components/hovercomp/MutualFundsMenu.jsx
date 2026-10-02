@@ -13,6 +13,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import mfMenuImg from "../../assets/menu/fundMenu.svg";
 
 import MenuItem from "./MenuItem";
+import { MF_EXPLORE_PATH } from "../../utils/nodeApi";
 const MutualFundsMenu = ({ token }) => {
   const [openMenu, setOpenMenu] = useState(false);
   const navigate = useNavigate();
@@ -61,6 +62,15 @@ const isStocksActive = location.pathname.startsWith("/user/mutual_fund");
             bg-white dark:bg-gray-900 shadow-lg
           "
         >
+          {/* Audit #45 — "Invest → Lumpsum". Signed in, the only road to a one-time order was
+              knowing a fund page has an Invest button. ExploreMF reads no query string, so this
+              opens the catalogue itself; its "Supports: Lumpsum" filter narrows it from there. */}
+          <MenuItem
+            icon={Wallet}
+            title="Invest: Lumpsum"
+            desc="Pick a fund and invest a one-time amount."
+            onClick={() => navigate(MF_EXPLORE_PATH)}
+          />
           {/* Every other description in the header is English; these three were the only
               Hinglish ones on the page. */}
           <MenuItem

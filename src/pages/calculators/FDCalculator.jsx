@@ -1,30 +1,34 @@
-import React, { useState } from "react";
-import { num, clampNum, finiteOr, inr } from "../../utils/calcSafe";
+import React, { useMemo, useState } from "react";
+import { blank, inr } from "../../utils/calcSafe";
+import { fdMaturity } from "../../utils/calculators";
 import { useNavigate } from "react-router-dom";
+
+// Audit #69 — banks quote the compounding with the rate; quarterly is the Indian default.
+const COMPOUNDING = [
+  ["12", "Monthly"],
+  ["4", "Quarterly"],
+  ["2", "Half-yearly"],
+  ["1", "Yearly"],
+];
 
 const FDCalculator = () => {
   const [amount, setAmount] = useState("");
   const [rate, setRate] = useState("");
   const [years, setYears] = useState("");
-  const [result, setResult] = useState(null);
+  const [perYear, setPerYear] = useState("4");
   const [openFAQ, setOpenFAQ] = useState(null);
 
-  const calculateFD = () => {
-    // QA 10.3 — `!rate` is true for a typed 0, so a 0% FD silently did nothing at all; and
-    // years was unbounded, so Math.pow overflowed to Infinity and the screen printed
-    // "₹Infinity". Blank still means "not filled in"; 0 is a real answer and 0% simply
-    // returns the principal. The tenure is clamped the same way the shared model clamps its
-    // loop bounds — 100 years is past any real FD.
-    if (amount === "" || rate === "") return;
-    const p = num(amount);
-    const r = num(rate);
-    const y = clampNum(years, 0, 100, 0);
-
-    const maturity = finiteOr(p * (1 + r / 100) ** y);
-    if (maturity === null) return setResult(null);
-
-    setResult({ maturity, interest: maturity - p });
-  };
+  // QA 10.3 — `!rate` is true for a typed 0, so a 0% FD silently did nothing at all. Blank
+  // still means "not filled in"; 0 is a real answer and 0% simply returns the principal. The
+  // tenure is clamped inside fdMaturity — 100 years is past any real FD.
+  // Audit #69 — the tenure is required too: a blank one was read as 0 years and printed
+  // "Interest Earned ₹0". Live rather than on a button, so changing the compounding
+  // re-prices the FD instead of leaving the last answer on screen.
+  const result = useMemo(
+    () => (blank(amount) || blank(rate) || blank(years) ? null : fdMaturity({ amount, rate, years, perYear })),
+    [amount, rate, years, perYear]
+  );
+  const compounding = COMPOUNDING.find(([value]) => value === perYear)[1].toLowerCase();
 
   const faqs = [
     {
@@ -167,17 +171,31 @@ const FDCalculator = () => {
             />
           </div>
 
-          <button
-            onClick={calculateFD}
-            className="
-              w-full py-2 rounded-lg font-semibold transition
-              bg-blue-600 hover:bg-blue-700
-              dark:bg-blue-500 dark:hover:bg-blue-600
-              text-white
-            "
-          >
-            Calculate
-          </button>
+          <div>
+            <label htmlFor="fd-compounding" className="block text-sm font-medium text-gray-700 dark:text-gray-400">
+              Interest Compounded
+            </label>
+            <select
+              id="fd-compounding"
+              value={perYear}
+              onChange={(e) => setPerYear(e.target.value)}
+              className="
+                w-full p-2 rounded-lg
+                border border-blue-200
+                bg-white dark:bg-gray-800 dark:border-gray-600
+                text-gray-900 dark:text-white
+                focus:ring-2 focus:ring-blue-400
+                outline-none
+              "
+            >
+              {COMPOUNDING.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                  {value === "4" ? " (most banks)" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -194,7 +212,7 @@ const FDCalculator = () => {
         <h3 className="text-xl font-bold mb-4">📊 FD Result Summary</h3>
 
         {result ? (
-          <div className="bg-white/20 rounded-xl p-4 shadow-lg backdrop-blur-md dark:bg-[var(--card-bg)]">
+          <div className="bg-white/20 rounded-xl p-4 shadow-lg backdrop-blur-md dark:bg-[var(--card-bg)] break-words">
             <p className="text-lg">
               <strong>Maturity Amount:</strong> ₹{inr(result.maturity)}
             </p>
@@ -204,12 +222,13 @@ const FDCalculator = () => {
           </div>
         ) : (
           <p className="opacity-90">
-            Enter details and click calculate to view results.
+            Enter the amount, rate and tenure to see your maturity value.
           </p>
         )}
 
         <div className="mt-8 text-sm opacity-90">
-          💡 The calculation is based on yearly compounding interest.
+          💡 Interest is compounded {compounding} — quarterly is what most Indian banks use. Tax
+          on the interest is not deducted here.
         </div>
       </div>
     </div>

@@ -154,11 +154,11 @@ const StockList = () => {
                   <td className="py-4 px-3">
                     <p
                       className={`text-sm font-medium ${
-                        item.percent >= 0 ? "text-green-600" : "text-red-600"
+                        !item.price ? "text-gray-500 dark:text-[var(--text-secondary)]" : item.percent >= 0 ? "text-green-600" : "text-red-600"
                       }`}
                     >
-                      {item.percent >= 0 ? "+" : ""}
-                      {item.percent.toFixed(2)}%
+                      {/* Audit #52 — an unpriced row has no change either: "—", never "+0.00%". */}
+                      {item.price ? `${item.percent >= 0 ? "+" : ""}${item.percent.toFixed(2)}%` : "—"}
                     </p>
                   </td>
                   <td className="py-4 px-3 relative dark:text-[var(--text-secondary)]">
@@ -194,11 +194,10 @@ const StockList = () => {
                 </div>
                 <span
                   className={`text-sm font-medium ${
-                    item.percent >= 0 ? "text-green-600" : "text-red-600"
+                    !item.price ? "text-gray-500 dark:text-[var(--text-secondary)]" : item.percent >= 0 ? "text-green-600" : "text-red-600"
                   }`}
                 >
-                  {item.percent >= 0 ? "+" : ""}
-                  {item.percent.toFixed(2)}%
+                  {item.price ? `${item.percent >= 0 ? "+" : ""}${item.percent.toFixed(2)}%` : "—"}
                 </span>
               </div>
               <div className="flex justify-between mt-3 text-sm">

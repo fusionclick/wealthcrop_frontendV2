@@ -1,63 +1,42 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
+import { useQuery } from "@tanstack/react-query";
 import emptySip from "../../assets/mutualFund/sipEmpty2.svg";
 import { useNavigate } from "react-router-dom";
 import { postApiWithToken } from "../../api/api";
 import { useSelector } from "react-redux";
-import { nodeUrl, mapXspToSip, xspItems, holdingMatchesScheme } from "../../utils/nodeApi";
+import { nodeUrl, mapXspToSip, xspItems, holdingMatchesScheme, navLooksPlausible } from "../../utils/nodeApi";
+import { useNavMap, liveNav } from "../../utils/navSocket";
 import { sipXirr } from "../../utils/xirr";
 
 const SIPs = () => {
   const navigate = useNavigate();
   const { data: investorData } = useSelector((state) => state.investorData);
-  const [sips, setSips] = useState([]);
-  const [orders, setOrders] = useState([]);
-  const [holdings, setHoldings] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const ucc = investorData?.kyc?.ucc_code;
+  const navs = useNavMap();
+  // Refresh settled instalments as well as prices; query cache retains data during a retry.
+  const refresh = { enabled: !!ucc, refetchInterval: 60000, refetchOnWindowFocus: "always" };
+  const { data: sips = [], isPending, isError } = useQuery({
+    ...refresh,
+    queryKey: ["sips", ucc],
+    queryFn: () => postApiWithToken(nodeUrl(import.meta.env.VITE_GET_ALL_XSP || "/getAllXsp"), {
+      data: { fields: ["ALL"], start: 0, length: 50, filter_param: { sxp_type: "SIP", ucc } },
+    }),
+    select: (res) => xspItems(res).map((item, i) => mapXspToSip(item, i)),
+  });
+  const { data: orders = [] } = useQuery({
+    ...refresh,
+    queryKey: ["sipOrderHistory", ucc],
+    queryFn: () => postApiWithToken(nodeUrl("/orderHistory"), { ucc }),
+    select: (res) => Array.isArray(res?.data?.orders) ? res.data.orders : [],
+  });
+  const { data: holdings = [] } = useQuery({
+    ...refresh,
+    queryKey: ["bsePortfolio", ucc],
+    queryFn: () => postApiWithToken(nodeUrl("/getClientPortfolio"), { data: { ucc } }),
+    select: (res) => Array.isArray(res?.data?.holdings) ? res.data.holdings : [],
+  });
 
-  useEffect(() => {
-    const fetchSips = async () => {
-      const ucc = investorData?.kyc?.ucc_code;
-      if (!ucc) {
-        setLoading(false);
-        return;
-      }
-      try {
-        const url = nodeUrl(import.meta.env.VITE_GET_ALL_XSP || "/getAllXsp");
-        // The registrations, and the instalments each one actually put through. A SIP's XIRR
-        // is the second list's dates against the first list's scheme — getAllXsp describes
-        // the registration and carries no cash flows. Orders are optional: if that call
-        // fails the cards still render, just without a rate on them.
-        // The portfolio comes too, for the valuation. BSE reports a `current_value` on the
-        // registration row as well, but it is not the same number the portfolio shows for
-        // the very same folio — on QA1000001 the row said ₹29,450 against a live-priced
-        // ₹34,181, so the SIP card rated the units 16% lower than the page next to it and
-        // the two XIRRs could not both be right. getClientPortfolio prices each folio off
-        // the AMFI NAV store, so that is the one that moves with the market.
-        const [res, history, portfolio] = await Promise.all([
-          postApiWithToken(url, {
-            data: {
-              fields: ["ALL"],
-              start: 0,
-              length: 50,
-              filter_param: { sxp_type: "SIP", ucc },
-            },
-          }),
-          postApiWithToken(nodeUrl("/orderHistory"), { ucc }).catch(() => null),
-          postApiWithToken(nodeUrl("/getClientPortfolio"), { data: { ucc } }).catch(() => null),
-        ]);
-        setSips(xspItems(res).map((item, i) => mapXspToSip(item, i)));
-        setOrders(Array.isArray(history?.data?.orders) ? history.data.orders : []);
-        setHoldings(Array.isArray(portfolio?.data?.holdings) ? portfolio.data.holdings : []);
-      } catch (_) {
-        /* empty */
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchSips();
-  }, [investorData?.kyc?.ucc_code]);
-
-  if (loading) {
+  if (ucc && isPending) {
     return (
       <div className="w-full max-w-5xl mx-auto px-4 py-10 text-center text-gray-400">
         Loading SIPs…
@@ -91,6 +70,7 @@ const SIPs = () => {
   return (
     <div className="w-full max-w-5xl mx-auto px-4 py-10 bg-transparent text-slate-900 dark:text-[var(--text-primary)]">
       {manageLinks}
+      {isError && <p role="alert" className="mb-4 text-sm text-red-500">SIPs could not be refreshed. Retrying automatically.</p>}
       {sips.length === 0 ? (
         <div className="min-h-[400px] flex flex-col justify-center items-center space-y-5">
           <img src={emptySip} className="w-72 opacity-90" alt="" />
@@ -122,7 +102,10 @@ const SIPs = () => {
               const held = holdings.find((h) =>
                 holdingMatchesScheme(h, { isin: sip.schemeIsin, code: sip.schemeCode })
               );
-              const valued = Number(held?.current_value) || sip.marketValue;
+              const nav = liveNav({ scheme_isin: sip.schemeIsin, scheme_bse_code: sip.schemeCode }, navs);
+              const units = Number(held?.units);
+              const valued = held && navLooksPlausible(held.invested || held.invested_amount || held.inv_amo, units, nav)
+                ? units * nav : Number(held?.current_value) || sip.marketValue;
               const rate = valued ? sipXirr(orders, sip.schemeCode, valued) : null;
               return (
                 <div

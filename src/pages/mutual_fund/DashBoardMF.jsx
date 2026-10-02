@@ -1,5 +1,4 @@
-import React, { useState, useMemo } from "react";
-import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import React, { useEffect, useState, useMemo } from "react";
 import emptyDashboardImg from "../../assets/mutualFund/emptyDashboard.svg";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -13,8 +12,10 @@ import PortfolioBar from "../../components/mutual_fund/PortfolioBar";
 import usePortfolios, { holdingKey } from "../../hooks/usePortfolios";
 import { History, Split } from "lucide-react";
 import { useActiveSipCount } from "../../hooks/useActiveSipCount";
+import { fetchHoldings } from "../../api/portfolioApi";
+import { allocationByMarketValue, stockValue } from "../../utils/portfolioAnalytics";
+import PortfolioInsights from "../../components/mutual_fund/PortfolioInsights";
 
-const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#6366f1"];
 const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 
 const DashBoardMF = () => {
@@ -44,6 +45,37 @@ const DashBoardMF = () => {
     () => mergePortfolio(laravelOrders || [], bseHoldings || []),
     [laravelOrders, bseHoldings]
   );
+
+  // Audit #54 — stock holdings (synced from the broker) count towards the allocation and can be
+  // filed into the same portfolios as funds.
+  const { data: stockRows = [] } = useQuery({
+    queryKey: ["stockHoldings"],
+    queryFn: async () => {
+      const res = await fetchHoldings(false);
+      return Array.isArray(res?.data?.data) ? res.data.data : [];
+    },
+    staleTime: 60_000,
+    retry: false,
+  });
+
+  // Audit #55 / #65 — Laravel never sees BSE units, so the page reports what it just loaded;
+  // portfolio alerts and the "your holding" line in a fund alert are valued from this.
+  useEffect(() => {
+    if (!Array.isArray(bseHoldings)) return;
+    postApiWithToken(
+      laravelUrl("/portfolios/mf-positions"),
+      {
+        positions: bseHoldings.map((h) => ({
+          scheme_code: h.scheme_bse_code || null,
+          isin: h.scheme_isin || null,
+          scheme_name: h.scheme_name || null,
+          category: h.scheme_category || null,
+          units: Number(h.units) || 0,
+        })),
+      },
+      { silent: true }
+    );
+  }, [bseHoldings]);
 
   // XIRR needs the dates money moved on, and the holdings list does not carry them — only
   // the order history does. It is the same call the Orders page makes, so react-query
@@ -79,30 +111,24 @@ const DashBoardMF = () => {
   // Counted from the same getAllXsp source Manage SIPs uses, so the two cannot disagree.
   const { activeSipCount } = useActiveSipCount(ucc);
 
-  const allocation = useMemo(() => {
-    const map = {};
-    funds.forEach((f) => {
-      const cat = f.scheme_category || f.category || "Other";
-      map[cat] = (map[cat] || 0) + (Number(f.inv_amo) || 0);
-    });
-    return Object.entries(map).map(([name, value]) => ({ name, value }));
-  }, [funds]);
-
   // FR 4.1 — the investor's own groupings over the holdings already loaded above.
   const { portfolios, byHolding, create, remove, assign } = usePortfolios(Boolean(ucc));
 
-  // Counts are over ALL funds, never the filtered list: a pill that only counted what is
+  // Counts are over ALL holdings, never the filtered list: a pill that only counted what is
   // currently on screen would read 0 for every portfolio except the one selected.
+  // Audit #54 — stocks are counted alongside funds.
   const portfolioCounts = useMemo(() => {
-    const counts = { all: funds.length, unassigned: 0 };
+    const counts = { all: funds.length + stockRows.length, unassigned: 0 };
     for (const p of portfolios) counts[p.id] = 0;
-    for (const f of funds) {
-      const owner = byHolding.get(holdingKey(f));
-      if (owner) counts[owner.id] = (counts[owner.id] || 0) + 1;
-      else counts.unassigned += 1;
+    for (const [rows, source] of [[funds, "internal"], [stockRows, "stock"]]) {
+      for (const h of rows) {
+        const owner = byHolding.get(holdingKey(h, source));
+        if (owner) counts[owner.id] = (counts[owner.id] || 0) + 1;
+        else counts.unassigned += 1;
+      }
     }
     return counts;
-  }, [funds, portfolios, byHolding]);
+  }, [funds, stockRows, portfolios, byHolding]);
 
   const visibleFunds = useMemo(() => {
     if (portfolioFilter === "all") return funds;
@@ -111,6 +137,20 @@ const DashBoardMF = () => {
       return portfolioFilter === "unassigned" ? !owner : owner?.id === portfolioFilter;
     });
   }, [funds, portfolioFilter, byHolding]);
+
+  const visibleStocks = useMemo(() => {
+    if (portfolioFilter === "all") return stockRows;
+    return stockRows.filter((s) => {
+      const owner = byHolding.get(holdingKey(s, "stock"));
+      return portfolioFilter === "unassigned" ? !owner : owner?.id === portfolioFilter;
+    });
+  }, [stockRows, portfolioFilter, byHolding]);
+
+  // Audit #54 — by asset class at MARKET value, stocks included, for whatever is in view. It
+  // used to bucket funds by category on the amount invested and leave stocks out.
+  const allocation = useMemo(() => allocationByMarketValue(visibleFunds, visibleStocks), [visibleFunds, visibleStocks]);
+  const scopeLabel =
+    portfolioFilter === "all" ? "" : portfolioFilter === "unassigned" ? "Unassigned" : portfolios.find((p) => p.id === portfolioFilter)?.name || "";
 
   const sortedFunds = useMemo(() => {
     return [...visibleFunds].sort((a, b) => {
@@ -251,38 +291,55 @@ const DashBoardMF = () => {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-[var(--card-bg)] border border-slate-200 dark:border-[var(--border-color)] rounded-lg p-4 mb-5">
-            <p className="text-sm font-semibold mb-2">Asset Allocation</p>
-            <div className="h-56">
-              <ResponsiveContainer>
-                <PieChart>
-                  <Pie
-                    data={allocation}
-                    dataKey="value"
-                    nameKey="name"
-                    outerRadius={80}
-                    label={({ name, value }) => `${name}: ${money(value)}`}
-                  >
-                    {allocation.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex flex-wrap gap-3 mt-2 justify-center">
-              {allocation.map((item, i) => (
-                <span key={item.name} className="text-[11px] text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
-                  <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: COLORS[i % COLORS.length] }} />
-                  {item.name}: {money(item.value)}
-                </span>
-              ))}
-            </div>
-          </div>
-
           {actions}
 
           {portfolioBar}
+
+          {/* Audit #54 / #62 — allocation at market value (stocks included), the benchmark,
+              portfolio-level risk metrics and sectors, all for the portfolio selected above. */}
+          <PortfolioInsights
+            allocation={allocation}
+            funds={visibleFunds}
+            stocks={visibleStocks}
+            orders={orders || []}
+            xirr={xirr}
+            scopeLabel={scopeLabel}
+          />
+
+          {visibleStocks.length > 0 && (
+            <div className="mb-5">
+              <p className="text-sm font-semibold mb-2">Stocks{scopeLabel ? ` in ${scopeLabel}` : ""}</p>
+              <div className="rounded-lg border border-slate-200 dark:border-[var(--border-color)] bg-white dark:bg-[var(--card-bg)] divide-y divide-slate-200 dark:divide-[var(--border-color)]">
+                {visibleStocks.map((s) => {
+                  const value = stockValue(s);
+                  const gain = value - (Number(s.avgPrice) || 0) * (Number(s.qty) || 0);
+                  return (
+                    <button
+                      key={s.symbol}
+                      type="button"
+                      onClick={() => navigate(`/stocks/${s.symbol}`)}
+                      className="w-full px-4 py-2.5 flex items-center justify-between text-left hover:bg-slate-50 dark:bg-transparent dark:hover:bg-[var(--white-5)]"
+                    >
+                      <span>
+                        <span className="block text-sm font-medium text-slate-900 dark:text-[var(--text-primary)]">{s.symbol}</span>
+                        <span className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">{s.qty} shares · {s.name}</span>
+                      </span>
+                      <span className="text-right">
+                        <span className="block text-sm font-semibold text-slate-900 dark:text-[var(--text-primary)]">{money(value)}</span>
+                        <span className={`text-xs ${gain >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                          {gain >= 0 ? "+" : "−"}
+                          {money(Math.abs(gain))}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mt-1">
+                File a stock into a portfolio from Stocks → Holdings.
+              </p>
+            </div>
+          )}
 
           <div className="flex justify-between items-center mb-2">
             <p className="text-sm font-semibold">Your Funds</p>

@@ -5,14 +5,19 @@ import { useQuery } from "@tanstack/react-query";
 import { postApi } from "../../api/api";
 import { useMemo, useState } from "react";
 import FundListSkeleton from "../../components/ui/skeleton/main/FundListSkeleton";
-import { nodeUrl, fundPath } from "../../utils/nodeApi";
+import { nodeUrl, fundPath, fundSipPath } from "../../utils/nodeApi";
 import AmcMark from "../../components/AmcMark";
 import { navLabel, navDate, useNavMap } from "../../utils/navSocket";
-import FundBadges from "../../components/FundBadges";
+import FundBadges, { DIRECT_NOT_OFFERED, isDirectPlan } from "../../components/FundBadges";
+import AddToBasket from "../../components/AddToBasket";
 import { toastInfo } from "../../utils/notifyCustom";
 import { titleCase, fmtPct } from "../../utils/schemeName";
 
 const PAGE_SIZE = 20;
+// Audit #11 — collections are quick filters on the list below (the server's `category`
+// slug), so "High Return" and "5 Star Funds" now mean real data: funds with a 3-year return,
+// ranked by it, and funds the rating feed gives five stars. They used to be name searches
+// for "FLEXI CAP" and "BLUECHIP".
 const collections = [
   { name: "Gold Funds", slug: "gold_funds", icon: <FaCoins size={22} className="text-amber-500" /> },
   { name: "Large Cap", slug: "large_cap", icon: <FaChartPie size={22} className="text-indigo-500" /> },
@@ -29,67 +34,80 @@ const collections = [
 // "Regular (business)" and "Direct (normal)" said nothing true: both are retail plans, and
 // the only difference is the distributor commission built into the expense ratio. Name them
 // the way SEBI, the AMCs and the scheme names themselves do.
-const FILTERS = [
+//
+// Audit #11 — one labelled group per thing the client ranks on (Category, Risk, Returns, AUM,
+// Age, Transaction) instead of one flat row of dropdowns. `facet` options come from the
+// catalogue itself (the response's `facets`), not from a list typed in here.
+const FILTER_GROUPS = [
   {
-    key: "plan",
-    label: "Plan",
-    options: [["", "All plans"], ["regular", "Regular plan"], ["direct", "Direct plan"]],
-  },
-  { key: "sip", label: "SIP", options: [["", "SIP: Any"], ["yes", "SIP: Yes"], ["no", "SIP: No"]] },
-  {
-    key: "mode",
-    label: "Held as",
-    options: [["physical", "Physical"], ["demat", "Demat"], ["", "Demat & physical"]],
+    title: "Category",
+    filters: [
+      { key: "schemeCategory", label: "Category", facet: "category", any: "All categories" },
+      { key: "subCategory", label: "Sub-category", facet: "sub", any: "All sub-categories" },
+      { key: "plan", label: "Plan", options: [["", "All plans"], ["regular", "Regular plan"], ["direct", "Direct plan"]] },
+    ],
   },
   // SEBI's six riskometer levels. The backend only ever labels a scheme with one of these
   // or leaves it null, so an unknown-risk fund is never swept into a level it was not given.
   {
-    key: "risk",
-    label: "Risk",
-    options: [
-      ["", "Risk: Any"],
-      ["Low", "Low"],
-      ["Low to Moderate", "Low to Moderate"],
-      ["Moderate", "Moderate"],
-      ["Moderately High", "Moderately High"],
-      ["High", "High"],
-      ["Very High", "Very High"],
+    title: "Risk",
+    filters: [
+      {
+        key: "risk",
+        label: "Risk",
+        options: [
+          ["", "Any risk"],
+          ["Low", "Low"],
+          ["Low to Moderate", "Low to Moderate"],
+          ["Moderate", "Moderate"],
+          ["Moderately High", "Moderately High"],
+          ["High", "High"],
+          ["Very High", "Very High"],
+        ],
+      },
     ],
   },
-  // Transaction availability, straight off BSE's per-scheme rows. The last two are the
-  // scheme's income-distribution option rather than a lumpsum[]/systematic[] rulebook, but
-  // they are a transaction attribute the investor picks on (ticket 2) and the backend
-  // filters them from the same index row.
+  // A fund without a return for the chosen period drops out of the filter rather than
+  // counting as 0% (catalogue.query).
   {
-    key: "txn",
-    label: "Supports",
-    options: [
-      ["", "Supports: Any"],
-      ["sip", "SIP"],
-      ["swp", "SWP"],
-      ["stp", "STP"],
-      ["lumpsum", "Lumpsum"],
-      ["sip,swp", "SIP + SWP"],
-      ["idcw_payout", "IDCW Payout"],
-      ["idcw_reinvest", "Dividend Reinvestment"],
+    title: "Returns",
+    filters: [
+      { key: "returnPeriod", label: "Return period", options: [["1Y", "1Y return"], ["3Y", "3Y return"], ["5Y", "5Y return"]] },
+      { key: "minReturn", label: "Minimum return (%)", input: true, suffix: "% or more", placeholder: "e.g. 12" },
+    ],
+  },
+  // ₹ crore, matching the backend's minAum band. Any figure can be typed; the datalist only
+  // suggests the usual cut-offs. A fund with no published size drops out of an explicit
+  // band rather than counting as zero.
+  {
+    title: "AUM",
+    filters: [
+      { key: "minAum", label: "Minimum fund size (₹ Cr)", input: true, suffix: "₹ Cr or more", placeholder: "e.g. 500", presets: [500, 1000, 5000, 10000] },
     ],
   },
   {
-    key: "minAge",
-    label: "Fund age",
-    options: [["", "Age: Any"], ["1", "1+ years"], ["3", "3+ years"], ["5", "5+ years"], ["10", "10+ years"]],
+    title: "Age",
+    filters: [
+      { key: "minAge", label: "Fund age", options: [["", "Any age"], ["1", "1+ years"], ["3", "3+ years"], ["5", "5+ years"], ["10", "10+ years"]] },
+    ],
   },
-  // Ticket 11 — fund size. ₹ crore, matching the backend's minAum band. A fund BSE never
-  // published a size for drops out of an explicit band rather than counting as zero.
+  // Transaction availability, straight off BSE's per-scheme rows. The income option is its
+  // own control now (it used to be two entries inside "Supports"); both reach the server as
+  // one AND-combined `txn` list.
   {
-    key: "minAum",
-    label: "Fund size",
-    options: [
-      ["", "AUM: Any"],
-      ["500", "₹500 Cr+"],
-      ["1000", "₹1,000 Cr+"],
-      ["5000", "₹5,000 Cr+"],
-      ["10000", "₹10,000 Cr+"],
+    title: "Transaction",
+    filters: [
+      {
+        key: "txn",
+        label: "Supports",
+        options: [["", "Supports: Any"], ["sip", "SIP"], ["swp", "SWP"], ["stp", "STP"], ["lumpsum", "Lumpsum"], ["sip,swp", "SIP + SWP"]],
+      },
+      {
+        key: "idcw",
+        label: "Income option",
+        options: [["", "Any option"], ["growth", "Growth"], ["idcw_payout", "IDCW Payout"], ["idcw_reinvest", "Dividend Reinvestment"]],
+      },
+      { key: "sip", label: "SIP", options: [["", "SIP: Any"], ["yes", "SIP: Yes"], ["no", "SIP: No"]] },
     ],
   },
 ];
@@ -98,27 +116,48 @@ const FILTERS = [
 // sorted the 20 rows already on screen and had to admit it in its label ("sorted on this
 // page"), which meant "NAV: high to low" never actually found the highest NAV.
 const SORTS = [
-  ["", "Sort: BSE order"],
+  ["", "Sort: Default"],
   ["returns_1y:desc", "1Y return: high to low"],
   ["returns_3y:desc", "3Y return: high to low"],
   ["returns_5y:desc", "5Y return: high to low"],
   ["rating:desc", "Rating: high to low"],
   ["aum:desc", "Fund size: high to low"],
+  ["aum:asc", "Fund size: low to high"],
   ["age:desc", "Oldest first"],
   ["expense:asc", "Expense ratio: low to high"],
   ["min_sip:asc", "Minimum SIP: low to high"],
   ["nav:desc", "NAV: high to low"],
+  ["nav:asc", "NAV: low to high"],
   ["name:asc", "Name A-Z"],
 ];
 
-// Physical is the default: units sit with the RTA and no demat account is needed, which is
-// what most investors here have. 49 of the 50 physical schemes also allow demat, so this
-// hides almost nothing — demat-only funds are one dropdown click away.
-const DEFAULT_FILTERS = { plan: "", sip: "", mode: "physical", risk: "", txn: "", minAge: "", minAum: "" };
+// Physical stays the platform's default — units sit with the RTA and no demat account is
+// needed, which is what most investors here have — but silently now (Audit #11): no
+// Physical/Demat control or wording reaches the investor.
+// Compliance #31 — the list opens on Regular plans, the only ones a distributor may offer.
+// The Plan control shows it and Direct plans stay one choice away, labelled as not offered.
+const DEFAULT_FILTERS = {
+  plan: "regular",
+  sip: "",
+  mode: "physical",
+  risk: "",
+  txn: "",
+  idcw: "",
+  minAge: "",
+  minAum: "",
+  minReturn: "",
+  returnPeriod: "1Y",
+  schemeCategory: "",
+  subCategory: "",
+  category: "",
+};
 
 // How many funds can sit in the comparison tray at once. The compare endpoint loads a full
 // NAV history per fund, and more than a handful of overlapping lines is unreadable anyway.
 const MAX_COMPARE = 4;
+
+/** "Min ₹500 (platform)" — Audit #2: a minimum only the platform set says so. */
+const minLabel = (amount, source) => `Min ₹${amount}${source === "platform" ? " (platform)" : ""}`;
 
 /** Section heading + optional "View all" — Kotak har row par yehi rakhta hai. */
 const SectionHead = ({ title, accent, subtitle, to }) => (
@@ -163,6 +202,8 @@ const ExploreMF = () => {
         length: PAGE_SIZE,
         search: query,
         ...filters,
+        // The Supports and Income-option controls are one AND-combined list on the server.
+        txn: [filters.txn, filters.idcw].filter(Boolean).join(","),
         sort: sortField,
         order: sortOrder,
       }),
@@ -171,10 +212,25 @@ const ExploreMF = () => {
   });
 
   const funds = data?.data?.lists || [];
-  // ponytail: `total` BSE ke poore master ka count hai (28k+) — us mein wo schemes bhi
-  // hain jo backend filter kar deta hai. Paging ke liye theek hai, ginti ke liye jhoot.
+  // `total` is the size of the FILTERED set, counted across the whole catalogue before the
+  // page is cut — so the count and the page count are both honest.
   const total = Number(data?.data?.total ?? data?.data?.count ?? 0);
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const facets = data?.data?.facets || [];
+
+  // Audit #11 — picking a category narrows the sub-categories to the ones under it; with no
+  // category picked every sub-category is on offer.
+  const subOptions = useMemo(() => {
+    const picked = facets.find((f) => f.category === filters.schemeCategory);
+    if (picked) return picked.subCategories;
+    return [...new Set(facets.flatMap((f) => f.subCategories))].sort((a, b) => a.localeCompare(b));
+  }, [facets, filters.schemeCategory]);
+
+  const optionsFor = (f) => {
+    if (f.facet === "category") return [["", f.any], ...facets.map((x) => [x.category, x.category])];
+    if (f.facet === "sub") return [["", f.any], ...subOptions.map((s) => [s, s])];
+    return f.options;
+  };
 
   // Sorting now happens server-side over the whole filtered catalogue and comes back
   // already ordered, so this page renders what it was given.
@@ -203,8 +259,12 @@ const ExploreMF = () => {
   };
 
   const openCompare = () => {
-    const ids = compare.map((c) => `${c.isin || ""}~${c.code || ""}`).join(",");
-    navigate(`/mutual_fund/compare?funds=${encodeURIComponent(ids)}`);
+    // Audit #1 — the ISIN alone in the address bar ("~code" only for a fund without one). The
+    // exact codes ride in router state: an IDCW payout and reinvestment option share an ISIN.
+    const ids = compare.map((c) => c.isin || `~${c.code || ""}`).join(",");
+    navigate(`/mutual_fund/compare?funds=${encodeURIComponent(ids)}`, {
+      state: { codes: Object.fromEntries(compare.filter((c) => c.isin).map((c) => [c.isin, c.code])) },
+    });
   };
 
   const submitSearch = (e) => {
@@ -215,20 +275,66 @@ const ExploreMF = () => {
 
   const setFilter = (key, value) => {
     setPage(0);
-    setFilters((f) => ({ ...f, [key]: value }));
+    setFilters((f) => {
+      const next = { ...f, [key]: value };
+      // A sub-category that does not exist under the new category would match nothing.
+      if (key === "schemeCategory") {
+        const subs = facets.find((x) => x.category === value)?.subCategories;
+        if (value && !subs?.includes(f.subCategory)) next.subCategory = "";
+      }
+      return next;
+    });
+  };
+
+  const pickCollection = (slug) => {
+    setFilter("category", filters.category === slug ? "" : slug);
+    document.getElementById("all-funds")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const narrowed = Boolean(query || sort) || Object.entries(filters).some(([k, v]) => v !== DEFAULT_FILTERS[k]);
+  const clearAll = () => {
+    setFilters(DEFAULT_FILTERS);
+    setSort("");
+    setSearch("");
+    setQuery("");
+    setPage(0);
   };
 
   const openFund = (f) => {
-    // Both facts matter and a scheme can be both: an `else if` hid the physical-only
-    // warning on every SIP-capable physical fund, which is the case where it counts most.
     if (f?.sip_allowed === true) {
       toastInfo(f.minSip ? `SIP available — from ₹${f.minSip}/month` : "SIP available on this fund");
     }
-    if (f?.physical_only === true) {
-      toastInfo("This scheme is held physically only — it cannot be bought on a demat account.");
-    }
-    navigate(fundPath(f.scheme_isin, f.scheme_bse_code));
+    // Audit #1 — ISIN in the address bar; the exact BSE code rides in router state.
+    navigate(fundPath(f.scheme_isin, f.scheme_bse_code), { state: { code: f.scheme_bse_code } });
   };
+
+  // Audit #11 — the same targets the fund page's own buttons use: its Invest Now modal (opened
+  // on arrival, with the exact code in router state and only the ISIN in the address bar), and
+  // the SIP setup page handed the fund so it opens filled in.
+  const invest = (f) =>
+    navigate(fundPath(f.scheme_isin, f.scheme_bse_code), { state: { code: f.scheme_bse_code, buy: true } });
+
+  const startSip = (f) =>
+    navigate(fundSipPath(f.scheme_isin, f.scheme_bse_code), {
+      state: {
+        fund: {
+          name: f.name,
+          scheme_bse_code: f.scheme_bse_code,
+          scheme_isin: f.scheme_isin,
+          minSip: f.minSip,
+          nav: f.nav,
+        },
+      },
+    });
+
+  const filterClass = (f) =>
+    `border rounded-xl px-3 py-2 text-sm shadow-sm dark:bg-[var(--white-10)] dark:border-[var(--border-color)] ${
+      // Green means "you narrowed this", so compare against the default rather than against
+      // empty — otherwise the return period would be green before anyone touches it.
+      filters[f.key] !== DEFAULT_FILTERS[f.key]
+        ? "border-emerald-500 bg-emerald-50 text-emerald-800 dark:text-emerald-300"
+        : "border-slate-200 dark:border-[var(--border-color)] bg-white dark:bg-[var(--card-bg)]"
+    }`;
 
   return (
     <div className="w-full py-6 px-5 md:px-10 lg:px-14">
@@ -266,6 +372,9 @@ const ExploreMF = () => {
                     {titleCase(f.name) || "—"}
                   </p>
                   <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mt-1 line-clamp-1">{f.scheme_amc_name || "Mutual Fund"}</p>
+                  {f.scheme_isin && (
+                    <p className="text-[10px] font-mono text-slate-400 dark:text-[var(--text-secondary)] mt-0.5">{f.scheme_isin}</p>
+                  )}
                   <FundBadges fund={f} className="mt-2" />
                   <p className="text-sm font-semibold text-slate-900 dark:text-[var(--text-primary)] mt-3">
                     {navLabel(f, navs)}
@@ -290,7 +399,7 @@ const ExploreMF = () => {
             to="/advisor"
             className="mt-4 px-5 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium"
           >
-            Ask the Advisor
+            Try Asset Allocation
           </Link>
           <a
             href="#all-funds"
@@ -316,53 +425,40 @@ const ExploreMF = () => {
       <div className="mb-10">
         <SectionHead title="Collections to get you started" />
         <Rail>
-          {collections.map((item) => (
-            <button
-              key={item.slug}
-              onClick={() => navigate(`/mutual_fund/collections/${item.slug}`)}
-              className="snap-start shrink-0 w-24 flex flex-col items-center gap-2 group"
-            >
-              <div className="w-16 h-16 rounded-full bg-white dark:bg-[var(--card-bg)] border border-slate-200 dark:border-[var(--border-color)] shadow-sm flex items-center justify-center group-hover:shadow-md transition">
-                {item.icon}
-              </div>
-              <p className="text-xs font-medium text-center leading-tight text-slate-700 dark:text-[var(--text-secondary)]">{item.name}</p>
-            </button>
-          ))}
+          {collections.map((item) => {
+            const on = filters.category === item.slug;
+            return (
+              <button
+                key={item.slug}
+                onClick={() => pickCollection(item.slug)}
+                aria-pressed={on}
+                className="snap-start shrink-0 w-24 flex flex-col items-center gap-2 group"
+              >
+                <div
+                  className={`w-16 h-16 rounded-full bg-white dark:bg-[var(--card-bg)] border shadow-sm flex items-center justify-center group-hover:shadow-md transition ${
+                    on ? "border-emerald-500 ring-2 ring-emerald-500/40" : "border-slate-200 dark:border-[var(--border-color)]"
+                  }`}
+                >
+                  {item.icon}
+                </div>
+                <p className="text-xs font-medium text-center leading-tight text-slate-700 dark:text-[var(--text-secondary)]">{item.name}</p>
+              </button>
+            );
+          })}
         </Rail>
       </div>
 
-      <div id="all-funds" className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-4">
+      <div id="all-funds" className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-4 scroll-mt-24">
         <div>
           <h2 className="text-lg font-semibold tracking-tight">All Mutual Funds</h2>
-          {/* `total` is the size of the FILTERED set, counted across the whole catalogue
-              before the page is cut — so this number and the page count are both honest. */}
+          {/* Audit #11 — this used to say "Loading catalogue…" whenever nothing matched. */}
           <p className="text-sm text-slate-500 dark:text-[var(--text-secondary)] mt-1">
-            {funds.length ? `${total.toLocaleString("en-IN")} funds match` : "Loading catalogue…"}
+            {isLoading ? "Loading catalogue…" : `${total.toLocaleString("en-IN")} ${total === 1 ? "scheme" : "schemes"} found`}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {FILTERS.map((f) => (
-            <select
-              key={f.key}
-              aria-label={f.label}
-              value={filters[f.key]}
-              onChange={(e) => setFilter(f.key, e.target.value)}
-              // Green means "you narrowed this", so compare against the default rather
-              // than against empty — otherwise Held-as is green before anyone touches it.
-              className={`border rounded-xl px-3 py-2 text-sm shadow-sm dark:bg-[var(--white-10)] dark:border-[var(--border-color)] ${
-                filters[f.key] !== DEFAULT_FILTERS[f.key]
-                  ? "border-emerald-500 bg-emerald-50 text-emerald-800 dark:text-emerald-300"
-                  : "border-slate-200 dark:border-[var(--border-color)] bg-white dark:bg-[var(--card-bg)]"
-              }`}
-            >
-              {f.options.map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          ))}
           <select
+            aria-label="Sort"
             value={sort}
             onChange={(e) => {
               setPage(0);
@@ -378,7 +474,69 @@ const ExploreMF = () => {
               </option>
             ))}
           </select>
+          <button
+            type="button"
+            onClick={clearAll}
+            disabled={!narrowed}
+            className="px-4 py-2 rounded-xl border border-slate-200 dark:border-[var(--border-color)] text-sm font-medium text-slate-700 dark:text-[var(--text-primary)] disabled:opacity-40"
+          >
+            Clear filters
+          </button>
         </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 mb-5">
+        {FILTER_GROUPS.map((group) => (
+          <fieldset
+            key={group.title}
+            className="rounded-lg border border-slate-200 dark:border-[var(--border-color)] bg-white dark:bg-[var(--card-bg)] px-3 pb-3 pt-1"
+          >
+            <legend className="px-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-[var(--text-secondary)]">
+              {group.title}
+            </legend>
+            <div className="flex flex-wrap items-center gap-2">
+              {group.filters.map((f) =>
+                f.input ? (
+                  <label key={f.key} className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-[var(--text-secondary)]">
+                    <input
+                      type="number"
+                      min="0"
+                      inputMode="decimal"
+                      aria-label={f.label}
+                      list={f.presets ? `${f.key}-presets` : undefined}
+                      placeholder={f.placeholder}
+                      value={filters[f.key]}
+                      onChange={(e) => setFilter(f.key, e.target.value)}
+                      className={`w-28 ${filterClass(f)}`}
+                    />
+                    {f.suffix}
+                    {f.presets && (
+                      <datalist id={`${f.key}-presets`}>
+                        {f.presets.map((v) => (
+                          <option key={v} value={v} />
+                        ))}
+                      </datalist>
+                    )}
+                  </label>
+                ) : (
+                  <select
+                    key={f.key}
+                    aria-label={f.label}
+                    value={filters[f.key]}
+                    onChange={(e) => setFilter(f.key, e.target.value)}
+                    className={filterClass(f)}
+                  >
+                    {optionsFor(f).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                )
+              )}
+            </div>
+          </fieldset>
+        ))}
       </div>
 
       {/* Kotak Neo ka scheme list: card grid nahi, ek hi container me dense rows
@@ -391,14 +549,14 @@ const ExploreMF = () => {
         <div className="rounded-lg border border-slate-200 dark:border-[var(--border-color)] bg-white dark:bg-[var(--card-bg)] divide-y divide-slate-200 dark:divide-[var(--border-color)] overflow-hidden">
           {/* A checkbox cannot live inside a <button> (invalid HTML, and the click would be
               swallowed by the row), so the row is a flex container with the checkbox beside
-              a button that fills the rest of it. */}
+              a button that fills the rest of it — and the actions beside that. */}
           {shown.map((fund) => {
             const key = `${fund.scheme_isin}|${fund.scheme_bse_code}`;
             const picked = inCompare.has(key);
             return (
               <div
                 key={key}
-                className={`w-full flex items-center gap-3 px-4 transition ${
+                className={`w-full flex flex-wrap sm:flex-nowrap items-center gap-x-3 px-4 transition ${
                   picked ? "bg-emerald-50/60 dark:bg-emerald-500/5" : "hover:bg-slate-50 dark:hover:bg-[var(--white-5)]"
                 }`}
               >
@@ -420,7 +578,9 @@ const ExploreMF = () => {
                     <p className="text-sm font-medium leading-snug line-clamp-2 text-slate-900 dark:text-[var(--text-primary)]">
                       {titleCase(fund.name) || "—"}
                     </p>
+                    {/* Audit #1 — the ISIN, small, under the name: what the investor sees on their CAS. */}
                     <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mt-0.5 line-clamp-1">
+                      {fund.scheme_isin && <span className="font-mono">{fund.scheme_isin} · </span>}
                       {fund.subType || fund.category || "Mutual Fund"}
                     </p>
                     <FundBadges fund={fund} className="mt-1.5" />
@@ -438,13 +598,44 @@ const ExploreMF = () => {
                       </p>
                     ) : (
                       <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mt-0.5">
-                        {fund.minLumpsum ? `Min ₹${fund.minLumpsum}` : navDate(fund, navs) || ""}
+                        {fund.minLumpsum ? minLabel(fund.minLumpsum, fund.minSource?.lumpsum) : navDate(fund, navs) || ""}
                       </p>
                     )}
                   </div>
 
                   <MdChevronRight className="text-xl shrink-0 text-slate-400 dark:text-[var(--text-secondary)]" />
                 </button>
+
+                {/* Audit #11 — Invest Now / Start SIP / Add to basket on the card itself. Start
+                    SIP only where BSE says the scheme takes one, as on the fund page.
+                    Compliance #31 — a Direct plan gets the reason instead of buy actions. */}
+                {isDirectPlan(fund) ? (
+                  <p className="w-full sm:w-36 pb-3 sm:py-3 pl-7 sm:pl-0 shrink-0 text-[11px] text-amber-700 dark:text-amber-400">
+                    {DIRECT_NOT_OFFERED}
+                  </p>
+                ) : (
+                <div className="w-full sm:w-auto flex sm:flex-col gap-1.5 pb-3 sm:py-3 pl-7 sm:pl-0 shrink-0">
+                  {fund.txn?.lumpsum !== false && (
+                    <button
+                      type="button"
+                      onClick={() => invest(fund)}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium"
+                    >
+                      Invest Now
+                    </button>
+                  )}
+                  {fund.sip_allowed === true && (
+                    <button
+                      type="button"
+                      onClick={() => startSip(fund)}
+                      className="px-3 py-1.5 rounded-lg border border-emerald-600 text-emerald-700 dark:text-emerald-400 text-xs font-medium hover:bg-emerald-50 dark:hover:bg-emerald-500/10"
+                    >
+                      Start SIP
+                    </button>
+                  )}
+                  <AddToBasket fund={fund} />
+                </div>
+                )}
               </div>
             );
           })}
@@ -452,11 +643,14 @@ const ExploreMF = () => {
       )}
 
       {!isLoading && !funds.length && (
-        <p className="text-center text-gray-500 py-10">
-          {Object.entries(filters).some(([k, v]) => v !== DEFAULT_FILTERS[k])
-            ? "No funds on this page match these filters. Clear one, or try the next page."
-            : "No funds matched this collection. Try “Demat & physical” under Held as."}
-        </p>
+        <div className="text-center text-gray-500 dark:text-[var(--text-secondary)] py-10">
+          <p>{narrowed ? "No funds match these filters." : "No funds to show right now."}</p>
+          {narrowed && (
+            <button type="button" onClick={clearAll} className="mt-3 text-sm font-medium text-emerald-700 dark:text-emerald-400 hover:underline">
+              Clear filters
+            </button>
+          )}
+        </div>
       )}
 
       {total > PAGE_SIZE && (

@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { computeTax, compareRegimes, rentVsBuy, sipSeries } from "../src/utils/calculators.js";
+import { readFileSync } from "node:fs";
+import { computeTax, compareRegimes, fdMaturity, rentVsBuy, sipSeries } from "../src/utils/calculators.js";
 
 test("new regime: 12.75L tak salaried ka tax zero", () => {
   // 12,75,000 − 75,000 std = 12,00,000 taxable → 60,000 slab tax → 87A rebate 60,000
@@ -70,6 +71,46 @@ test("rentVsBuy: mehanga ghar + strong market returns par kiraya behtar", () => 
   const r = rentVsBuy({ price: 10000000, rent: 60000, years: 20, appreciation: 3, invReturn: 14 });
   assert.equal(r.better, "rent");
   assert.equal(r.gap, Math.abs(r.homeValue - r.rentCorpus));
+});
+
+// Audit #69 — the FD page compounded once a year only; Indian banks compound quarterly.
+test("FD: compounds quarterly by default, which pays more than yearly at the same rate", () => {
+  const quarterly = fdMaturity({ amount: 100000, rate: 7, years: 5 });
+  assert.equal(Math.round(quarterly.maturity), Math.round(100000 * 1.0175 ** 20));
+  assert.equal(Math.round(quarterly.interest), Math.round(quarterly.maturity - 100000));
+  // Yearly is exactly the page's old formula.
+  assert.equal(fdMaturity({ amount: 100000, rate: 7, years: 5, perYear: 1 }).maturity, 100000 * 1.07 ** 5);
+  const [yearly, half, quart, monthly] = [1, 2, 4, 12].map(
+    (perYear) => fdMaturity({ amount: 100000, rate: 7, years: 5, perYear }).maturity
+  );
+  assert.ok(yearly < half && half < quart && quart < monthly, "more often compounds to more");
+  // The <select> hands over a string.
+  assert.equal(fdMaturity({ amount: 100000, rate: 7, years: 5, perYear: "12" }).maturity, monthly);
+});
+
+test("FD: 0% gives back the principal, and a twelve-digit tenure stays finite", () => {
+  const flat = fdMaturity({ amount: 50000, rate: 0, years: 3, perYear: 4 });
+  assert.equal(flat.maturity, 50000);
+  assert.equal(flat.interest, 0, "0% is a real answer: no interest");
+  const big = 999999999999;
+  const r = fdMaturity({ amount: big, rate: big, years: big, perYear: 12 });
+  assert.ok(Number.isFinite(r.maturity) && Number.isFinite(r.interest));
+});
+
+// Audit #69 — the SIP calculator only answered "what SIP does my goal need". The forward
+// question — what does this SIP grow to — is the one most people bring.
+test("SIP calculator answers both ways round, with a toggle between them", () => {
+  const src = readFileSync("src/pages/calculators/SipCalculator.jsx", "utf8");
+  assert.match(src, /sipForGoal\(/, "goal → monthly SIP is still there");
+  assert.match(src, /sipSeries\(\{ monthly, years, cagr \}\)/, "monthly SIP → future value runs the same model as the chart");
+  assert.match(src, /onClick=\{\(\) => setMode\(key\)\}/, "a toggle switches between them");
+  for (const label of ["Future Value", "Total Invested", "Estimated Earnings"]) {
+    assert.ok(src.includes(label), `forward mode must show ${label}`);
+  }
+  // The forward numbers are sipSeries' last point: 10k a month, 12%, 10 years.
+  const last = sipSeries({ monthly: 10000, years: 10, cagr: 12 }).at(-1);
+  assert.equal(last.value, 2300387);
+  assert.equal(last.invested, 1200000);
 });
 
 test("rentVsBuy: rent har saal barhta hai", () => {

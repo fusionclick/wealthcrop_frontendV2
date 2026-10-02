@@ -34,6 +34,13 @@ const Pill = ({ tone = "slate", title, className = "", children }) => (
   </span>
 );
 
+// Compliance #31 — a distributor may offer Regular plans only, and the server refuses a Direct
+// purchase (suitability: direct_plan_not_offered). Every surface that shows a Direct plan says
+// so in these words and offers no buy action for it. Same test the server makes: mapScheme's
+// `plan`, which reads BSE's scheme_plan and the scheme name.
+export const DIRECT_NOT_OFFERED = "Direct plan — not offered by a distributor";
+export const isDirectPlan = (fund) => String(fund?.plan || "").toLowerCase() === "direct";
+
 export function RiskBadge({ risk, className = "" }) {
   if (!risk || !RISK_TONES[risk]) return null;
   return (
@@ -68,8 +75,9 @@ export function TxnBadges({ txn, className = "" }) {
   );
 }
 
+// Audit #11 — no Physical / Demat wording reaches the investor: physical is the platform's
+// silent default, so the "PHYSICAL ONLY" pill that used to sit here is gone.
 export default function FundBadges({ fund, className = "", showTxn = true }) {
-  const physical = fund?.physical_only === true;
   const sip = fund?.sip_allowed;
   const plan = fund?.plan;
   const risk = fund?.risk;
@@ -80,20 +88,24 @@ export default function FundBadges({ fund, className = "", showTxn = true }) {
   const txn = showTxn ? fund?.txn : null;
   const anyTxn = txn && [txn.lumpsum, txn.sip, txn.swp, txn.stp, txn.switchAllowed].some((v) => v === true);
 
-  if (!physical && sip == null && !plan && !adminCategory && !risk && !payout && !lockIn && !anyTxn) return null;
+  if (sip == null && !plan && !adminCategory && !risk && !payout && !lockIn && !anyTxn) return null;
 
   return (
     <div className={`flex flex-wrap gap-1.5 ${className}`}>
       <RiskBadge risk={risk} />
       {adminCategory && <Pill tone="emerald">{adminCategory.replace(/_/g, " ").toUpperCase()}</Pill>}
-      {plan && <Pill tone="slate">{plan.toUpperCase()}</Pill>}
-      {payout && <Pill tone="slate">{payout.toUpperCase()}</Pill>}
+      {plan && (
+        <Pill tone="slate" title={isDirectPlan(fund) ? DIRECT_NOT_OFFERED : undefined}>
+          {plan.toUpperCase()}
+        </Pill>
+      )}
+      {/* Audit #2 — the client's own words, the same ones the fund page and filters use. */}
+      {payout && <Pill tone="slate">{(payout === "IDCW Reinvestment" ? "Dividend Reinvestment" : payout).toUpperCase()}</Pill>}
       {lockIn && (
         <Pill tone="amber" title={`Units cannot be redeemed for ${lockIn} from the date of investment`}>
           LOCK-IN {lockIn.toUpperCase()}
         </Pill>
       )}
-      {physical && <Pill tone="amber">PHYSICAL ONLY</Pill>}
       {/* The old standalone SIP pill is covered by TxnBadges now. "NO SIP" survives on its
           own, because "this fund cannot take a SIP" is worth saying out loud. */}
       {anyTxn ? <TxnBadges txn={txn} /> : sip === true && <Pill tone="emerald">SIP</Pill>}

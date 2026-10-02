@@ -1,47 +1,41 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { clampNum, num, annuityFactor, finiteOr, inr } from "../../utils/calcSafe";
+import { blank, inr } from "../../utils/calcSafe";
+import { educationPlan } from "../../utils/calculators";
+import { useCalcState } from "./CalcShell";
+import Projection from "./Projection";
+
+// Audit #67 — the spec's inputs. "Years Left" is now the gap between the child's age and the
+// age the course starts, and the lump "current cost" is a yearly fee times the course length,
+// because a four-year course is paid over four years at four different prices. 0% inflation
+// and 0% return stay legitimate answers (QA 10.3); the zero-safe maths lives in educationPlan.
+const FIELDS = [
+  { key: "childAge", label: "Child's Current Age (Years)", placeholder: "Ex: 5" },
+  { key: "startAge", label: "Age When Higher Education Starts", placeholder: "Ex: 18" },
+  { key: "annualCost", label: "Annual Cost in Today's Money (₹)", placeholder: "Ex: 500000" },
+  { key: "courseYears", label: "Course Duration (Years)", placeholder: "Ex: 4" },
+  { key: "inflation", label: "Education Inflation Rate (%)", placeholder: "Ex: 10" },
+  { key: "expectedReturn", label: "Expected Return on Investment (%)", placeholder: "Ex: 12" },
+  { key: "currentSavings", label: "Current Savings for Education (₹)", placeholder: "Ex: 200000" },
+];
 
 const EducationCalculator = () => {
-  const [currentCost, setCurrentCost] = useState("");
-  const [yearsLeft, setYearsLeft] = useState("");
-  const [inflationRate, setInflationRate] = useState("");
-  const [expectedReturn, setExpectedReturn] = useState("12");
-  const [result, setResult] = useState(null);
+  const [v, set] = useCalcState({
+    childAge: "",
+    startAge: "18",
+    annualCost: "",
+    courseYears: "4",
+    inflation: "10",
+    expectedReturn: "12",
+    currentSavings: "0",
+  });
   const [openFAQ, setOpenFAQ] = useState(null);
 
   const navigate = useNavigate();
 
-  const calculateEducationGoal = () => {
-    // 0% inflation and 0% return are both legitimate answers, so they cannot be part of
-    // the "is it filled in" test — `!inflationRate` rejected 0 as though it were blank.
-    if (!currentCost || !yearsLeft) return;
-
-    const costNow = Math.max(0, num(currentCost));
-    // QA 10.3 — years drives (1 + infl) ^ years; unbounded it overflows to Infinity and the
-    // SIP comes out NaN.
-    const years = clampNum(yearsLeft, 1, 100, 1);
-    const infl = clampNum(inflationRate, 0, 100, 0) / 100;
-    const ret = clampNum(expectedReturn, 0, 100, 0) / 100;
-
-    // Future cost of education
-    const futureCost = costNow * Math.pow(1 + infl, years);
-
-    // Monthly SIP required to reach futureCost
-    const monthlyRate = ret / 12;
-    const months = years * 12;
-
-    // annuityFactor is ((1+r)^n - 1)/r and returns n when r is 0, so the two branches this
-    // used to have — and the divide-by-zero the second one hid — collapse into one.
-    const factor = annuityFactor(monthlyRate, months);
-    let sip = factor > 0 ? futureCost / factor : 0;
-    sip = finiteOr(sip, 0);
-
-    setResult({
-      futureCost: futureCost.toFixed(0),
-      monthlySIP: sip.toFixed(0),
-    });
-  };
+  // Absent is not zero: no answer until every field has a value, and never a stale one.
+  const plan = useMemo(() => (FIELDS.some((f) => blank(v[f.key])) ? null : educationPlan(v)), [v]);
+  const ready = plan && !plan.error;
 
   const faqs = [
     {
@@ -105,92 +99,28 @@ const EducationCalculator = () => {
         </h2>
 
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">
-              Current Education Cost (₹)
-            </label>
-            <input
-              type="number"
-              placeholder="Ex: 10,00,000"
-              className="
-                w-full p-2 rounded-lg outline-none
-                border border-gray-300
-                focus:ring-2 focus:ring-indigo-400
-                bg-white
-                dark:bg-gray-800 dark:border-gray-600 dark:text-white
-              "
-              value={currentCost}
-              onChange={(e) => setCurrentCost(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">
-              Years Left
-            </label>
-            <input
-              type="number"
-              placeholder="Ex: 10"
-              className="
-                w-full p-2 rounded-lg outline-none
-                border border-gray-300
-                focus:ring-2 focus:ring-indigo-400
-                bg-white
-                dark:bg-gray-800 dark:border-gray-600 dark:text-white
-              "
-              value={yearsLeft}
-              onChange={(e) => setYearsLeft(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">
-              Education Inflation Rate (%)
-            </label>
-            <input
-              type="number"
-              placeholder="Ex: 10"
-              className="
-                w-full p-2 rounded-lg outline-none
-                border border-gray-300
-                focus:ring-2 focus:ring-indigo-400
-                bg-white
-                dark:bg-gray-800 dark:border-gray-600 dark:text-white
-              "
-              value={inflationRate}
-              onChange={(e) => setInflationRate(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">
-              Expected Return on Investment (%)
-            </label>
-            <input
-              type="number"
-              placeholder="Ex: 12"
-              className="
-                w-full p-2 rounded-lg outline-none
-                border border-gray-300
-                focus:ring-2 focus:ring-indigo-400
-                bg-white
-                dark:bg-gray-800 dark:border-gray-600 dark:text-white
-              "
-              value={expectedReturn}
-              onChange={(e) => setExpectedReturn(e.target.value)}
-            />
-          </div>
-
-          <button
-            onClick={calculateEducationGoal}
-            className="
-              mt-2 w-full py-2 rounded-lg font-bold text-sm transition
-              bg-indigo-600 hover:bg-indigo-700
-              text-white
-            "
-          >
-            Calculate
-          </button>
+          {FIELDS.map((item) => (
+            <div key={item.key}>
+              <label htmlFor={item.key} className="block text-sm font-medium text-gray-700 dark:text-gray-400">
+                {item.label}
+              </label>
+              <input
+                id={item.key}
+                type="number"
+                min="0"
+                placeholder={item.placeholder}
+                className="
+                  w-full p-2 rounded-lg outline-none
+                  border border-gray-300
+                  focus:ring-2 focus:ring-indigo-400
+                  bg-white
+                  dark:bg-gray-800 dark:border-gray-600 dark:text-white
+                "
+                value={v[item.key]}
+                onChange={(e) => set(item.key, e.target.value)}
+              />
+            </div>
+          ))}
         </div>
       </div>
 
@@ -205,29 +135,52 @@ const EducationCalculator = () => {
       >
         <h3 className="text-xl font-bold mb-4">📊 Education Goal Summary</h3>
 
-        {result ? (
-          <div className="bg-white/20 dark:bg-black/30 rounded-xl p-4 shadow-lg backdrop-blur-md space-y-2">
+        {ready ? (
+          <div className="bg-white/20 dark:bg-black/30 rounded-xl p-4 shadow-lg backdrop-blur-md space-y-2 break-words">
             <p className="text-lg">
-              <strong>Future Education Cost:</strong> ₹
-              {inr(result.futureCost)}
+              <strong>Total Needed by Age {plan.startAge}:</strong> ₹{inr(plan.totalNeeded)}
             </p>
             <p className="text-lg">
-              <strong>Required Monthly SIP:</strong> ₹
-              {inr(result.monthlySIP)}
+              <strong>Monthly Savings (SIP) Required:</strong> ₹{inr(plan.monthlySIP)}
+            </p>
+            <p className="text-lg">
+              <strong>Your Current Savings Will Grow To:</strong> ₹{inr(plan.savingsAtStart)}
+            </p>
+            <p className="text-lg">
+              <strong>First Year&apos;s Fee Then:</strong> ₹{inr(plan.firstYearFee)}
+            </p>
+            <p className="text-sm opacity-90">
+              {plan.yearsToStart} years to save.
+              {plan.monthlySIP === 0 && " Your savings already cover it — no SIP needed."}
             </p>
           </div>
         ) : (
           <p className="opacity-80">
-            Enter details and click calculate to view your goal.
+            {plan?.error || "Fill in every field to see your education plan."}
           </p>
         )}
 
         <div className="mt-6 text-sm opacity-80">
-          💡 Assumes constant inflation and returns for the full period.
+          💡 Each year&apos;s fee is inflated to the year it is paid. Once the course starts, the money
+          is assumed to sit somewhere safe and is drawn as fees fall due, so it is not counted as
+          still earning the market return.
         </div>
       </div>
     </div>
   </div>
+
+  {ready && (
+    <Projection
+      title="Your education fund projection"
+      rows={plan.projection}
+      switchAge={plan.startAge}
+      switchLabel="Course starts"
+      ageLabel="Child's age"
+      inLabel="SIP paid in"
+      outLabel="Fees paid"
+      spendPhase="Studying"
+    />
+  )}
 
   {/* FAQ */}
   <div

@@ -15,6 +15,13 @@
  */
 
 /**
+ * Nothing there: null, undefined, or a field the investor has not typed into. Absent — which
+ * is not the same thing as 0. Audit #69 — exported so a page can hold back its answer until
+ * every field is filled, instead of computing one from a cleared field read as 0.
+ */
+export const blank = (v) => v === null || v === undefined || (typeof v === "string" && v.trim() === "");
+
+/**
  * A real, finite number, or `fallback`.
  *
  * Blank counts as absent, not as zero: `Number("")` is 0 and passes a finiteness test, so a
@@ -22,7 +29,7 @@
  * legitimate rate, which makes it indistinguishable from a real answer.
  */
 export const num = (v, fallback = 0) => {
-  if (v === null || v === undefined || (typeof v === "string" && v.trim() === "")) return fallback;
+  if (blank(v)) return fallback;
   const n = Number(v);
   return Number.isFinite(n) ? n : fallback;
 };
@@ -86,7 +93,7 @@ export const inr = (v, { maximumFractionDigits = 2, fallback = "—" } = {}) => 
   // Absent is not zero — the same rule `num` applies. Number(null) and Number("") are both
   // 0 and both pass a finiteness test, so a value that was never computed would print as a
   // confident ₹0, which is exactly the lie this helper exists to prevent.
-  if (v === null || v === undefined || (typeof v === "string" && v.trim() === "")) return fallback;
+  if (blank(v)) return fallback;
   const n = Number(v);
   return Number.isFinite(n) ? n.toLocaleString("en-IN", { maximumFractionDigits }) : fallback;
 };

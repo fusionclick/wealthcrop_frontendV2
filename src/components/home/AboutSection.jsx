@@ -38,7 +38,7 @@ const AboutSection = () => {
   >
     At Wealthcrop, we aim to revolutionize how people invest.
     From beginners to experienced investors, our platform empowers you with
-    tools, analytics, and expert insights to grow your wealth confidently.
+    tools, analytics and Curated Mutual Fund Baskets to invest with confidence.
   </motion.p>
 
   {/* Stats Section */}

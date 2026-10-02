@@ -34,10 +34,12 @@ export default function LearningCenterPage() {
   const faqs = [
     { q: "Is this free?", a: "Yes, all Wealthcrop learning content is 100% free." },
     { q: "Do I need an account?", a: "No, you can access basic content without login." },
-    // Pehla jawab "haan, videos mojood hain" tha — magar video section sirf do khali
-    // grey box thay jin par "Watch Now" ka koi onClick nahi tha. Section hata diya, is
-    // liye jawab bhi sach kar diya.
-    { q: "Are video lessons available?", a: "Not yet — the guides below are written lessons. Video courses are on the way." },
+    // Audit #76 — this said "not yet" after the courses had shipped video modules (QA 12.2).
+    // Courses need an account (progress and badges are per investor), so say where they are.
+    {
+      q: "Are video lessons available?",
+      a: "Yes. The courses include short video lessons alongside infographics, interactive charts and quizzes. Sign in and they appear under Courses at the top of this page; the written guides below need no account.",
+    },
   ];
 
   return (

@@ -108,14 +108,23 @@ export default function SpreadInvest() {
   // schedule nothing runs.
   const effectiveInstalments = staggered ? Number(instalments) || 1 : 1;
 
+  // Audit #47 — the per-instalment minimum. An "all at once" leg is a lumpsum purchase, so the
+  // fund's lumpsum minimum applies to it (the catalogue row's `minLumpsum`, already raised to
+  // the admin's house floor). A staggered leg is an STP instalment, whose minimum is BSE's
+  // STP-IN rule — not on the catalogue row, so not claimed here; BSE enforces it per leg.
+  const funds = useMemo(
+    () => picked.map((p) => ({ ...p, min_amount: staggered ? 0 : p.min_lumpsum })),
+    [picked, staggered]
+  );
+
   const { legs, errors } = useMemo(
     () =>
       buildSpreadPlan({
         total: Number(total),
         instalments: effectiveInstalments,
-        funds: picked,
+        funds,
       }),
-    [total, effectiveInstalments, picked]
+    [total, effectiveInstalments, funds]
   );
 
   const dates = useMemo(
@@ -143,7 +152,9 @@ export default function SpreadInvest() {
       {
         scheme_code: fund.scheme_bse_code,
         name: fund.name,
-        min_amount: Number(fund.minimum_purchase_amount || fund.min_amount || 0),
+        // Catalogue rows carry `minLumpsum`; the fields this used to read never existed on
+        // them, so the minimum was always 0 and never fired.
+        min_lumpsum: Number(fund.minLumpsum) || 0,
         percent: 0,
       },
     ];
@@ -174,7 +185,7 @@ export default function SpreadInvest() {
         start_date: startDate,
         source_scheme: staggered ? source.scheme_bse_code : null,
         source_scheme_name: staggered ? source.scheme_name : null,
-        funds: picked.map((p) => ({
+        funds: funds.map((p) => ({
           scheme_code: p.scheme_code,
           scheme_name: p.name,
           percent: p.percent,
@@ -473,7 +484,7 @@ export default function SpreadInvest() {
             </div>
           )}
 
-          <OrderDisclaimers {...disc} />
+          <OrderDisclaimers {...disc} schemes={picked} />
 
           <button
             type="button"

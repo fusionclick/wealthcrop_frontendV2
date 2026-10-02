@@ -66,28 +66,59 @@ const SwitchMF = () => {
   }, [holdings, pre.scheme_bse_code, pre.code, pre.isin, pre.folio, srcText]);
 
   useEffect(() => {
-    const t = setTimeout(() => setDestQuery(destText.trim()), 250);
+    // A picked row's label is "name · plan · option"; only the name is searchable.
+    const t = setTimeout(() => setDestQuery(destText.split(" · ")[0].trim()), 250);
     return () => clearTimeout(t);
   }, [destText]);
+
+  const selectedSource = holdings.find((h) => holdingLabel(h) === srcText);
+
+  // Audit #46 — a switch stays inside one fund house, and both funds must allow it. What BSE
+  // says about the source (its AMC, its Switch-OUT rule) comes from the same /scheme-details
+  // the fund page reads; the server enforces both rules again whatever this page shows.
+  const srcIsin = selectedSource?.scheme_isin || "";
+  const srcCode = selectedSource?.scheme_bse_code || selectedSource?.scheme_code || "";
+  const { data: srcInfo = null } = useQuery({
+    queryKey: ["FUND_FULL_DETAILS", srcIsin, srcCode],
+    queryFn: () =>
+      postApi(nodeUrl(import.meta.env.VITE_SCHEME_DETAILS || "/scheme-details"), { isin: srcIsin, scheme_code: srcCode }),
+    select: (res) => res?.data?.scheme_info || null,
+    enabled: Boolean(srcIsin || srcCode),
+    staleTime: 1000 * 60 * 2,
+  });
+  const sourceAmc = String(srcInfo?.scheme_amc_name || "").trim();
+  const switchOutClosed = srcInfo?.transactions?.switchOut?.allowed === false;
 
   // ponytail: destination BSE ke master se server-side filter hota hai — 28k schemes
   // browser mein nahi aa sakte. Page 50 par capped hai; match na mile to user thora
   // aur type kare. Client-side full list chahiye to backend ka FETCH_MAX barhana parega.
+  // Audit #46 — narrowed to the source's AMC: its name rides in the search (the catalogue
+  // matches every word against name + AMC), then rows are kept only on an exact AMC match,
+  // and a fund BSE says takes no switch is dropped. An unknown AMC narrows nothing.
   const { data: destFunds = [] } = useQuery({
-    queryKey: ["switchDest", destQuery],
+    queryKey: ["switchDest", destQuery, sourceAmc],
     queryFn: () =>
       postApi(nodeUrl(import.meta.env.VITE_GET_ALL_FUNDS || "/master-scheme-list"), {
         start: 0,
         length: 50,
-        search: destQuery,
+        search: [sourceAmc, destQuery].filter(Boolean).join(" "),
       }),
-    select: (res) => res?.data?.lists || [],
+    select: (res) =>
+      (res?.data?.lists || []).filter(
+        (f) =>
+          (!sourceAmc || String(f.scheme_amc_name || "").trim().toLowerCase() === sourceAmc.toLowerCase()) &&
+          f.txn?.switchAllowed !== false &&
+          f.scheme_bse_code !== srcCode
+      ),
     placeholderData: (prev) => prev,
     staleTime: 5 * 60 * 1000,
   });
 
-  const selectedSource = holdings.find((h) => holdingLabel(h) === srcText);
-  const selectedDest = destFunds.find((f) => f.name === destText);
+  // Within one fund house most names repeat across plans and options ("… Liquid Fund" ×8), so
+  // the label carries them — picking the Direct IDCW row when the Regular Growth one was meant
+  // is a different investment.
+  const destLabel = (f) => [f.name, f.plan, f.payout].filter(Boolean).join(" · ");
+  const selectedDest = destFunds.find((f) => destLabel(f) === destText);
   // Ticket 18: an STP is this same switch, repeated. Source, destination and folio are
   // already picked above, so all the investor adds is a schedule.
   const sched = useSxpSchedule("stp", selectedSource);
@@ -263,10 +294,22 @@ const SwitchMF = () => {
               placeholder="Type to search, or click for the full list"
               options={destFunds.map((f) => ({
                 key: f.scheme_bse_code || f.scheme_isin,
-                label: f.name,
+                label: destLabel(f),
                 hint: f.scheme_bse_code,
               }))}
             />
+            {selectedSource && (
+              <p className="-mt-3 text-[11px] text-gray-500 dark:text-[var(--text-secondary)]">
+                {sourceAmc
+                  ? `Showing ${sourceAmc} schemes only — a switch stays within one fund house.`
+                  : "We could not confirm this fund's fund house. A switch only works within one; BSE refuses any other."}
+              </p>
+            )}
+            {switchOutClosed && (
+              <p className="text-xs text-red-600 dark:text-red-400">
+                This scheme does not allow switching out. Redeem it instead.
+              </p>
+            )}
 
             {/* "All units" and a schedule contradict each other — the first installment
                 would empty the folio and leave the rest with nothing to transfer. */}
@@ -289,13 +332,13 @@ const SwitchMF = () => {
 
             <SxpSchedule {...sched} amount={amount} />
 
-            <OrderDisclaimers {...disc} />
+            <OrderDisclaimers {...disc} schemes={selectedDest ? [selectedDest] : []} />
 
             <div className="flex gap-3">
               <button onClick={() => navigate(-1)} className="flex-1 py-3 rounded-lg border">Cancel</button>
               <button
                 onClick={sched.on ? handleStp : handleSwitch}
-                disabled={submitting || !disc.ready || !sched.ready}
+                disabled={submitting || !disc.ready || !sched.ready || switchOutClosed}
                 className="flex-1 py-3 rounded-lg bg-indigo-600 text-white font-medium disabled:opacity-50"
               >
                 {submitting ? "Processing…" : sched.on ? "Start STP" : "Switch Fund"}

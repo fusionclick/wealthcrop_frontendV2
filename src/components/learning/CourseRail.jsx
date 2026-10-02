@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Award, GraduationCap } from "lucide-react";
 import { getApiWithToken } from "../../api/api";
+import RecommendedCourse from "./RecommendedCourse";
 
 /**
  * SRS §11 — the courses strip on the Learning Centre, with progress and earned badges.
@@ -15,6 +16,7 @@ export default function CourseRail() {
   const navigate = useNavigate();
   const [courses, setCourses] = useState([]);
   const [badges, setBadges] = useState([]);
+  const [recommended, setRecommended] = useState(null);
   // "idle" = signed out, nothing to ask for. Distinguishing loaded-but-empty from
   // never-loaded is the whole point — see the comment on the render guard below.
   const [state, setState] = useState("loading");
@@ -32,6 +34,7 @@ export default function CourseRail() {
         if (!alive) return;
         setCourses(res?.data?.data ?? []);
         setBadges(res?.data?.badges ?? []);
+        setRecommended(res?.data?.recommended ?? null);
         setState("ready");
       } catch {
         if (alive) setState("error");
@@ -99,6 +102,9 @@ export default function CourseRail() {
           </div>
         )}
       </div>
+
+      {/* Audit #76 — the next unfinished course, chosen by the server. */}
+      <RecommendedCourse course={recommended} className="mb-6" />
 
       <div className="grid md:grid-cols-4 gap-6">
         {courses.map((c) => (

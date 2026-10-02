@@ -234,7 +234,8 @@ const ExternalMF = () => {
 
           {picked ? (
             <p className="text-[11px] text-emerald-600">
-              Linked: {picked.scheme_isin} · {picked.scheme_bse_code} · NAV ₹{pickedNav.toFixed(2)}
+              {/* Audit #1 — the ISIN only; the BSE code is our routing detail. */}
+              Linked: {picked.scheme_isin} · NAV ₹{pickedNav.toFixed(2)}
             </p>
           ) : (
             !!schemeText.trim() && (

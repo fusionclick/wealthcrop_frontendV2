@@ -29,12 +29,37 @@ export const MF_EXPLORE_PATH = "/user/mutual_fund/explore";
 // ponytail: React Router ka dynamic segment khali string se match nahi karta — ek bhi
 // khali segment poora URL catch-all 404 par gira deta hai. Portfolio rows par aksar sirf
 // BSE code hota hai (BSE order_list ISIN bhejta hi nahi), is liye jo value mojood hai
-// wahi dono segments mein bhej do: backend `/scheme-details` aur `/master-scheme-list`
-// dono ek hi value ko ISIN ya BSE code, jo bhi mile, us par match karte hain.
+// wahi bhej do: backend `/scheme-details` aur `/master-scheme-list` dono ek hi value ko
+// ISIN ya BSE code, jo bhi mile, us par match karte hain.
+//
+// Audit #1 — "Scheme Code kahin nahi, har jagah ISIN": the address bar carries the ISIN
+// alone. The fund page and /sip resolve the BSE code from it, and the old /:isin/:code links
+// (bookmarks, notifications) still route. A code-only row still opens; the fund page swaps
+// that URL to the ISIN as soon as it knows it.
+//
+// But BSE files a scheme's IDCW payout and reinvestment options under ONE ISIN (1,416 such
+// ISINs in the live master), so the ISIN alone cannot always say which one was clicked. Every
+// link built here therefore remembers the exact code for that ISIN, for this browser session,
+// and the fund page reads it back (fundCodeFor) when neither the URL nor router state has it.
+const CODE_KEY = "wc_fund_code:";
+
+export const fundCodeFor = (isin) => {
+  try {
+    return sessionStorage.getItem(CODE_KEY + isin) || undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 export const fundPath = (isin, code) => {
   const key = isin || code;
   if (!key) return MF_EXPLORE_PATH;
-  return `/mutual_fund/${encodeURIComponent(key)}/${encodeURIComponent(code || key)}`;
+  try {
+    if (isin && code) sessionStorage.setItem(CODE_KEY + isin, code);
+  } catch {
+    /* no storage (tests, private mode): the page resolves from the ISIN */
+  }
+  return `/mutual_fund/${encodeURIComponent(key)}`;
 };
 
 export const MF_WATCHLIST_KEY = "wealthcrop_mf_watchlist";
@@ -67,8 +92,15 @@ export const holdingMatchesScheme = (h, { isin, code, schemeBse }) => {
   return false;
 };
 
-export const fundBuyPath = (isin, code) =>
-  isin || code ? `${fundPath(isin, code)}/buy` : MF_EXPLORE_PATH;
+// Audit #1 — the one fund URL that still carries the BSE code: the Invest page reads its scheme
+// only from the URL (no router state), and an ISIN shared by an IDCW payout and reinvestment
+// option would let it buy the wrong one. Explore's cards no longer come here — they open the
+// fund page's own Invest Now, which has the exact code.
+export const fundBuyPath = (isin, code) => {
+  const key = isin || code;
+  if (!key) return MF_EXPLORE_PATH;
+  return `/mutual_fund/${encodeURIComponent(key)}/${encodeURIComponent(code || key)}/buy`;
+};
 
 // Same rules as /buy: the scheme lives in the URL so a refresh or a shared link still
 // knows which fund the SIP is for. With neither identifier there is no SIP to set up.
@@ -76,8 +108,9 @@ export const fundSipPath = (isin, code) =>
   isin || code ? `${fundPath(isin, code)}/sip` : MF_EXPLORE_PATH;
 
 const RISK_RANK = { conservative: 1, moderate: 2, aggressive: 3 };
-const FUND_RISK_RANK = (fundRisk = "") => {
-  const r = fundRisk.toLowerCase();
+const FUND_RISK_RANK = (fundRisk) => {
+  // An unrated scheme arrives as null, which a default parameter does not catch.
+  const r = String(fundRisk || "").toLowerCase();
   if (r.includes("low") || r.includes("conservative")) return 1;
   if (r.includes("moderate") || r.includes("medium")) return 2;
   return 3;
@@ -162,7 +195,8 @@ export const xspItems = (response) => {
 export const mapXspToSip = (item, idx = 0) => ({
   id: item.reg_no || item.id || idx + 1,
   reg_no: item.reg_no || item.id,
-  schemeName: item.src_scheme_name || item.scheme_name || item.src_scheme || "SIP",
+  // Audit #1 — a missing name falls back to the ISIN, never to the BSE code.
+  schemeName: item.src_scheme_name || item.scheme_name || item.scheme_isin || item.isin || "Unnamed scheme",
   // BSE's own scheme code for the SIP's source scheme. order_list carries no reg_no, so
   // this is what ties a SIP to its instalments when working out that SIP's XIRR.
   schemeCode: item.src_scheme || item.scheme_code || item.scheme || "",
@@ -186,7 +220,10 @@ export const mapXspToSip = (item, idx = 0) => ({
   startDate: item.start_date || "—",
   investedSoFar: Number(item.total_amt_paid || item.invested_amount || 0),
   currentValue: Number(item.current_value || item.total_amt_paid || item.invested_amount || 0),
-  mandateStatus: item.mandate_status || "Active",
+  // Audit #22 — BSE's own word or nothing. The "Active" fallback put "Mandate: Active" on
+  // every SIP card, mandate or not; the card now falls back to the investor's real mandate.
+  mandateStatus: item.mandate_status || null,
+  mandateId: item.exch_mandate_id || null,
   status: (item.status || "ACTIVE").toUpperCase(),
   // A registered top-up raises the instalment on a schedule of its own. It was never read
   // off the registration, so a successful top-up left no trace anywhere on the card and
@@ -564,31 +601,6 @@ export const combinePortfolio = (internal = [], external = [], navOf = () => nul
   };
 };
 
-/** Register UPI autopay mandate after SIP */
-export const buildMandatePayload = (ucc, investorData, amount = 5000) => ({
-  data: {
-    member: "91010",
-    investor: { ucc },
-    mem_details: { euin: "", sub_br_arn: "", sub_br_code: "" },
-    investor_bank_details: {
-      ifsc: investorData?.bank_accounts?.[0]?.ifsc_code || "",
-      no: investorData?.bank_accounts?.[0]?.account_number || "",
-      type: investorData?.bank_accounts?.[0]?.account_type || "SB",
-      name: investorData?.bank_accounts?.[0]?.bank_name || "",
-      branch: "",
-      vpa: [],
-    },
-    amount: Number(amount),
-    start_date: new Date().toISOString().split("T")[0],
-    valid_till: new Date(new Date().setFullYear(new Date().getFullYear() + 10)).toISOString().split("T")[0],
-    reg_date: new Date().toISOString().split("T")[0],
-    type: "U",
-    redirect_url: "",
-    mode: "DD",
-    frequency: "AS AND WHEN PRESENTED",
-    request_type: "REGISTRATION",
-  },
-});
 
 /**
  * QA 3.4 — is this order's status one BSE can still change?

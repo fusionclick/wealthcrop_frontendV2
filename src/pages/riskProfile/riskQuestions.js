@@ -125,3 +125,83 @@ export const riskQuestions = [
 
   // 👉 Add 7–8 more questions same way
 ];
+
+/**
+ * Audit #56 — "about you": age, income, employment, assets/liabilities, experience and goal.
+ * Asked with every attempt and stored with its answers, but NOT scored — the nine questions
+ * above are the risk model and their formula is unchanged. The codes are the ones
+ * RiskProfileRequest::PROFILE_OPTIONS accepts.
+ */
+export const profileQuestions = [
+  {
+    key: "annual_income",
+    question: "Annual income",
+    options: [
+      ["below_1l", "Below ₹1 lakh"],
+      ["1l_5l", "₹1–5 lakh"],
+      ["5l_10l", "₹5–10 lakh"],
+      ["10l_25l", "₹10–25 lakh"],
+      ["25l_1cr", "₹25 lakh – ₹1 crore"],
+      ["above_1cr", "Above ₹1 crore"],
+    ],
+  },
+  {
+    key: "employment_type",
+    question: "Employment",
+    options: [
+      ["salaried", "Salaried"],
+      ["self_employed", "Self-employed professional"],
+      ["business", "Business owner"],
+      ["retired", "Retired"],
+      ["student", "Student"],
+      ["homemaker", "Homemaker"],
+      ["other", "Other"],
+    ],
+  },
+  {
+    key: "total_assets",
+    question: "Savings and investments you already have",
+    options: [
+      ["below_5l", "Below ₹5 lakh"],
+      ["5l_25l", "₹5–25 lakh"],
+      ["25l_1cr", "₹25 lakh – ₹1 crore"],
+      ["above_1cr", "Above ₹1 crore"],
+    ],
+  },
+  {
+    key: "total_liabilities",
+    question: "Loans outstanding",
+    options: [
+      ["none", "None"],
+      ["below_5l", "Below ₹5 lakh"],
+      ["5l_25l", "₹5–25 lakh"],
+      ["above_25l", "Above ₹25 lakh"],
+    ],
+  },
+  {
+    key: "investment_experience",
+    question: "Investing experience",
+    options: [
+      ["none", "None yet"],
+      ["under_2y", "Less than 2 years"],
+      ["2_5y", "2–5 years"],
+      ["over_5y", "More than 5 years"],
+    ],
+  },
+  {
+    key: "primary_goal",
+    question: "Main goal for this money",
+    options: [
+      ["retirement", "Retirement"],
+      ["education", "Children's education"],
+      ["purchase", "Buying a home or car"],
+      ["wealth", "Growing wealth"],
+      ["emergency", "Emergency fund"],
+      ["other", "Something else"],
+    ],
+  },
+];
+
+/** The label for a stored code, for the result screen. */
+export const profileLabel = (key, code) =>
+  profileQuestions.find((q) => q.key === key)?.options.find(([c]) => c === code)?.[1] ?? code;

@@ -116,7 +116,10 @@ test("§2 row 5: the e-NACH mandate is never registered as a side effect", () =>
 
 test("§3.A: the mandate screen shows the limit AND explains it", () => {
   const code = readCode("../src/components/mutual_fund/EnachAuthorization.jsx");
-  assert.match(code, /Auto-Debit Authorization \(e-NACH\)/, "the required header is missing");
+  // Audit #33 — the header names the mandate actually registered: "(UPI AutoPay)" for the
+  // UPI flow, "(e-NACH)" for the bank e-mandate modes. It said e-NACH while registering UPI.
+  assert.match(code, /Auto-Debit Authorization \(\{mandateLabel\(mode\)\}\)/, "the required header is missing");
+  assert.match(code, /mode === "upi" \? "UPI AutoPay" : "e-NACH"/);
   assert.match(code, /Max Limit/, "the limit is not displayed");
   // "Mandate limit shock": showing ₹1,00,000 against a ₹2,000 SIP without this sentence is
   // what makes investors abandon the setup.
@@ -128,9 +131,13 @@ test("§3.A: the mandate screen shows the limit AND explains it", () => {
 test("§1.B: checkout links the commission structure and the scheme documents", () => {
   const code = readCode("../src/components/mutual_fund/OrderDisclaimers.jsx");
   assert.match(code, /trail commission structure/i, "no commission-structure link at checkout");
-  assert.match(code, /SID, SAI and KIM/, "no scheme-document link at checkout");
   // A blank URL must render nothing: a dead link looks like disclosure and is not.
-  // A blank URL renders nothing rather than an <a> to nowhere.
   assert.match(code, /regular_plan_commission"\s*&&\s*commissionUrl/, "an unconfigured commission URL would render a dead link");
-  assert.match(code, /scheme_documents"\s*&&\s*schemeDocsUrl/, "a scheme with no document URL would render a dead link");
+  // Audit #32 — the page is linked before rates exist, and says so instead of hiding.
+  assert.match(code, /rates not yet published/);
+  // Audit #32 — every checkout gets SID/SAI/KIM, from ONE maintained source (never blank:
+  // an unknown scheme gets SEBI's register).
+  assert.match(code, /consentKey === "scheme_documents"\)/, "scheme documents must not depend on the page passing a URL");
+  assert.match(code, /schemeDocsFor\(schemeName\)/);
+  assert.match(code, /Scheme documents \(SID\/SAI\/KIM\) on the \$\{amc\} website/);
 });

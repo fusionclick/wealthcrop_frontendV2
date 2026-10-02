@@ -3,11 +3,12 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { postApi, postApiWithToken } from "../../api/api";
 import { toastError, toastSuccess } from "../../utils/notifyCustom";
 import { useSelector } from "react-redux";
-import { nodeUrl, validateInvestorReady, buildMandatePayload } from "../../utils/nodeApi";
+import { apiErrorMessage, nodeUrl, validateInvestorReady } from "../../utils/nodeApi";
 import { titleCase } from "../../utils/schemeName";
 import { allowedDays, FALLBACK_SIP_DAYS, iso, nextOccurrence, ordinal, smartDefaultDay } from "../../utils/sipDates";
 import OrderDisclaimers, { useDisclaimers } from "../../components/mutual_fund/OrderDisclaimers";
 import EnachAuthorization from "../../components/mutual_fund/EnachAuthorization";
+import SipCalendar from "../../components/sip/SipCalendar";
 import { useEffectiveMinimum } from "../../hooks/usePlatformSettings";
 
 // The ceiling the server enforces (MANDATE_MAX_LIMIT). Shown, not chosen: the screen must
@@ -125,19 +126,40 @@ const SIPSetupPage = () => {
   // investor the SIP.
   const [showEnach, setShowEnach] = useState(false);
   const [enachBusy, setEnachBusy] = useState(false);
+  // Audit #22 — the SIP just registered, so its mandate can be linked to it.
+  const [registeredRegNo, setRegisteredRegNo] = useState("");
 
-  const authoriseMandate = async () => {
+  // Audit #22 — an investor who already has an ACTIVE mandate pays this SIP with it; it goes
+  // in the registration itself (the server checks it is theirs) and no second one is needed.
+  const [activeMandate, setActiveMandate] = useState(null);
+  const [useMandate, setUseMandate] = useState(true);
+  useEffect(() => {
+    if (!investorData?.kyc?.ucc_code) return;
+    postApiWithToken(nodeUrl("/mandateStatus"), {}, { silent: true })
+      .then((res) => {
+        const rows = Array.isArray(res?.data?.mandates) ? res.data.mandates : [];
+        setActiveMandate(rows.find((m) => m.status === "approved" && m.exch_mandate_id) || null);
+      })
+      .catch(() => {});
+  }, [investorData?.kyc?.ucc_code]);
+
+  // The server refuses anything without `authorized: true` — the record that the investor
+  // was shown the limit and pressed the button. It builds the BSE payload itself from the
+  // channel and UPI ID chosen here, and resolves only when BSE said success.
+  const authoriseMandate = async ({ mode, vpa }) => {
     setEnachBusy(true);
     try {
-      const mandateUrl = nodeUrl(import.meta.env.VITE_MANDATE_REGISTRATION || "/mandate_register/upi-autopay");
-      const payload = buildMandatePayload(investorData?.kyc?.ucc_code, investorData, MANDATE_MAX_LIMIT);
-      // The server refuses anything without this; it is the record that the investor was
-      // shown the limit and pressed the button.
-      await postApiWithToken(mandateUrl, { ...payload, authorized: true });
-      toastSuccess("Auto-debit authorised.");
+      const res = await postApiWithToken(
+        nodeUrl(import.meta.env.VITE_MANDATE_REGISTRATION || "/mandate_register/upi-autopay"),
+        { authorized: true, mode, vpa, sip_reg_no: registeredRegNo || undefined, data: { amount: MANDATE_MAX_LIMIT, scheme: fund.scheme_bse_code, acknowledged: disc.acked } },
+        { silent: true, throwOnError: true }
+      );
+      if (res?.status !== "success") throw new Error(res?.message || "BSE did not register the mandate.");
+      return res.data;
+    } catch (e) {
+      throw new Error(apiErrorMessage(e, "BSE did not register the mandate."));
     } finally {
       setEnachBusy(false);
-      navigate("/mutual_fund/manage-sip");
     }
   };
 
@@ -196,6 +218,7 @@ const SIPSetupPage = () => {
         start_date: startDate,
         end_date: endDate,
         acknowledged: disc.acked,
+        ...(activeMandate && useMandate ? { exch_mandate_id: Number(activeMandate.exch_mandate_id) } : {}),
       },
     };
 
@@ -204,6 +227,13 @@ const SIPSetupPage = () => {
       const res = await postApiWithToken(url, payload);
       if (res) {
         toastSuccess("SIP registered successfully!");
+        // Paid by the mandate it named — there is nothing left to authorise.
+        if (activeMandate && useMandate) {
+          navigate("/mutual_fund/manage-sip");
+          return;
+        }
+        const d = res?.data || {};
+        setRegisteredRegNo(String(d.reg_no ?? d.sxp_id ?? d.lists?.[0]?.reg_no ?? d.items?.[0]?.reg_no ?? ""));
         // The e-NACH mandate used to be fired here, silently, inside an empty catch: a
         // standing bank authorisation created as a side effect of buying, with the limit
         // never shown. §2 row 5 requires an explicit act, so the investor is asked.
@@ -226,12 +256,15 @@ const SIPSetupPage = () => {
           <p className="text-sm text-[var(--text-secondary)]">
             Your SIP in {titleCase(fund.name) || "this fund"} is registered.
           </p>
+          <OrderDisclaimers {...disc} schemeName={titleCase(fund.name) || ""} schemes={[fund]} />
           <EnachAuthorization
             sipAmount={amount}
             maxLimit={MANDATE_MAX_LIMIT}
             busy={enachBusy}
+            disclosuresReady={disc.ready}
             onAuthorize={authoriseMandate}
             onSkip={() => navigate("/mutual_fund/manage-sip")}
+            onDone={() => navigate("/mutual_fund/manage-sip")}
           />
         </div>
       </div>
@@ -330,14 +363,11 @@ const SIPSetupPage = () => {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-[var(--text-secondary)] mb-1">Start Date</label>
-              <input
-                type="date"
-                value={startDate}
-                min={iso(new Date(Date.now() + 86400000))}
-                onChange={(e) => pickStartDate(e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 text-gray-800 dark:bg-[var(--white-10)] dark:text-[var(--text-primary)] dark:border-[var(--border-color)]"
-              />
+              <label htmlFor="sip-start-date" className="block text-sm font-medium text-gray-700 dark:text-[var(--text-secondary)] mb-1">Start Date</label>
+              {/* Audit #13 — past days and days this scheme does not run a SIP on cannot be
+                  picked at all; the red line below stays as the backstop for a date that went
+                  stale when the scheme's own dates arrived. */}
+              <SipCalendar id="sip-start-date" value={startDate} onChange={pickStartDate} days={sipDays} />
               {startDayInvalid && (
                 <p className="text-xs text-red-500 mt-1">
                   {startDay > 28
@@ -386,10 +416,21 @@ const SIPSetupPage = () => {
           </div>
         )}
 
+        {/* Audit #22 — an approved mandate pays this SIP; otherwise one is set up after. */}
+        {activeMandate && (
+          <label className="flex items-start gap-2 cursor-pointer rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-500/30 dark:bg-emerald-500/10">
+            <input type="checkbox" checked={useMandate} onChange={(e) => setUseMandate(e.target.checked)} className="mt-0.5" />
+            <span className="text-sm text-emerald-800 dark:text-emerald-300">
+              Pay instalments with my active auto-debit mandate (BSE {activeMandate.exch_mandate_id})
+            </span>
+          </label>
+        )}
+
         <OrderDisclaimers
           {...disc}
           schemeDocsUrl={details?.factsheetUrl || ""}
           schemeName={titleCase(fund.name) || ""}
+          schemes={[fund]}
         />
 
         <div className="flex gap-3">

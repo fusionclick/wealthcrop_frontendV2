@@ -4,32 +4,42 @@ import test from "node:test";
 
 const read = (p) => readFileSync(p, "utf8");
 
-// QA 8.7 — the profiler locked for 6 months on the server, and the browser only found out
-// after nine answers and a Submit.
-test("the profiler page reads the lock on mount, not from the submit 403", () => {
+// Audit #23 / #70 — DELIBERATE REQUIREMENT CHANGE. These tests used to prove the profiler was
+// LOCKED for 6 months (QA 8.7: shown up front instead of after a 403). The client's demo
+// script retakes the questionnaire on the spot — "Questionnaire dobara bharo, profile
+// recalculate" — so a retake is allowed at any time, every attempt is kept, and the 6-month
+// date became a "review due" reminder. The lock assertions were replaced, not weakened.
+
+test("the profiler page has no lock: it shows the current profile, its review date and the history", () => {
   const page = read("src/pages/riskProfile/RiskProfilingPage.jsx");
-  assert.match(page, /useEffect\(/, "the page must ask on mount");
   assert.match(page, /getApiWithToken\(`\$\{import\.meta\.env\.VITE_URL\}\/risk\/profile`\)/);
-  // Locked renders instead of the questionnaire, and still shows the profile and the date.
-  assert.match(page, /if \(lock\.locked\)/);
-  assert.match(page, /lock\.next_allowed_at/);
-  assert.match(page, /lock\.current_profile/);
+  assert.doesNotMatch(page, /lock\.locked/, "the lock screen is gone");
+  assert.doesNotMatch(page, /Retake allowed from/);
+  // Review due is a reminder next to a working Retake button.
+  assert.match(page, /overview\.review_due/);
+  assert.match(page, /onClick=\{\(\) => setStarted\(true\)\}/);
+  // The previous result and its date, before the retake and on the result screen.
+  assert.match(page, /previous\.profile/);
+  assert.match(page, /before\.profiled_at/);
+  assert.match(page, /history\.map/);
 });
 
-test("the read endpoint exists and reuses the service's own 6-month rule", () => {
+test("the read endpoint reports the overview and the POST no longer refuses a retake", () => {
   assert.match(
     read("../admin_php/routes/api.php"),
     /get\('risk\/profile', \[RiskProfileController::class, 'current'\]\)/
   );
   const controller = read("../admin_php/app/Http/Controllers/Api/RiskProfileController.php");
   assert.match(controller, /public function current\(\): JsonResponse/);
-  assert.match(controller, /\$this->service->retakeStatus\(\$user->id\)/);
+  assert.match(controller, /\$this->service->overview\(/);
+  assert.doesNotMatch(controller, /,\s*403\)/, "no retake is refused any more");
 
-  // One copy of the rule: the query and the 6-month window are each written once, and
-  // calculateAndStore reads the same helper the GET does.
   const service = read("../admin_php/app/Services/RiskProfileService.php");
-  assert.equal(service.match(/where\('expires_at', '>', now\(\)\)/g).length, 1);
-  assert.match(service, /\$status = \$this->retakeStatus\(\$userId\);/);
+  assert.doesNotMatch(service, /where\('expires_at', '>', now\(\)\)/, "the 6-month lock query is gone");
+  assert.doesNotMatch(service, /retakeStatus/);
+  // History, not overwrite: older attempts are deactivated, never deleted.
+  assert.match(service, /UserRiskProfile::where\('user_id', \$userId\)->update\(\['is_active' => false\]\)/);
+  assert.doesNotMatch(service, /->delete\(\)/);
 });
 
 // Both entry buttons compared a date string against a millisecond number, so isReUpdate was
@@ -45,27 +55,35 @@ test("the string-vs-number guard is gone from both entry points", () => {
   }
 });
 
-test("the shared guard always lets a first-timer through and only blocks a live profile", async () => {
+test("the shared guard lets every investor retake, whatever the dates say", async () => {
   const { canRetakeRiskProfile } = await import("../src/utils/riskLock.js");
   const iso = (ms) => new Date(Date.now() + ms).toISOString();
   const DAY = 86400000;
 
-  assert.equal(canRetakeRiskProfile(undefined), true, "never profiled must never be blocked");
-  assert.equal(canRetakeRiskProfile(null), true);
-  assert.equal(canRetakeRiskProfile({}), true, "a row with no dates cannot lock anyone out");
-  assert.equal(
-    canRetakeRiskProfile({ next_allowed_at: iso(120 * DAY) }),
-    false,
-    "a retake date in the future is a lock"
+  assert.equal(canRetakeRiskProfile(undefined), true, "never profiled");
+  assert.equal(canRetakeRiskProfile({ next_allowed_at: iso(120 * DAY) }), true, "inside the old 6-month window");
+  assert.equal(canRetakeRiskProfile({ expires_at: iso(120 * DAY), is_active: true }), true);
+});
+
+// Audit #56 — the profile questions the spec names, sent with each attempt and validated.
+test("the profile questions match what the server validates, and are sent with the nine answers", () => {
+  const questions = read("src/pages/riskProfile/riskQuestions.js");
+  const request = read("../admin_php/app/Http/Requests/RiskProfileRequest.php");
+
+  // Every option code the page offers is one the server accepts, field by field.
+  const block = request.match(/PROFILE_OPTIONS = \[([\s\S]*?)\];/)[1];
+  const server = Object.fromEntries(
+    [...block.matchAll(/'(\w+)'\s*=>\s*\[([^\]]*)\]/g)].map((m) => [m[1], [...m[2].matchAll(/'([^']+)'/g)].map((x) => x[1])])
   );
-  assert.equal(canRetakeRiskProfile({ next_allowed_at: iso(-DAY) }), true, "past the date, allowed");
-  assert.equal(
-    canRetakeRiskProfile({ next_allowed_at: iso(120 * DAY), is_active: false }),
-    true,
-    "a deactivated profile does not lock — the server does not count it either"
-  );
-  // next_allowed_at missing on older rows; expires_at is set to the same instant.
-  assert.equal(canRetakeRiskProfile({ expires_at: iso(120 * DAY) }), false);
-  // An unreadable date must not lock anyone out — that is the bug being fixed.
-  assert.equal(canRetakeRiskProfile({ next_allowed_at: "not a date" }), true);
+  for (const key of ["annual_income", "employment_type", "total_assets", "total_liabilities", "investment_experience", "primary_goal"]) {
+    const section = questions.split(`key: "${key}"`)[1].split("key:")[0];
+    const offered = [...section.matchAll(/\["([^"]+)",/g)].map((m) => m[1]);
+    assert.deepEqual(offered, server[key], `${key}: page and server disagree`);
+  }
+  assert.match(request, /'age' => \['required', 'integer', 'between:18,100'\]/);
+
+  // The page sends them alongside the nine — and only the nine are scored server-side.
+  const page = read("src/pages/riskProfile/RiskProfilingPage.jsx");
+  assert.match(page, /ABOUT_KEYS\.map\(\(k\) => \[k, about\[k\]\]\)/);
+  assert.match(page, /they do not change your risk score/);
 });

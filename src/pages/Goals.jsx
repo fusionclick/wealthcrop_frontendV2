@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
-import { Target, Plus, Pencil, Trash2, TrendingUp, Wallet } from "lucide-react";
+import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Target, Plus, Pencil, Trash2, TrendingUp, Wallet, Link2 } from "lucide-react";
 import { deleteApiWithToken, getApiWithToken, postApiWithToken, putApiWithToken } from "../api/api";
-import { laravelUrl, nodeUrl, mergePortfolio } from "../utils/nodeApi";
+import { laravelUrl, nodeUrl, mergePortfolio, mapXspToSip, xspItems } from "../utils/nodeApi";
+import { linkedValue, linksOverlap, planVsActual, splitBudget } from "../utils/goals";
 import { toastError, toastSuccess } from "../utils/notifyCustom";
 
 /**
@@ -15,10 +17,12 @@ import { toastError, toastSuccess } from "../utils/notifyCustom";
  * The projection arithmetic is deliberately NOT repeated here — the server sends
  * progress_pct / projected_amount / required_monthly / advice with every goal, and the
  * alert emails are generated from those same numbers. A second copy in the browser is a
- * second answer waiting to disagree with the one that emails the investor.
+ * second answer waiting to disagree with the one that emails the investor. The same goes for
+ * Audit #60's stored plan: planned_now, behind_pct and plan_curve all come from the server.
  */
 const api = (path) => `${import.meta.env.VITE_URL}${path}`;
 const money = (v) => `₹${Number(v || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+const inLakh = (n) => `₹${(Number(n || 0) / 100000).toFixed(1)}L`;
 
 const TYPES = [
   ["retirement", "Retirement"],
@@ -40,6 +44,16 @@ const BLANK = {
   expected_return: 12,
 };
 
+// Audit #59 — the budget is one number the investor types; kept per browser and per login,
+// like a calculator's last input. The split itself is recomputed from the server's numbers.
+const budgetKey = () => {
+  try {
+    return `wc_goal_budget_${localStorage.getItem("email") || "me"}`;
+  } catch {
+    return "wc_goal_budget";
+  }
+};
+
 export default function Goals() {
   const [goals, setGoals] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -48,13 +62,19 @@ export default function Goals() {
   const [busy, setBusy] = useState(false);
   // null = the form is creating; a goal id = it is editing that goal (PUT, not POST).
   const [editingId, setEditingId] = useState(null);
+  const [budget, setBudget] = useState(() => {
+    try {
+      return localStorage.getItem(budgetKey()) || "";
+    } catch {
+      return "";
+    }
+  });
 
   const { data: investorData } = useSelector((state) => state.investorData);
   const ucc = investorData?.kyc?.ucc_code;
 
   // Same two calls the MF dashboard makes, under the same query keys — react-query serves
-  // them from cache when the investor has already been there, so "use my portfolio value"
-  // usually costs nothing.
+  // them from cache when the investor has already been there.
   const { data: laravelOrders } = useQuery({
     queryKey: ["investedFunds"],
     queryFn: () => getApiWithToken(laravelUrl(import.meta.env.VITE_GET_FUNDLIST)),
@@ -68,10 +88,18 @@ export default function Goals() {
     enabled: !!ucc,
   });
 
-  const portfolioValue = useMemo(() => {
-    const funds = mergePortfolio(laravelOrders || [], bseHoldings || []);
-    return funds.reduce((acc, f) => acc + (Number(f.current_value) || Number(f.inv_amo) || 0), 0);
-  }, [laravelOrders, bseHoldings]);
+  // Audit #60 — SIPs can be linked too: their instalments land in the same scheme's folio.
+  const { data: sips = [] } = useQuery({
+    queryKey: ["goalSips", ucc],
+    queryFn: () =>
+      postApiWithToken(nodeUrl(import.meta.env.VITE_GET_ALL_XSP || "/getAllXsp"), {
+        data: { fields: ["ALL"], start: 0, length: 50, filter_param: { sxp_type: "SIP", ucc } },
+      }),
+    select: (res) => xspItems(res).map(mapXspToSip).filter((s) => s.status === "ACTIVE" && s.schemeCode),
+    enabled: !!ucc,
+  });
+
+  const holdings = useMemo(() => mergePortfolio(laravelOrders || [], bseHoldings || []), [laravelOrders, bseHoldings]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -83,6 +111,36 @@ export default function Goals() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Audit #60 — a linked goal is worth what its linked holdings are worth today. The server
+  // keeps that number, so progress, the plan comparison and the alerts all read the same one.
+  // Only once both books have answered: half a portfolio is not the goal's value.
+  const syncing = useRef(new Set());
+  useEffect(() => {
+    if (!bseHoldings || !laravelOrders) return;
+    for (const g of goals) {
+      if (!g.links?.length || syncing.current.has(g.id)) continue;
+      const v = linkedValue(g.links, holdings);
+      if (Math.abs(v.value - Number(g.saved_amount || 0)) < 1 && Math.abs(v.invested - Number(g.invested_amount || 0)) < 1) continue;
+
+      syncing.current.add(g.id);
+      putApiWithToken(api(`/goals/${g.id}`), { saved_amount: v.value, invested_amount: v.invested }, { silent: true })
+        .then((res) => {
+          if (res?.status) setGoals((prev) => prev.map((x) => (x.id === g.id ? res.data : x)));
+        })
+        .finally(() => syncing.current.delete(g.id));
+    }
+  }, [goals, holdings, bseHoldings, laravelOrders]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(budgetKey(), budget);
+    } catch {
+      /* private mode: the budget simply is not remembered */
+    }
+  }, [budget]);
+
+  const split = useMemo(() => (Number(budget) > 0 ? splitBudget(goals, budget) : null), [goals, budget]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -144,6 +202,22 @@ export default function Goals() {
     if (res?.status) {
       setGoals((prev) => prev.map((g) => (g.id === goal.id ? res.data : g)));
       toastSuccess(mode === "set" ? "Balance updated" : "Contribution recorded");
+    }
+  };
+
+  // Audit #60 — store which holdings/SIPs fund this goal. Its value follows from them (the
+  // sync above), so linking replaces the hand-entered balance rather than adding to it.
+  const link = async (goal, links) => {
+    const v = linkedValue(links, holdings);
+    // Value them now only if the holdings have loaded; otherwise the sync above does it.
+    const valued = links.length && bseHoldings && laravelOrders ? { saved_amount: v.value, invested_amount: v.invested } : {};
+    const res = await putApiWithToken(
+      api(`/goals/${goal.id}`),
+      links.length ? { links, ...valued } : { links, invested_amount: null }
+    );
+    if (res?.status) {
+      setGoals((prev) => prev.map((g) => (g.id === goal.id ? res.data : g)));
+      toastSuccess(links.length ? "Linked — the goal is now valued from these funds" : "Links removed");
     }
   };
 
@@ -236,6 +310,67 @@ export default function Goals() {
           </form>
         )}
 
+        {/* Audit #59 — one monthly budget, split across the goals by priority, then need. */}
+        {goals.length > 0 && (
+          <div className="rounded-xl border border-slate-200 dark:border-[var(--border-color)] p-4 mb-6 space-y-3">
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="w-48 text-xs text-slate-500 dark:text-[#94a3b8]">
+                Monthly budget for all goals
+                <input
+                  type="number"
+                  min="0"
+                  value={budget}
+                  onChange={(e) => setBudget(e.target.value)}
+                  placeholder="25000"
+                  className={field}
+                />
+              </label>
+              {split && (
+                <p className="text-xs text-slate-600 dark:text-[#94a3b8] pb-2">
+                  Your goals need {money(split.totalNeed)} a month to land on target.
+                </p>
+              )}
+            </div>
+
+            {split && (
+              <>
+                {split.shortfall > 0 ? (
+                  <p className="rounded-lg px-3 py-2 text-xs bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
+                    This budget is {money(split.shortfall)} a month short. High-priority goals are funded first, so the
+                    lower-priority ones below get less than they need — raise the budget, move a date out, or lower a target.
+                  </p>
+                ) : (
+                  <p className="rounded-lg px-3 py-2 text-xs bg-emerald-50 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">
+                    The budget covers every goal{split.spare > 0 ? `, with ${money(split.spare)} a month to spare` : ""}.
+                  </p>
+                )}
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-slate-400">
+                      <th className="text-left font-medium py-1">Goal</th>
+                      <th className="text-left font-medium">Priority</th>
+                      <th className="text-right font-medium">Needs</th>
+                      <th className="text-right font-medium">Suggested SIP</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {split.rows.map((r) => (
+                      <tr key={r.id} className="border-t border-slate-100 dark:border-[var(--border-color)] text-slate-600 dark:text-[#94a3b8]">
+                        <td className="py-1">{r.name}</td>
+                        <td className="capitalize">{r.priority}</td>
+                        <td className="text-right">{money(r.need)}/mo</td>
+                        <td className={`text-right font-semibold ${r.short > 0 ? "text-amber-600 dark:text-amber-400" : ""}`}>
+                          {money(r.suggested)}/mo{r.short > 0 ? ` (${money(r.short)} short)` : ""}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
+          </div>
+        )}
+
         {loading ? (
           <p className="text-sm text-slate-500">Loading…</p>
         ) : goals.length === 0 ? (
@@ -256,8 +391,12 @@ export default function Goals() {
               <GoalCard
                 key={g.id}
                 goal={g}
-                portfolioValue={portfolioValue}
+                holdings={holdings}
+                sips={sips}
+                otherLinks={goals.filter((o) => o.id !== g.id).flatMap((o) => (o.links || []).map((l) => ({ ...l, goal: o.name })))}
+                suggested={split?.rows.find((r) => r.id === g.id)}
                 onContribute={contribute}
+                onLink={link}
                 onEdit={startEdit}
                 onRemove={remove}
               />
@@ -269,9 +408,36 @@ export default function Goals() {
   );
 }
 
-function GoalCard({ goal, portfolioValue, onContribute, onEdit, onRemove }) {
+function GoalCard({ goal, holdings, sips, otherLinks, suggested, onContribute, onLink, onEdit, onRemove }) {
   const [amount, setAmount] = useState("");
+  const [picking, setPicking] = useState(null); // the links being chosen, or null
   const pct = Number(goal.progress_pct || 0);
+  const links = goal.links || [];
+  const linked = links.length > 0;
+  const value = linkedValue(links, holdings);
+  const chart = useMemo(() => planVsActual(goal.plan_curve || [], goal.history || []), [goal.plan_curve, goal.history]);
+
+  // What can be linked: every holding (scheme + folio) and every active SIP (its scheme).
+  const candidates = useMemo(
+    () => [
+      ...holdings
+        .filter((h) => h.scheme_bse_code)
+        .map((h) => ({
+          scheme_bse_code: h.scheme_bse_code,
+          folio: h.folio || null,
+          label: `${h.scheme_name}${h.folio ? ` · folio ${h.folio}` : ""}`,
+          kind: "holding",
+        })),
+      ...sips.map((s) => ({
+        scheme_bse_code: s.schemeCode,
+        folio: s.folio || null,
+        label: `${s.schemeName} · SIP ${money(s.sipAmount)}/mo`,
+        kind: "sip",
+      })),
+    ],
+    [holdings, sips]
+  );
+  const sameLink = (a, b) => a.kind === b.kind && a.scheme_bse_code === b.scheme_bse_code && (a.folio || null) === (b.folio || null);
 
   return (
     <li className="rounded-xl border border-slate-200 dark:border-[var(--border-color)] p-4">
@@ -296,7 +462,7 @@ function GoalCard({ goal, portfolioValue, onContribute, onEdit, onRemove }) {
               : "bg-amber-50 text-amber-700 dark:bg-amber-500/15"
           }`}
         >
-          {goal.status === "achieved" ? "Achieved" : goal.on_track ? "On track" : "Behind"}
+          {goal.status === "achieved" ? "Achieved" : goal.on_track ? "On track" : goal.planned_now != null ? "Behind plan" : "Behind"}
         </span>
       </div>
 
@@ -306,7 +472,26 @@ function GoalCard({ goal, portfolioValue, onContribute, onEdit, onRemove }) {
           style={{ width: `${Math.min(100, pct)}%` }}
         />
       </div>
-      <p className="text-[11px] text-slate-400 mt-1">{pct}% of the way there</p>
+      <p className="text-[11px] text-slate-400 mt-1">
+        {pct}% of the way there
+        {/* Audit #60 — progress against the stored plan, not a projection against the target. */}
+        {goal.planned_now != null &&
+          ` · the plan set on ${new Date(goal.plan.start_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} expects ${money(goal.planned_now)} by now${
+            goal.behind_pct > 0 ? ` — ${goal.behind_pct}% behind` : " — you are level or ahead"
+          }`}
+      </p>
+
+      {/* Audit #60 — value and return of the linked holdings. */}
+      {linked && (
+        <p className="mt-2 text-xs text-slate-600 dark:text-[#94a3b8]">
+          Valued from {links.length} linked fund{links.length === 1 ? "" : "s"}
+          {goal.returns &&
+            `: ${goal.returns.amount >= 0 ? "+" : "−"}${money(Math.abs(goal.returns.amount))} (${goal.returns.pct >= 0 ? "+" : ""}${goal.returns.pct}%) on ${money(
+              goal.invested_amount
+            )} invested`}
+          {value.atCost && value.count > 0 && " — part of it at cost, where no NAV is published"}.
+        </p>
+      )}
 
       <div className="mt-3 grid sm:grid-cols-3 gap-2 text-xs">
         <Stat icon={<TrendingUp size={13} />} label="Projected at target date" value={money(goal.projected_amount)} />
@@ -315,38 +500,110 @@ function GoalCard({ goal, portfolioValue, onContribute, onEdit, onRemove }) {
       </div>
 
       <p className="mt-2 text-xs text-slate-600 dark:text-[#94a3b8]">{goal.advice}</p>
+      {suggested && (
+        <p className="mt-1 text-xs text-slate-600 dark:text-[#94a3b8]">
+          From your monthly budget: <b>{money(suggested.suggested)}/mo</b> as a SIP{suggested.short > 0 ? ` (${money(suggested.short)} short of what it needs)` : ""}.
+        </p>
+      )}
+
+      {/* Audit #60 — the plan stored when the goal was set, against the values actually recorded. */}
+      {chart.length > 1 && (
+        <div className="mt-3 rounded-lg bg-slate-50 dark:bg-white/5 p-2">
+          <ResponsiveContainer width="100%" height={180}>
+            <LineChart data={chart} margin={{ top: 5, right: 10, bottom: 0, left: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.25)" />
+              <XAxis dataKey="month" tick={{ fontSize: 10 }} stroke="#94a3b8" />
+              <YAxis tickFormatter={inLakh} tick={{ fontSize: 10 }} width={52} stroke="#94a3b8" />
+              <Tooltip
+                formatter={(v, name) => [money(v), name]}
+                contentStyle={{ backgroundColor: "#020617", border: "1px solid rgba(255,255,255,0.1)", color: "#e5e7eb", fontSize: 12 }}
+              />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Line type="monotone" dataKey="planned" name="Planned" stroke="#94a3b8" strokeDasharray="5 4" dot={false} connectNulls />
+              <Line type="monotone" dataKey="actual" name="Actual" stroke="#10b981" strokeWidth={2} dot={{ r: 2 }} connectNulls />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {picking && (
+        <div className="mt-3 rounded-lg border border-slate-200 dark:border-[var(--border-color)] p-3 space-y-2">
+          <p className="text-xs font-semibold text-slate-600 dark:text-[#94a3b8]">Funds behind this goal</p>
+          {candidates.length === 0 ? (
+            <p className="text-xs text-slate-500 dark:text-[#94a3b8]">No mutual fund holdings or SIPs to link yet.</p>
+          ) : (
+            candidates.map((c) => {
+              const taken = otherLinks.find((l) => linksOverlap(l, c));
+              const checked = picking.some((p) => sameLink(p, c));
+              return (
+                <label key={`${c.kind}-${c.scheme_bse_code}-${c.folio}`} className="flex items-center gap-2 text-xs text-slate-600 dark:text-[#94a3b8]">
+                  <input
+                    type="checkbox"
+                    disabled={Boolean(taken)}
+                    checked={checked}
+                    onChange={() => setPicking(checked ? picking.filter((p) => !sameLink(p, c)) : [...picking, c])}
+                  />
+                  <span className={taken ? "opacity-50" : ""}>
+                    {c.label}
+                    {taken && ` — already funds "${taken.goal}"`}
+                  </span>
+                </label>
+              );
+            })
+          )}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                onLink(goal, picking);
+                setPicking(null);
+              }}
+              className="text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md"
+            >
+              Save links
+            </button>
+            <button type="button" onClick={() => setPicking(null)} className="text-xs font-semibold text-slate-500 hover:text-blue-600 px-2">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <input
-          type="number"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          placeholder="Add amount"
-          aria-label={`Add to ${goal.name}`}
-          className="w-32 border border-slate-200 rounded-md px-2 py-1 text-sm bg-white dark:bg-[var(--white-10)] dark:border-[var(--border-color)] dark:text-[var(--text-primary)]"
-        />
+        {/* A linked goal's balance is its funds' value; adding to it by hand would double count. */}
+        {!linked && (
+          <>
+            <input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="Add amount"
+              aria-label={`Add to ${goal.name}`}
+              className="w-32 border border-slate-200 rounded-md px-2 py-1 text-sm bg-white dark:bg-[var(--white-10)] dark:border-[var(--border-color)] dark:text-[var(--text-primary)]"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                if (!(Number(amount) > 0)) return toastError("Enter an amount.");
+                onContribute(goal, Number(amount));
+                setAmount("");
+              }}
+              className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-md"
+            >
+              Add
+            </button>
+          </>
+        )}
+
+        {/* Audit #60 — replaces "Use my portfolio value", which set the goal to the WHOLE
+            portfolio: link the holdings and SIPs that are actually for this goal. */}
         <button
           type="button"
-          onClick={() => {
-            if (!(Number(amount) > 0)) return toastError("Enter an amount.");
-            onContribute(goal, Number(amount));
-            setAmount("");
-          }}
-          className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-md"
+          onClick={() => setPicking(links.map((l) => ({ ...l, folio: l.folio || null })))}
+          className="inline-flex items-center gap-1 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-white/10 dark:text-[#94a3b8] px-3 py-1.5 rounded-md"
         >
-          Add
+          <Link2 size={13} /> {linked ? "Change linked funds" : "Link funds"}
         </button>
-
-        {portfolioValue > 0 && (
-          <button
-            type="button"
-            onClick={() => onContribute(goal, portfolioValue, "set")}
-            title="Set this goal's balance to what your mutual fund portfolio is worth today"
-            className="text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-white/10 dark:text-[#94a3b8] px-3 py-1.5 rounded-md"
-          >
-            Use my portfolio value ({money(portfolioValue)})
-          </button>
-        )}
 
         <button
           type="button"

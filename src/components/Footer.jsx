@@ -226,7 +226,9 @@ const Section = ({ title, list, basePath }) => (
     {/* OFFICE INFO */}
     <div className="text-sm leading-6 text-gray-700 dark:text-gray-400">
       <p>
-        <strong>Registered Office:</strong> Wealthcrop Advisory Pvt Ltd, Chennai
+        {/* Audit #34 — no company name in the bundle. The legal entity is the client's fact and
+            is printed by DistributorIdentity above, from Admin → Settings, once configured. */}
+        <strong>Registered Office:</strong> Chennai
       </p>
       <p>
         <strong>Corporate Office:</strong> Bengaluru, Karnataka

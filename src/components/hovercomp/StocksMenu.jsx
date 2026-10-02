@@ -79,7 +79,7 @@ const isStocksActive = location.pathname.startsWith("/user/stocks");
 
                 <p className="text-sm leading-relaxed mb-4 text-slate-600 dark:text-gray-400">
                   Invest in stocks, ETFs and IPOs with real-time prices,
-                  advanced charts and expert insights.
+                  advanced charts and market insights.
                 </p>
 
                 <button

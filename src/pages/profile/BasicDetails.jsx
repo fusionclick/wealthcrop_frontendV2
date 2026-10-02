@@ -26,6 +26,8 @@ import { isKycVerified } from "../../utils/kycVerdict";
 import { canRetakeRiskProfile } from "../../utils/riskLock";
 import SecondaryEmail from "./SecondaryEmail";
 import KycDetails from "./KycDetails";
+import ProfileDocuments from "./ProfileDocuments";
+import PrimaryPhone from "./PrimaryPhone";
 import { fieldConfig, validateField } from "../../utils/profileFields";
 
 /**
@@ -327,12 +329,18 @@ const isKycDone = isKycVerified(userData?.kyc?.kyc_status)
                       </button>
                     </div>
     
+                    {/* Audit #41 — primary phone with its OTP and verified mark. */}
+                    <PrimaryPhone userData={userData} refetch={refetch} />
+
                     <SecondaryEmail userData={userData} refetch={refetch} />
 
                     {/* SRS §3 — PAN / city / occupation after KYC. Until this existed the
                         investor had no way back to these fields once KYC passed, and the
                         PAN-change approval queue behind them was never reachable. */}
                     <KycDetails userData={userData} refetch={refetch} />
+
+                    {/* Audit #43 — view and re-upload KYC documents after onboarding. */}
+                    <ProfileDocuments userData={userData} refetch={refetch} />
 
                     <DetailRow label="Marital Status" value={cap(p?.marital_status)} onEdit={openEdit("maritalStatus")} />
 
@@ -546,7 +554,7 @@ const isKycDone = isKycVerified(userData?.kyc?.kyc_status)
                         </div>
         </div>
 
-                      <button 
+                      <button
                       onClick={() => {
                         setEditType("email")
                         setOpenModal(true)
@@ -555,6 +563,17 @@ const isKycDone = isKycVerified(userData?.kyc?.kyc_status)
                         <FiEdit2 />
                       </button>
                     </div>
+
+      {/* Audit #40 — both lived only in the desktop layout above, so on a phone the secondary
+          email (and its verified mark) and the PAN / city / occupation editor did not exist. */}
+      <div className="border-b border-gray-300 dark:border-[var(--border-color)] pb-3">
+        <PrimaryPhone userData={userData} refetch={refetch} />
+      </div>
+      <div className="border-b border-gray-300 dark:border-[var(--border-color)] pb-3">
+        <SecondaryEmail userData={userData} refetch={refetch} />
+      </div>
+      <KycDetails userData={userData} refetch={refetch} />
+      <ProfileDocuments userData={userData} refetch={refetch} />
 
       {/* Unique Client ID */}
       <div
@@ -690,8 +709,8 @@ const isKycDone = isKycVerified(userData?.kyc?.kyc_status)
                   </div>
 
                   <p className="text-sm text-gray-600 dark:text-gray-300">
-                    Complete risk profiling to get suitable investment
-                    recommendations.
+                    Complete the Product Suitability Assessment to see which
+                    schemes suit your risk profile.
                   </p>
 
                   <button

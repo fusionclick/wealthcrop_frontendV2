@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { amcLogoUrl, amcInitial } from "../utils/amcLogo";
+import { usePlatformSettings } from "../hooks/usePlatformSettings";
 
 export default function AmcMark({ name, className = "h-11 w-11" }) {
   const [broken, setBroken] = useState(false);
-  const src = amcLogoUrl(name);
+  const { data: settings } = usePlatformSettings();
+  const src = amcLogoUrl(name, settings?.scheme_media);
   if (!src || broken) {
     return (
       <div

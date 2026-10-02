@@ -10,7 +10,7 @@ const InvestmentHighlights = () => {
     "Fixed Deposits",
     "ETFs",
     "Retirement Plans",
-    "Wealth Management",
+    "Asset Allocation",
     "Tax Saving Funds",
     "Commodities",
   ];

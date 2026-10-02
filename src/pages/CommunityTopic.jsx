@@ -92,7 +92,7 @@ function ReplyNode({ node, canAccept, onAccept, replyTo, setReplyTo, body, setBo
           <p className="text-xs font-semibold text-slate-700 dark:text-[#cbd5e1]">{node.author}</p>
           {node.is_expert && (
             <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300 px-2 py-0.5 rounded-md">
-              <BadgeCheck size={11} /> Expert
+              <BadgeCheck size={11} /> Support team
             </span>
           )}
           {node.is_accepted && <span className="text-[10px] font-semibold uppercase text-emerald-700">Answer</span>}

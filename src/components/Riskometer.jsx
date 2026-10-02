@@ -10,10 +10,11 @@ import React from "react";
 ];
 
 const Riskometer = ({ risk }) => {
-  const needle = String(risk || "Moderate").toLowerCase();
-  const index = RISK_LEVELS.findIndex((r) => r.label.toLowerCase() === needle);
-
-  const activeIndex = index === -1 ? 2 : index;
+  const needle = String(risk || "").toLowerCase();
+  // Audit #4 — an unknown level used to be drawn as "Moderate": a SEBI risk label the
+  // scheme was never given. Unknown is "Not rated", with no needle on the dial.
+  const activeIndex = RISK_LEVELS.findIndex((r) => r.label.toLowerCase() === needle);
+  const rated = activeIndex !== -1;
 
   // -90° → +90°
     const angle = -90 + activeIndex * 34;
@@ -40,6 +41,7 @@ const Riskometer = ({ risk }) => {
         })}
 
         {/* NEEDLE */}
+        {rated && (
         <g transform={`translate(110,110) rotate(${angle})`}>
           <line
             x1="0"
@@ -58,11 +60,12 @@ const Riskometer = ({ risk }) => {
             className="text-slate-800 dark:text-slate-100"
           />
         </g>
+        )}
       </svg>
 
       {   /* CURRENT RISK TEXT */}
       <p className="text-sm font-semibold text-slate-900 dark:text-[var(--text-primary)]">
-        {RISK_LEVELS[activeIndex].label}
+        {rated ? RISK_LEVELS[activeIndex].label : "Not rated"}
       </p>
 
       {/* 6 LEVEL LABELS */}

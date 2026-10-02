@@ -3,10 +3,14 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Award, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { getApiWithToken, postApiWithToken } from "../api/api";
 import ShareButtons from "../components/ShareButtons";
+import ChartModule from "../components/learning/ChartModule";
+import RecommendedCourse from "../components/learning/RecommendedCourse";
+import { learningImageSrc } from "../components/learning/learningMedia";
 import { toastSuccess } from "../utils/notifyCustom";
 
 /**
- * SRS §11 — one course: text, video and quiz modules, with instant feedback and progress.
+ * SRS §11 — one course: text, video, quiz, image (infographic) and chart (interactive) modules,
+ * with instant feedback and progress.
  *
  * The quiz is graded by the server; this page never sees the answer key until it submits
  * an attempt, which is what stops the answers being readable from the network tab.
@@ -23,13 +27,24 @@ export default function CoursePage() {
   const [answers, setAnswers] = useState({});
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [next, setNext] = useState(null);
 
   const load = useCallback(async () => {
     const res = await getApiWithToken(api(`/learning/courses/${slug}`));
     if (res?.data?.status) {
       setCourse(res.data.data);
       setProgress(res.data.progress);
+      setNext(res.data.next ?? null);
     }
+  }, [slug]);
+
+  // Audit #76 — "Recommended next" moves to another course on this same page instance, so the
+  // new course would otherwise open on the old module index with the old quiz picks still set.
+  useEffect(() => {
+    setCourse(null);
+    setIndex(0);
+    setAnswers({});
+    setResult(null);
   }, [slug]);
 
   useEffect(() => {
@@ -127,6 +142,8 @@ export default function CoursePage() {
           </div>
         )}
 
+        {finished && <RecommendedCourse course={next} className="mt-3" />}
+
         <div className="mt-6 flex gap-1 flex-wrap">
           {modules.map((m, i) => (
             <button
@@ -171,6 +188,27 @@ export default function CoursePage() {
               )}
             </div>
           )}
+
+          {/* Audit #76 — an infographic. */}
+          {module?.type === "image" && (
+            <figure className="mt-3">
+              {learningImageSrc(module, import.meta.env.VITE_URL) ? (
+                <img
+                  src={learningImageSrc(module, import.meta.env.VITE_URL)}
+                  alt={module.alt || ""}
+                  className="w-full rounded-lg border border-slate-200 dark:border-[var(--border-color)] bg-white dark:bg-white"
+                />
+              ) : (
+                <p className="text-sm text-slate-500 dark:text-[#94a3b8]">{module.alt}</p>
+              )}
+              {module.caption && (
+                <figcaption className="mt-2 text-xs text-slate-500 dark:text-[#94a3b8]">{module.caption}</figcaption>
+              )}
+            </figure>
+          )}
+
+          {/* Audit #76 — an interactive chart; keyed so each chart module starts from its own values. */}
+          {module?.type === "chart" && <ChartModule key={`${slug}-${index}`} module={module} />}
 
           {module?.type === "quiz" && (
             <div className="mt-3 space-y-4">

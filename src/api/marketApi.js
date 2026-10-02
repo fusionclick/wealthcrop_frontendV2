@@ -18,6 +18,14 @@ export const fetchStockDetails = (symbol) =>
 export const fetchStockQuote = (symbol) =>
   getApi(`${base}/market/quote/${encodeURIComponent(symbol)}`);
 
+// Audit #53 — statements, ratios and analyst consensus. A 404 means the provider has no
+// coverage for this company; getApi throws on it and the page says so instead of toasting.
+export const fetchFundamentals = (symbol) =>
+  getApi(`${base}/market/fundamentals/${encodeURIComponent(symbol)}`);
+
+// Audit #52 — INR exchange rates.
+export const fetchFxRates = () => getApi(`${base}/market/fx`);
+
 export const fetchStockChart = (symbol, range = "6mo", interval = "1d") =>
   getApi(
     `${base}/market/chart/${encodeURIComponent(symbol)}?range=${range}&interval=${interval}`

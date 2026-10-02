@@ -88,7 +88,7 @@ export default function Community() {
           <div>
             <h1 className="text-xl font-semibold text-blue-900 dark:text-white">Community</h1>
             <p className="text-xs text-slate-500 dark:text-[#94a3b8]">
-              Ask an expert, or talk to other investors. Answers from WealthCrop carry an Expert mark.
+              Ask our support team, or talk to other investors. Answers from WealthCrop carry a Support team mark.
             </p>
           </div>
           <button
@@ -191,7 +191,7 @@ export default function Community() {
                 {q ? "Nothing matches that" : "Nothing here yet"}
               </h2>
               <p className="mt-2 text-sm text-slate-500 dark:text-[#94a3b8] max-w-sm">
-                {q ? "Try different words, or ask it as a new question." : "Be the first to ask — an expert answers questions from the admin desk."}
+                {q ? "Try different words, or ask it as a new question." : "Be the first to ask — our support team answers questions here."}
               </p>
             </div>
           </div>

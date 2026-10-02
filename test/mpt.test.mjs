@@ -10,6 +10,9 @@ import {
   optimiseAroundGlidePath,
   roundToHundred,
   LAMBDA,
+  glideBounds,
+  manualSplitErrors,
+  statsFor,
 } from "../src/utils/mpt.js";
 
 const sum = (xs) => xs.reduce((a, b) => a + b, 0);
@@ -165,4 +168,43 @@ test("the same inputs always give the same answer", () => {
   const a = optimiseAroundGlidePath({ equity: 60, debt: 30, gold: 5, cash: 5 }, "Moderate");
   const b = optimiseAroundGlidePath({ equity: 60, debt: 30, gold: 5, cash: 5 }, "Moderate");
   assert.deepEqual(a.weights, b.weights);
+});
+
+// Audit #58 — a hand-made split is held to the band the optimiser searches. One definition:
+// if they ever differed, "customise" could reach a plan the optimiser was forbidden to give.
+test("the manual-split band is exactly the optimiser's band", () => {
+  for (const glide of [
+    { equity: 85, debt: 5, gold: 5, cash: 5 },
+    { equity: 15, debt: 70, gold: 5, cash: 10 },
+    { equity: 60, debt: 30, gold: 5, cash: 5 },
+  ]) {
+    const band = glideBounds(glide);
+    assert.deepEqual(band.equity, [Math.max(0, glide.equity - 10), Math.min(100, glide.equity + 10)]);
+    assert.deepEqual(band.gold, [0, 15], "a 5% sleeve cannot go below zero");
+
+    const solved = optimiseAroundGlidePath(glide, "Moderate");
+    for (const k of KEYS) {
+      assert.ok(solved.weights[k] >= band[k][0] && solved.weights[k] <= band[k][1], `${k} left the band`);
+    }
+  }
+});
+
+test("a manual split must be whole, add to 100 and stay inside the band", () => {
+  const band = glideBounds({ equity: 60, debt: 30, gold: 5, cash: 5 });
+
+  assert.deepEqual(manualSplitErrors({ equity: 65, debt: 25, gold: 5, cash: 5 }, band), []);
+  assert.match(manualSplitErrors({ equity: 65, debt: 30, gold: 5, cash: 5 }, band).join(" "), /add up to 105%/);
+  assert.match(manualSplitErrors({ equity: 75, debt: 15, gold: 5, cash: 5 }, band).join(" "), /Equity must stay between 50% and 70%/);
+  assert.match(manualSplitErrors({ equity: 60.5, debt: 29.5, gold: 5, cash: 5 }, band).join(" "), /whole percentages/);
+});
+
+test("statsFor prices any split on the optimiser's own assumptions", () => {
+  const solved = optimiseAroundGlidePath({ equity: 60, debt: 30, gold: 5, cash: 5 }, "Moderate");
+  const again = statsFor(solved.weights);
+  // Same weights (rounded to whole percent) → the same return and risk, to rounding.
+  assert.ok(Math.abs(again.ret - solved.ret) < 0.002);
+  assert.ok(Math.abs(again.vol - solved.vol) < 0.002);
+
+  const bolder = statsFor({ equity: 70, debt: 20, gold: 5, cash: 5 });
+  assert.ok(bolder.ret > statsFor({ equity: 50, debt: 40, gold: 5, cash: 5 }).ret, "more equity, more expected return");
 });

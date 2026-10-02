@@ -71,7 +71,10 @@ export default function MFChart({ series = [], height = 320, synthetic = false, 
   // A range wider than the fund's own history would draw less than it promises — "10Y" on a
   // four-year-old fund. Same data-driven rule the interval buttons use.
   const history = useMemo(() => spanDays(series), [series]);
-  const rangeUsable = (r) => custom || RANGES[r] === Infinity || history >= RANGES[r] * 0.9;
+  // Audit #6 — a range the fund has not lived through is not offered at all: a greyed-out
+  // "10Y" on a young scheme still reads as something the fund is missing.
+  const fits = (r) => RANGES[r] === Infinity || history >= RANGES[r] * 0.9;
+  const rangeUsable = (r) => custom || fits(r);
 
   useEffect(() => {
     if (rangeUsable(range)) return;
@@ -141,21 +144,19 @@ export default function MFChart({ series = [], height = 320, synthetic = false, 
     <div className="w-full">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
         <div className="flex flex-wrap gap-1.5">
-          {Object.keys(RANGES).map((r) => {
-            const ok = rangeUsable(r);
-            return (
+          {Object.keys(RANGES)
+            .filter(fits)
+            .map((r) => (
               <button
                 key={r}
                 type="button"
-                disabled={!ok}
                 onClick={() => pickRange(r)}
-                className={btn(!custom && range === r, !ok)}
-                title={ok ? `Last ${r}` : `This fund has about ${(history / 365).toFixed(1)} years of NAV history`}
+                className={btn(!custom && range === r)}
+                title={`Last ${r}`}
               >
                 {r}
               </button>
-            );
-          })}
+            ))}
         </div>
         <div className="flex gap-1.5">
           {Object.entries(INTERVALS).map(([k, label]) => {

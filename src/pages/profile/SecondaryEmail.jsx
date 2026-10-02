@@ -24,6 +24,8 @@ export default function SecondaryEmail({ userData, refetch }) {
   const [otp, setOtp] = useState("");
   const [stage, setStage] = useState("idle"); // idle | otp
   const [busy, setBusy] = useState(false);
+  // Local dev only: the server returns the OTP instead of mailing it (never in production).
+  const [devOtp, setDevOtp] = useState("");
 
   // QA 2.2 — the verified tick vanished after a refresh. `saved` and `verified` come straight
   // off userData and update when it loads, but `email` is state and `useState(saved)` only
@@ -45,6 +47,7 @@ export default function SecondaryEmail({ userData, refetch }) {
       });
       if (res?.status) {
         setStage("otp");
+        setDevOtp(res?.otp || "");
         toastSuccess(res?.data?.message || "OTP sent");
       } else if (res) {
         // postApiWithToken returns null on an HTTP error and has already toasted the
@@ -67,6 +70,7 @@ export default function SecondaryEmail({ userData, refetch }) {
       if (res?.status) {
         setStage("idle");
         setOtp("");
+        setDevOtp("");
         refetch?.();
         toastSuccess(res?.data?.message || "Secondary email verified");
       } else if (res) {
@@ -137,6 +141,10 @@ export default function SecondaryEmail({ userData, refetch }) {
               </button>
             )}
           </div>
+        )}
+
+        {stage === "otp" && devOtp && (
+          <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-1">Local dev only — no email is sent; your OTP is {devOtp}</p>
         )}
 
         {saved && !verified && stage === "idle" && (

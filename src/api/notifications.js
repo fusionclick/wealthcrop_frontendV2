@@ -1,4 +1,4 @@
-import { getApiWithToken, postApiWithToken, deleteApiWithToken } from "./api";
+import { getApiWithToken, postApiWithToken, putApiWithToken, deleteApiWithToken } from "./api";
 
 /**
  * SRS FR 6.1 — one client for the notification feed and the alerts that write to it.
@@ -33,5 +33,13 @@ export const fetchAlerts = async () => {
 export const createAlert = (payload) => postApiWithToken(url("/alerts"), payload);
 
 export const toggleAlert = (id) => postApiWithToken(url(`/alerts/${id}/toggle`), {}, { silent: true });
+
+// Audit #55 — delivery preferences per alert type.
+export const fetchPreferences = async () => {
+  const res = await getApiWithToken(url("/notification-preferences"));
+  return res?.data ?? { data: [], unavailable: {} };
+};
+
+export const savePreferences = (prefs) => putApiWithToken(url("/notification-preferences"), { prefs });
 
 export const deleteAlert = (id) => deleteApiWithToken(url(`/alerts/${id}`));

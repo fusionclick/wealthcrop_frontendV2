@@ -26,7 +26,11 @@ test("maps BSE SIP fields used by the live response", () => {
     total_amt_paid: 5000,
   });
 
-  assert.equal(sip.schemeName, "8130-GR");
+  // Audit #1 — a SIP with no scheme name used to be labelled with its BSE code ("8130-GR").
+  // The fallback is the ISIN, and with neither, a plain "Unnamed scheme".
+  assert.equal(sip.schemeName, "Unnamed scheme");
+  assert.equal(mapXspToSip({ src_scheme: "8130-GR", scheme_isin: "INF109K01U92" }).schemeName, "INF109K01U92");
+  assert.equal(mapXspToSip({ src_scheme: "8130-GR", src_scheme_name: "ICICI PRU FUND" }).schemeName, "ICICI PRU FUND");
   assert.equal(sip.status, "REG");
   assert.equal(sip.nextInstallment, "2026-09-05");
   assert.equal(sip.investedSoFar, 5000);
@@ -58,10 +62,15 @@ test("fund URLs never emit an empty dynamic segment", () => {
   const app = fs.readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
   // Turn the declared routes into matchers so the assertion proves the real route table.
   const toRe = (p) => new RegExp(`^${p.replace(/:[^/]+/g, "[^/]+")}$`);
+  // Audit #1 — the fund page's URL carries the ISIN alone now; the two-segment routes stay
+  // declared so old bookmarks and notification links keep working.
+  assert.match(app, /path="\/mutual_fund\/:isin"/);
   assert.match(app, /path="\/mutual_fund\/:isin\/:code\/buy"/);
   assert.match(app, /path="\/mutual_fund\/:isin\/:code"/);
+  // The Invest page still takes the code in its URL: it reads the scheme nowhere else, and one
+  // ISIN can carry both an IDCW payout and a reinvestment code.
   const buyRoute = toRe("/mutual_fund/:isin/:code/buy");
-  const detailRoute = toRe("/mutual_fund/:isin/:code");
+  const detailRoute = toRe("/mutual_fund/:isin");
 
   // Code only — the combined-portfolio "Invest more" row.
   assert.equal(fundBuyPath("", "PPCH-GR"), "/mutual_fund/PPCH-GR/PPCH-GR/buy");
@@ -72,8 +81,8 @@ test("fund URLs never emit an empty dynamic segment", () => {
   assert.match(fundBuyPath("INF879O01019", ""), buyRoute);
   assert.match(fundPath("INF879O01019", ""), detailRoute);
 
-  // Both present — unchanged behaviour.
-  assert.equal(fundPath("INF879O01019", "PPCH-GR"), "/mutual_fund/INF879O01019/PPCH-GR");
+  // Both present — the BSE code no longer appears in the fund page's address.
+  assert.equal(fundPath("INF879O01019", "PPCH-GR"), "/mutual_fund/INF879O01019");
   assert.match(fundBuyPath("INF879O01019", "PPCH-GR"), buyRoute);
 
   // Neither — send the investor somewhere real, not to a 404.
@@ -139,7 +148,9 @@ test("portfolio pies aggregate real holdings, not fixtures", () => {
   for (const file of ["src/pages/mutual_fund/DashBoardMF.jsx", "src/pages/mutual_fund/CombinedMF.jsx"]) {
     const src = fs.readFileSync(file, "utf8");
     assert.match(src, /const allocation = useMemo\(/, `${file}: allocation must be derived`);
-    assert.match(src, /(funds\.forEach|combined\.rows\.forEach)/, `${file}: from real rows`);
+    // Audit #54 — DashBoardMF now derives it at market value, stocks included, through
+    // allocationByMarketValue (unit-tested in portfolioAnalytics.test.mjs).
+    assert.match(src, /(funds\.forEach|combined\.rows\.forEach|allocationByMarketValue\(visibleFunds, visibleStocks\))/, `${file}: from real rows`);
     assert.doesNotMatch(src, /allocation = \[\s*\{/, `${file}: no hardcoded allocation`);
   }
 });
@@ -153,7 +164,9 @@ test("a SIP can be set up for a specific fund, and survives a refresh", async ()
   // The scheme must be in the URL. Router state alone dies on reload, which is why the
   // page previously lost the fund and posted an empty src_scheme to BSE.
   assert.match(app, /path="\/mutual_fund\/:isin\/:code\/sip"/);
-  const sipRoute = new RegExp(`^${"/mutual_fund/:isin/:code/sip".replace(/:[^/]+/g, "[^/]+")}$`);
+  // Audit #1 — fundSipPath builds the ISIN-only form; the page resolves the code from it.
+  assert.match(app, /path="\/mutual_fund\/:isin\/sip"/);
+  const sipRoute = new RegExp(`^${"/mutual_fund/:isin/sip".replace(/:[^/]+/g, "[^/]+")}$`);
   assert.match(fundSipPath("INF200K01214", "007G"), sipRoute);
   assert.match(fundSipPath("", "007G"), sipRoute, "code only still resolves");
   assert.match(fundSipPath("INF200K01214", ""), sipRoute, "ISIN only still resolves");

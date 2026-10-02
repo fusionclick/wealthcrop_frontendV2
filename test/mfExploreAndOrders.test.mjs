@@ -16,18 +16,24 @@ test("plan filter names the plans the way the scheme names do", () => {
   assert.match(explore, /\["direct", "Direct plan"\]/);
 });
 
-test("the fund list opens on physical holdings", () => {
+test("the fund list opens on physical holdings — silently", () => {
   const explore = read("src/pages/mutual_fund/ExploreMF.jsx");
   // This used to assert the object literal character for character, which broke the moment
   // the risk / transaction / fund-age filters were added. The defaults are what matter.
-  assert.match(explore, /DEFAULT_FILTERS = \{[^}]*plan: ""[^}]*\}/);
+  // Compliance #31 — the list opens on Regular plans, the only ones a distributor may offer.
+  assert.match(explore, /DEFAULT_FILTERS = \{[^}]*plan: "regular"[^}]*\}/);
   assert.match(explore, /DEFAULT_FILTERS = \{[^}]*sip: ""[^}]*\}/);
   assert.match(explore, /DEFAULT_FILTERS = \{[^}]*mode: "physical"[^}]*\}/);
   assert.match(explore, /useState\(DEFAULT_FILTERS\)/);
-  // "Held as" must open on the default, so Physical has to be the first option.
-  assert.match(explore, /options: \[\["physical", "Physical"\]/);
+  // Audit #11 — physical stays the default, but no Physical/Demat control, badge or toast
+  // reaches the investor any more: the "Held as" dropdown, the PHYSICAL ONLY pill and the
+  // "held physically only" toast are all gone.
+  for (const file of ["src/pages/mutual_fund/ExploreMF.jsx", "src/components/FundBadges.jsx"]) {
+    const src = code(file);
+    assert.doesNotMatch(src, /Held as|PHYSICAL ONLY|held physically|"Demat"|Demat & physical/, `${file} still shows Physical/Demat wording`);
+  }
   // The green "you narrowed this" styling compares against the default, not against
-  // empty — otherwise Held as is green before anyone has touched it.
+  // empty — otherwise a default would be green before anyone has touched it.
   assert.match(explore, /filters\[f\.key\] !== DEFAULT_FILTERS\[f\.key\]/);
   assert.doesNotMatch(explore, /Object\.values\(filters\)\.some\(Boolean\)/);
 });

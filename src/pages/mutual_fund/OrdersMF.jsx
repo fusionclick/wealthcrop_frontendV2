@@ -133,7 +133,9 @@ const OrdersMF = () => {
             <div key={o.id ?? i} className="px-4 py-3 flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <p className="font-medium text-sm leading-snug line-clamp-2 text-slate-900 dark:text-[var(--text-primary)]">
-                  {o.scheme_name || o.scheme_bse_code || "—"}
+                  {/* Audit #1 — a missing name falls back to the ISIN, never the BSE code
+                      (the server fills a nameless row's scheme_name with the code itself). */}
+                  {(o.scheme_name !== o.scheme_bse_code && o.scheme_name) || o.scheme_isin || "Unnamed scheme"}
                 </p>
                 {/* QA 3.7 — the type was printed raw here, so BSE's "R" sat in grey 11px
                     text next to a plain rupee figure and a redemption read like a purchase.

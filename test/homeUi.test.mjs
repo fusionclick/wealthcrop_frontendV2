@@ -526,10 +526,11 @@ test("backend wahi profile fields leta hai jo frontend bhejta hai", () => {
 
 test("basket ka Confirm button jhoota wada nahi karta", () => {
   const src = readCode("../src/pages/basket/Invest.jsx");
-  // Basket order ka koi endpoint hai hi nahi (Laravel par sirf create/fetch/get,
-  // Node/BSE backend basket jaanta hi nahi) — chalta hua dikhne wala button galat tha.
-  assert.match(src, /disabled/);
-  assert.match(src, /Basket investing isn’t available yet/);
+  // Audit #11 — ab basket checkout ka asli endpoint hai (Node /basketCheckout, har fund ka
+  // order /purchaseNewOrder ke gates se), to button usi ko chalata hai — jhoota "available
+  // nahi" bhi nahi, aur bina kaam ka button bhi nahi.
+  assert.match(src, /nodeUrl\("\/basketCheckout"\)/);
+  assert.match(src, /acknowledged: disc\.acked/);
   // Koi bhi enabled button bina onClick ke nahi bacha.
   const dead = (src.match(/<button(?![^>]*(onClick|disabled))[^>]*>/g) || []);
   assert.deepEqual(dead, []);
@@ -607,7 +608,7 @@ test("baskets API har basket ki categories deti hai", () => {
 
 test("NAV chart: chhoti range par Weekly/Monthly be-matlab nuqte dete hain", async () => {
   const { bucketSeries } = await import("../src/components/chart/navSeries.js");
-  const now = Math.floor(Date.now() / 1000);
+  const now = Math.floor(new Date("2026-09-10T12:00:00Z").getTime() / 1000);
   const series = Array.from({ length: 800 }, (_, i) => ({
     timestamp: now - (799 - i) * 86400,
     nav: 70 + Math.sin(i / 20) * 5,

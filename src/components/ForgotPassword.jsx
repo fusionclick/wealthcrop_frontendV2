@@ -14,6 +14,9 @@ import LoginPinModal from "../utils/LoginPinModal";
 function ForgotPassword({ onBack }) {
 
     const [loading, setLoading] = useState(false)
+    // Local dev only: the server hands the link back instead of mailing it (production never
+    // sends this field), so the reset can be walked through without a real inbox.
+    const [devLinks, setDevLinks] = useState([])
 
   // react-hook-form
   const { register, handleSubmit, formState: { errors }, setValue, reset, trigger } = useForm({
@@ -35,6 +38,7 @@ function ForgotPassword({ onBack }) {
     if(res?.status === 200 || res?.status === true){
 
           toastSuccess(res?.message);
+          setDevLinks(res?.dev_reset_links || [])
           setLoading(false)
         reset()
     }else{
@@ -57,8 +61,9 @@ function ForgotPassword({ onBack }) {
       <h1 className="text-2xl font-semibold text-blue-950 dark:text-gray-100">
        Forgot Password 🔑
       </h1>
+      {/* Audit #40 — a verified secondary email recovers the account too. */}
       <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-        Enter your Wealthcrop email address
+        Enter your Wealthcrop email, or a secondary email you have verified
       </p>
     </div>
 
@@ -93,6 +98,17 @@ function ForgotPassword({ onBack }) {
         { loading ? "Sending" : "Send Link" }
       </button>
     </form>
+
+    {devLinks.length > 0 && (
+      <div className="mt-5 rounded-lg border border-amber-300 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-500/10 p-3 text-sm">
+        <p className="font-medium text-amber-800 dark:text-amber-300">Local dev only — the emailed link:</p>
+        {devLinks.map((path) => (
+          <Link key={path} to={path} className="block mt-1 text-blue-700 dark:text-blue-400 underline">
+            Reset the password for {new URLSearchParams(path.split("?")[1]).get("email")}
+          </Link>
+        ))}
+      </div>
+    )}
 
     {/* Is screen se wapas jane ka koi rasta hi nahi tha: forgot-password ek route nahi
         balke Login ki state hai, is liye header ka "Login / Signup" bhi yahan phansa

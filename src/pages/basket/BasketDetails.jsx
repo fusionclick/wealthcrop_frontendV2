@@ -104,7 +104,7 @@ export default function BasketDetails() {
         </h1>
 
         <p className="text-sm mt-1 text-gray-600 dark:text-[var(--text-secondary)]">
-          Expert curated mutual fund basket with auto diversification.
+          Curated Mutual Fund Basket with auto diversification.
         </p>
       </div>
 
@@ -135,7 +135,7 @@ export default function BasketDetails() {
           <div className="grid grid-cols-3 gap-4 text-center">
             {[
               ["Sharpe Ratio", details.metrics.sharpe],
-              ["Expense Ratio", `${details.metrics.expenseRatio}%`],
+              ["Expense Ratio", Number(details.metrics.expenseRatio) > 0 ? `${details.metrics.expenseRatio}%` : "—"],
               ["Std Deviation", details.metrics.stdDev],
             ].map(([label, value]) => (
               <div

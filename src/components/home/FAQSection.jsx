@@ -9,9 +9,11 @@ const faqs = [
       "Simply sign up, complete your KYC verification, and explore our curated mutual fund options based on your goals and risk appetite.",
   },
   {
-    question: "Are my investments safe on this platform?",
+    // Audit #34 — "Yes, … safe" promised what no mutual fund can; the value of units moves
+    // with the market. What IS true is how orders and units are held.
+    question: "How are my orders and units handled?",
     answer:
-      "Yes, all transactions are handled through secure, SEBI-registered partners with bank-level encryption to protect your data and investments.",
+      "Orders are placed through BSE StarMF, the mutual fund platform of BSE, and units are allotted by the fund house in your own name. Mutual fund investments are subject to market risks.",
   },
   {
     question: "Can I withdraw my investments anytime?",
@@ -19,9 +21,10 @@ const faqs = [
       "Most mutual funds allow withdrawals at any time, though exit load and tax implications may apply depending on your holding period.",
   },
   {
-    question: "Do I get personalized investment recommendations?",
+    // Audit #34 — a distributor does not recommend funds; it assesses product suitability.
+    question: "How do I know which funds suit me?",
     answer:
-      "Yes, once you set your goals and risk preferences, our system recommends the best-performing mutual funds suited to your profile.",
+      "Complete the Product Suitability Assessment and we show which schemes fall within your risk profile, alongside Curated Mutual Fund Baskets and Goal-based SIPs. The choice of scheme is always yours.",
   },
   {
     question: "Is there any minimum investment amount?",

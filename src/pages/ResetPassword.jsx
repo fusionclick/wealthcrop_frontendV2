@@ -102,8 +102,10 @@ function ResetPassword() {
           Reset your password 🔑
         </h2>
 
+        {/* Audit #40 — a link can now arrive at a shared, verified secondary mailbox, one per
+            account that uses it; naming the account is how the reader tells them apart. */}
         <p className="text-gray-500 dark:text-gray-400 text-sm mb-6 text-center">
-          Enter a new password for your account
+          Enter a new password for {email ? <strong className="text-blue-950 dark:text-gray-100">{email}</strong> : "your account"}
         </p>
 
         <form onSubmit={handleSubmit(handleResetPassword)}>

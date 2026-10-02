@@ -12,7 +12,6 @@ import {
 import { FiShare2 } from "react-icons/fi";
 import { AiOutlineStar } from "react-icons/ai";
 import { PieChart, Pie, Cell } from "recharts";
-import logo from "../assets/mutualFund/sbi.webp";
 import { useParams } from "react-router-dom";
 import { fetchStockChart } from "../api/marketApi";
 
@@ -280,11 +279,14 @@ export default function IndicesDetails() {
             <div className="flex flex-col gap-4 flex-shrink-0">
               {/* Logo + Name */}
               <div className="flex items-center gap-4">
-                <img
-                  src={logo}
-                  alt="logo"
-                  className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl shadow"
-                />
+                {/* Audit #35 — an index has no fund house, yet every index page showed SBI
+                    Mutual Fund's logo. A neutral monogram, not a wrong brand. */}
+                <div
+                  aria-hidden="true"
+                  className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl shadow flex items-center justify-center text-xl font-bold bg-slate-100 text-slate-700 dark:bg-[var(--white-10)] dark:text-[var(--text-primary)]"
+                >
+                  {String(name || "I").charAt(0).toUpperCase()}
+                </div>
 
                 <div>
                   <h1 className="text-xl sm:text-2xl font-bold capitalize text-slate-900 dark:text-[var(--text-primary)]">

@@ -138,9 +138,11 @@ const Watchlist = () => {
                     <p className="text-xs text-gray-500">{item.symbol} • NSE</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold">₹{item.price}</p>
-                    <p className={item.pChange >= 0 ? "text-green-600 text-sm" : "text-red-600 text-sm"}>
-                      {item.pChange >= 0 ? "+" : ""}{item.pChange}%
+                    {/* Audit #52 — the list prices what it can; a row it could not price read
+                        "₹0 +0%", which is a price. It is "—" now. */}
+                    <p className="font-bold dark:text-[var(--text-primary)]">{Number(item.price) > 0 ? `₹${item.price}` : "—"}</p>
+                    <p className={!(Number(item.price) > 0) ? "text-gray-500 text-sm" : item.pChange >= 0 ? "text-green-600 text-sm" : "text-red-600 text-sm"}>
+                      {Number(item.price) > 0 ? `${item.pChange >= 0 ? "+" : ""}${item.pChange}%` : "—"}
                     </p>
                   </div>
                 </div>

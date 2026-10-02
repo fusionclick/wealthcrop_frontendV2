@@ -9,6 +9,8 @@ import {
   toCsv,
   isoDay,
   purchaseLots,
+  taxEstimate,
+  dividendRows,
 } from "../src/utils/taxlots.js";
 
 const buy = (date, units, nav, over = {}) => ({
@@ -70,7 +72,9 @@ test("one redemption spanning two lots produces two gain rows", () => {
   assert.equal(realised[0].gain + realised[1].gain, 100 * 20 - (60 * 10 + 40 * 15));
 });
 
-test("term follows the asset class: a year for equity, three for debt", () => {
+// Audit #64 — this test used to pin the pre-2024 rule (three years for every non-equity fund).
+// The current rules are below, each against the date it took effect.
+test("term follows the asset class: a year for equity, and debt bought since Apr 2023 never turns long", () => {
   const equity = matchLots([buy("2024-01-10", 10, 10), sell("2025-03-10", 10, 12)], {
     categories: { 119551: "Flexi Cap" },
   }).realised[0];
@@ -80,9 +84,99 @@ test("term follows the asset class: a year for equity, three for debt", () => {
   }).realised[0];
 
   assert.equal(equity.term, "long", "14 months in an equity fund is long term");
-  assert.equal(debt.term, "short", "14 months in a debt fund is not");
-  assert.equal(assetClassOf("Short Duration"), "other");
+  assert.equal(debt.term, "short", "a debt fund bought after 1 Apr 2023 is short-term at any age");
+  assert.equal(debt.tax_basis, "specified");
+  assert.equal(assetClassOf("Short Duration"), "debt");
   assert.equal(assetClassOf(""), "other", "unknown must not claim the long-term rate on our word");
+});
+
+test("equity is long-term only after MORE than 12 months — a year to the day is short", () => {
+  const at = (sold) =>
+    matchLots([buy("2024-01-10", 10, 10), sell(sold, 10, 12)], { categories: { 119551: "Equity" } }).realised[0].term;
+
+  assert.equal(at("2025-01-10"), "short");
+  assert.equal(at("2025-01-11"), "long");
+});
+
+test("other non-equity funds: 24 months from 23 Jul 2024, 36 months before it", () => {
+  // Bought before the specified-fund cut-off, so the holding-period rule applies.
+  const sold = (date) =>
+    matchLots([buy("2022-01-10", 10, 10), sell(date, 10, 12)], { categories: { 119551: "Gilt" } }).realised[0];
+
+  const after = sold("2024-08-10"); // 31 months, new rules
+  const before = sold("2024-06-10"); // 29 months, old rules
+  assert.equal(after.term, "long");
+  assert.equal(after.tax_basis, "other");
+  assert.equal(before.term, "short", "under the old 36-month rule 29 months was short");
+});
+
+test("hybrid is no longer always equity, and gold is never debt", () => {
+  assert.equal(assetClassOf("Hybrid Scheme - Aggressive Hybrid Fund"), "equity");
+  assert.equal(assetClassOf("Hybrid Scheme - Arbitrage Fund"), "equity");
+  assert.equal(assetClassOf("Hybrid Scheme - Conservative Hybrid Fund"), "debt");
+  assert.equal(assetClassOf("Hybrid Scheme - Dynamic Asset Allocation or Balanced Advantage"), "other");
+  assert.equal(assetClassOf("Hybrid"), "other");
+  assert.equal(assetClassOf("Other Scheme - Gold ETF"), "other");
+  assert.equal(assetClassOf("Other Scheme - Index Funds", "Bharat Bond ETF FoF - April 2030"), "debt");
+  assert.equal(assetClassOf("Other Scheme - Index Funds", "UTI Nifty 50 Index Fund"), "equity");
+  assert.equal(assetClassOf("", "HDFC Liquid Fund"), "debt", "the name decides only when there is no category");
+});
+
+test("tax estimate: current rates, the ₹1.25 lakh exemption and 4% cess", () => {
+  const row = (term, tax_basis, gain, date = "2025-11-10") => ({ term, tax_basis, gain, sell_date: new Date(`${date}T00:00:00`) });
+  const est = taxEstimate(
+    [row("long", "equity", 200000), row("short", "equity", 50000), row("short", "specified", 10000)],
+    { slabRate: 0.3 }
+  );
+
+  assert.equal(est.tax.equity_ltcg, (200000 - 125000) * 0.125);
+  assert.equal(est.tax.equity_stcg, 50000 * 0.2);
+  assert.equal(est.tax.slab, 3000);
+  assert.equal(Math.round(est.total), Math.round((9375 + 10000 + 3000) * 1.04));
+
+  // Without a slab rate the slab gains are reported, not taxed at a guess.
+  const noSlab = taxEstimate([row("short", "specified", 10000)]);
+  assert.equal(noSlab.tax.slab, null);
+  assert.equal(noSlab.slabPending, true);
+});
+
+test("tax estimate: losses set off the way s.70 / s.74 allow", () => {
+  const row = (term, tax_basis, gain) => ({ term, tax_basis, gain, sell_date: new Date("2025-11-10T00:00:00") });
+
+  // A short-term loss can reduce a long-term gain…
+  const st = taxEstimate([row("short", "equity", -30000), row("long", "equity", 180000)]);
+  assert.equal(st.gains.equity_ltcg, 150000);
+  assert.equal(st.tax.equity_ltcg, (150000 - 125000) * 0.125);
+
+  // …a long-term loss only a long-term gain, never a short-term one.
+  const lt = taxEstimate([row("long", "equity", -20000), row("short", "equity", 50000)]);
+  assert.equal(lt.gains.equity_stcg, 50000);
+  assert.equal(lt.carriedForward, 20000);
+});
+
+test("tax estimate: FY 2024-25 blends the rates either side of 23 Jul 2024", () => {
+  const est = taxEstimate([
+    { term: "short", tax_basis: "equity", gain: 10000, sell_date: new Date("2024-06-01T00:00:00") },
+    { term: "short", tax_basis: "equity", gain: 10000, sell_date: new Date("2024-09-01T00:00:00") },
+  ]);
+
+  assert.equal(est.tax.equity_stcg, 1500 + 2000);
+});
+
+test("IDCW entries use the units held on the record date", () => {
+  const statement = statementRows([buy("2024-01-10", 100, 10), buy("2024-06-10", 50, 12)]);
+  const rows = dividendRows(statement, {
+    119551: [
+      { record_date: "2024-03-15", amount_per_unit: 0.5, kind: "payout" },
+      { record_date: "2024-07-15", amount_per_unit: 0.5, kind: "reinvest" },
+      { record_date: "2023-12-01", amount_per_unit: 0.5, kind: "payout" }, // before any units
+    ],
+  });
+
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].amount, 50); // 100 units
+  assert.equal(rows[1].amount, 75); // 150 units
+  assert.match(rows[1].description, /reinvested/);
 });
 
 test("units sold with no purchase on record are reported, not invented", () => {

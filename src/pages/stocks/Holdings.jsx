@@ -4,12 +4,15 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { fetchHoldings, syncStockPortfolio } from "../../api/portfolioApi";
 import { toastError, toastSuccess } from "../../utils/notifyCustom";
 import KotakLinkForm from "../../components/stocks/KotakLinkForm";
+import usePortfolios, { holdingKey } from "../../hooks/usePortfolios";
 
 const Holdings = () => {
   const [stocks, setStocks] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const [showKotakForm, setShowKotakForm] = useState(false);
+  // Audit #54 — stocks go into the same portfolios as funds (created on My Investments).
+  const { portfolios, byHolding, assign } = usePortfolios(true);
 
   const load = useCallback(async () => {
     const res = await fetchHoldings(false);
@@ -177,7 +180,7 @@ const Holdings = () => {
             <table className="min-w-full text-sm rounded-lg overflow-hidden border border-gray-200 dark:border-[var(--border-color)]">
               <thead className="bg-gray-100 dark:bg-[var(--gray-800)]">
                 <tr>
-                  {["Name", "Symbol", "Qty", "Avg Price", "LTP", "Change", "Order Date"].map(
+                  {["Name", "Symbol", "Qty", "Avg Price", "LTP", "Change", "Order Date", "Portfolio"].map(
                     (h) => (
                       <th
                         key={h}
@@ -226,6 +229,30 @@ const Holdings = () => {
                     </td>
                     <td className="px-4 py-2 text-right text-gray-700 dark:text-[var(--text-secondary)]">
                       {stock.orderDate}
+                    </td>
+                    <td className="px-4 py-2" onClick={(e) => e.stopPropagation()}>
+                      {portfolios.length ? (
+                        <select
+                          value={byHolding.get(holdingKey(stock, "stock"))?.id ?? ""}
+                          onChange={(e) => assign(e.target.value ? Number(e.target.value) : null, holdingKey(stock, "stock"))}
+                          aria-label={`Portfolio for ${stock.symbol}`}
+                          className="border border-gray-200 rounded-md px-2 py-1 text-xs bg-white text-gray-700 dark:bg-[var(--card-bg)] dark:border-[var(--border-color)] dark:text-[var(--text-primary)]"
+                        >
+                          <option value="">Not in a portfolio</option>
+                          {portfolios.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <NavLink
+                          to="/user/mutual_fund/investments"
+                          className="text-xs text-teal-700 hover:underline dark:text-teal-400"
+                        >
+                          Create a portfolio
+                        </NavLink>
+                      )}
                     </td>
                   </tr>
                 ))}

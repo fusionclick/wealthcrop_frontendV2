@@ -62,6 +62,24 @@ export const smartDefaultDay = (days = FALLBACK_SIP_DAYS, from = new Date()) => 
 };
 
 /**
+ * Audit #13 — one month of the start-date calendar, Monday first: `null` for the blank
+ * leading cells, then one cell per day. A day is pickable only if it is after `from` (today)
+ * AND one of the days this scheme accepts — the two things a native date input cannot be
+ * told, which is why a typed-in 7th used to reach the form at all.
+ */
+export const monthGrid = (year, month, { days = FALLBACK_SIP_DAYS, from = new Date() } = {}) => {
+  const lead = (new Date(year, month, 1).getDay() + 6) % 7;
+  const count = new Date(year, month + 1, 0).getDate();
+  const today = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  const cells = Array.from({ length: lead }, () => null);
+  for (let d = 1; d <= count; d += 1) {
+    const date = new Date(year, month, d);
+    cells.push({ day: d, iso: iso(date), allowed: date > today && days.includes(d) });
+  }
+  return cells;
+};
+
+/**
  * BSE registers a count of installments, never an end date, so every scheduled-instruction
  * form has to turn the two dates the investor picked into that count. The server derives it
  * the same way; showing it here means the dates are not a black box.

@@ -7,7 +7,7 @@ import {
   FaMoneyBillWave,
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import { sipForGoal } from "../../utils/calculators";
+import { sipForGoal, sipSeries } from "../../utils/calculators";
 import { MF_EXPLORE_PATH } from "../../utils/nodeApi";
 import { inr } from "../../utils/calcSafe";
 import {
@@ -26,6 +26,10 @@ const SipCalculator = () => {
   const [years, setYears] = useState(10);
   const [cagr, setCagr] = useState(9);
   const [inflation, setInflation] = useState(3);
+  // Audit #69 — the page only worked backwards (goal → monthly SIP). "sip" is the forward
+  // question most people bring: what does this monthly amount grow to.
+  const [mode, setMode] = useState("goal");
+  const [monthly, setMonthly] = useState(10000);
 
   const [openFAQ, setOpenFAQ] = useState(null);
 
@@ -38,7 +42,26 @@ const SipCalculator = () => {
     () => sipForGoal({ goal: goalAmount, years, cagr, inflation }),
     [goalAmount, years, cagr, inflation]
   );
-  const data = result.series;
+  // The same model the chart has always drawn, so the bars and the headline agree.
+  const growth = useMemo(() => sipSeries({ monthly, years, cagr }), [monthly, years, cagr]);
+  const grown = growth.at(-1);
+  const data =
+    mode === "goal"
+      ? result.series
+      : growth.map((p) => ({ year: p.year, principal: p.invested, total: p.value }));
+  const sliders =
+    mode === "goal"
+      ? [
+          ["Goal Amount (₹)", goalAmount, setGoalAmount, 100000, 50000000, 50000],
+          ["Time Horizon (Years)", years, setYears, 1, 40, 1],
+          ["Expected CAGR (%)", cagr, setCagr, 1, 30, 0.5],
+          ["Inflation Rate (%)", inflation, setInflation, 0, 15, 0.5],
+        ]
+      : [
+          ["Monthly SIP (₹)", monthly, setMonthly, 500, 100000, 500],
+          ["Time Horizon (Years)", years, setYears, 1, 40, 1],
+          ["Expected CAGR (%)", cagr, setCagr, 1, 30, 0.5],
+        ];
 
   // 🔶 FAQs Data
   const faqs = [
@@ -84,9 +107,9 @@ const SipCalculator = () => {
     </h1>
 
     <p className="max-w-3xl mx-auto mt-4 text-gray-700 dark:text-gray-300 text-lg leading-relaxed">
-      Use this SIP Calculator to estimate monthly investments required to
-      reach your financial goal. Understand expected returns, invested
-      amount, and long-term wealth creation through SIPs.
+      Use this SIP Calculator to see what a monthly SIP grows to, or the
+      monthly investment a financial goal needs. Understand expected returns,
+      invested amount, and long-term wealth creation through SIPs.
     </p>
   </div>
 
@@ -101,8 +124,31 @@ const SipCalculator = () => {
   >
     {/* LEFT SIDE */}
     <div>
+      <div className="inline-flex rounded-xl p-1 mb-4 bg-gray-100 dark:bg-white/10" role="tablist">
+        {[
+          ["goal", "I have a goal"],
+          ["sip", "I have a monthly amount"],
+        ].map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={mode === key}
+            onClick={() => setMode(key)}
+            className={
+              mode === key
+                ? "px-3 py-1.5 rounded-lg text-sm font-semibold bg-white text-blue-900 shadow dark:bg-[#020617] dark:text-white"
+                : "px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 hover:text-blue-800 dark:text-gray-300 dark:hover:text-white"
+            }
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       <h2 className="text-xl font-semibold text-blue-950 dark:text-gray-100 flex items-center gap-2 mb-4">
-        <FaChartLine className="text-red-600" /> SIP Crorepati Goal Planner
+        <FaChartLine className="text-red-600" />
+        {mode === "goal" ? "SIP Crorepati Goal Planner" : "SIP Growth Calculator"}
       </h2>
 
       <div
@@ -112,22 +158,55 @@ const SipCalculator = () => {
           text-blue-950 dark:text-gray-200
         "
       >
-        <p className="flex items-center gap-2">
-          <FaBullseye className="text-red-600" /> Goal Amount:
-          <strong>₹{inr(goalAmount)}</strong>
-        </p>
+        {mode === "goal" ? (
+          <p className="flex items-center gap-2">
+            <FaBullseye className="text-red-600" /> Goal Amount:
+            <strong>₹{inr(goalAmount)}</strong>
+          </p>
+        ) : (
+          <p className="flex items-center gap-2">
+            <FaBullseye className="text-red-600" /> Monthly SIP:
+            <strong>₹{inr(monthly)}</strong>
+          </p>
+        )}
         <p className="flex items-center gap-2">
           <FaClock /> <strong>{years} Years</strong>
         </p>
         <p className="flex items-center gap-2">
           <FaPercent className="text-red-600" /> <strong>{cagr}%</strong>
         </p>
-        <p className="flex items-center gap-2">
-          <FaMoneyBillWave className="text-green-600" /> <strong>{inflation}%</strong>
-        </p>
+        {mode === "goal" && (
+          <p className="flex items-center gap-2">
+            <FaMoneyBillWave className="text-green-600" /> <strong>{inflation}%</strong>
+          </p>
+        )}
       </div>
 
       {/* Result */}
+      {mode === "sip" ? (
+        <div
+          className="
+            rounded-2xl p-4 mb-6
+            bg-green-50 dark:bg-green-500/10
+            border-l-4 border-green-500
+            text-gray-800 dark:text-gray-200
+          "
+        >
+          <p>
+            Investing <strong>₹{inr(monthly)}</strong> every month for{" "}
+            <strong>{years} years</strong> at {cagr}% a year:
+          </p>
+          <p>
+            Future Value: <strong>₹{inr(grown.value)}</strong>
+          </p>
+          <p>
+            Total Invested: <strong>₹{inr(grown.invested)}</strong>
+          </p>
+          <p>
+            Estimated Earnings: <strong>₹{inr(grown.value - grown.invested)}</strong>
+          </p>
+        </div>
+      ) : (
       <div
         className="
           rounded-2xl p-4 mb-6
@@ -160,6 +239,7 @@ const SipCalculator = () => {
           <strong>₹{inr(result.estimatedGrowth)}</strong>
         </p>
       </div>
+      )}
 
       <button
         onClick={() => handleRedirect(MF_EXPLORE_PATH)}
@@ -176,12 +256,7 @@ const SipCalculator = () => {
 
     {/* RIGHT SIDE */}
     <div className="space-y-4">
-      {[
-        ["Goal Amount (₹)", goalAmount, setGoalAmount, 100000, 50000000, 50000],
-        ["Time Horizon (Years)", years, setYears, 1, 40, 1],
-        ["Expected CAGR (%)", cagr, setCagr, 1, 30, 0.5],
-        ["Inflation Rate (%)", inflation, setInflation, 0, 15, 0.5],
-      ].map(([label, value, setValue, min, max, step]) => (
+      {sliders.map(([label, value, setValue, min, max, step]) => (
         <div key={label}>
           <div className="flex justify-between">
             <label className="text-sm font-medium text-blue-950 dark:text-gray-200">

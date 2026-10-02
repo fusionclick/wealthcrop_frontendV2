@@ -200,11 +200,8 @@ export const LAMBDA = { Conservative: 12, Moderate: 5, Aggressive: 1.8 };
  */
 export function optimiseAroundGlidePath(glideAlloc, risk = "Moderate", { slack = 10, assumptions = DEFAULT_ASSUMPTIONS } = {}) {
   const keys = assumptions.keys;
-  const bounds = {};
-  for (const k of keys) {
-    const centre = (Number(glideAlloc?.[k]) || 0) / 100;
-    bounds[k] = [Math.max(0, centre - slack / 100), Math.min(1, centre + slack / 100)];
-  }
+  const band = glideBounds(glideAlloc, slack, keys);
+  const bounds = Object.fromEntries(keys.map((k) => [k, [band[k][0] / 100, band[k][1] / 100]]));
 
   const solved = optimise({ lambda: LAMBDA[risk] ?? LAMBDA.Moderate, bounds, assumptions });
   if (!solved) return null;
@@ -224,6 +221,52 @@ export function optimiseAroundGlidePath(glideAlloc, risk = "Moderate", { slack =
     sharpe: solved.vol > 0 ? (solved.ret - assumptions.mu.cash) / solved.vol : 0,
     shifts,
   };
+}
+
+/**
+ * The suitability band: each sleeve may sit `slack` points either side of the glide path,
+ * clamped to 0–100, in PERCENT. The optimiser searches inside it, and Audit #58's hand-made
+ * split is held to the very same box — one definition, so "customise" can never reach a
+ * portfolio the optimiser would have been forbidden to suggest.
+ */
+export function glideBounds(glideAlloc, slack = 10, keys = DEFAULT_ASSUMPTIONS.keys) {
+  return Object.fromEntries(
+    keys.map((k) => {
+      const centre = Number(glideAlloc?.[k]) || 0;
+      return [k, [Math.max(0, centre - slack), Math.min(100, centre + slack)]];
+    })
+  );
+}
+
+/**
+ * Audit #58 — a split the investor typed: whole percentages, adding to exactly 100, each
+ * inside its band. Returns the reasons it is not acceptable (empty when it is).
+ */
+export function manualSplitErrors(split, band) {
+  const errors = [];
+  const keys = Object.keys(band);
+  const values = keys.map((k) => Number(split?.[k]));
+
+  if (values.some((v) => !Number.isInteger(v))) errors.push("Use whole percentages.");
+  const total = values.reduce((a, v) => a + (Number.isFinite(v) ? v : 0), 0);
+  if (total !== 100) errors.push(`The sleeves add up to ${total}%, not 100%.`);
+
+  keys.forEach((k, i) => {
+    const [lo, hi] = band[k];
+    if (Number.isFinite(values[i]) && (values[i] < lo || values[i] > hi)) {
+      errors.push(`${k[0].toUpperCase()}${k.slice(1)} must stay between ${lo}% and ${hi}% for your profile.`);
+    }
+  });
+
+  return errors;
+}
+
+/** Expected return, volatility and Sharpe of any split (in percent), on the same assumptions. */
+export function statsFor(weightsPct, assumptions = DEFAULT_ASSUMPTIONS) {
+  const w = assumptions.keys.map((k) => (Number(weightsPct?.[k]) || 0) / 100);
+  const ret = portfolioReturn(w, assumptions.keys, assumptions.mu);
+  const vol = Math.sqrt(Math.max(portfolioVariance(w, covarianceMatrix(assumptions)), 0));
+  return { ret, vol, sharpe: vol > 0 ? (ret - assumptions.mu.cash) / vol : 0 };
 }
 
 /** Round a set of percentages to integers that still total 100. */

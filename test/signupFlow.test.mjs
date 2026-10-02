@@ -99,10 +99,12 @@ test("signup asks for no phone number", async () => {
     "a signup with no phone must pass"
   );
   assert.doesNotMatch(read("src/auth/Register.jsx"), /register\("phone"\)/);
-  assert.doesNotMatch(
-    read("../admin_php/app/Http/Controllers/Api/AuthController.php"),
-    /'phone'\s*=>/
-  );
+  // Scoped to the two signup methods: Audit #37/#41 verify a phone in Profile and sign in
+  // with it, which needs `'phone' =>` elsewhere in this controller. Signup still takes none.
+  const auth = read("../admin_php/app/Http/Controllers/Api/AuthController.php");
+  const signup = auth.slice(auth.indexOf("public function registerSendOtp"), auth.indexOf("public function setPin"));
+  assert.ok(signup.includes("public function register(Request"), "signup methods moved — update this slice");
+  assert.doesNotMatch(signup, /'phone'\s*=>/);
 });
 
 // SRS §15.2 (QA 2.6) — /kyc and the other investor-data routes had no route-level gate,

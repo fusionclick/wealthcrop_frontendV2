@@ -6,8 +6,21 @@ import { useNavigate } from "react-router-dom";
 import { nodeUrl, fundPath, loadMfWatchlist, toggleMfWatchlist } from "../utils/nodeApi";
 import { toastSuccess } from "../utils/notifyCustom";
 import { titleCase } from "../utils/schemeName";
+import { RiskBadge, DIRECT_NOT_OFFERED, isDirectPlan } from "./FundBadges";
 
 const savedKeysNow = () => new Set(loadMfWatchlist().map((f) => `${f.isin}|${f.code}`));
+
+// Audit #11 — the fund tags used to change nothing: the `fields` value they sent is ignored by
+// the backend. Each now names a catalogue filter (master-scheme-list `txn` keys), so the
+// server narrows the whole catalogue, not just the 100 rows it returns. "MF" is every mutual
+// fund (no stocks), so it needs no key.
+const TAG_TXN = { ETF: "etf", Growth: "growth", IDCW: "idcw_payout", Dividend: "idcw_reinvest" };
+const TAG_TITLE = {
+  ETF: "Exchange traded funds and funds of ETFs",
+  Growth: "Growth option — gains stay invested",
+  IDCW: "IDCW payout — distributions paid out",
+  Dividend: "Dividend reinvestment — distributions bought back as units",
+};
 
 export default function SearchPopup({ onClose }) {
   const containerRef = useRef(null);
@@ -66,7 +79,7 @@ export default function SearchPopup({ onClose }) {
 
     const payload = {
       data:{
-        fields: [tag?.toUpperCase()],
+        txn: TAG_TXN[tag] || "",
         count_only: false,
         start: 0,
         length: 100,
@@ -116,7 +129,8 @@ export default function SearchPopup({ onClose }) {
  const showFundPage = (isin,code) => {
   // const cleanName = fundName.replace(/\s+/g, "");
   onClose();
-  navigate(fundPath(isin, code));
+  // Audit #1 — ISIN in the address bar; the exact BSE code rides in router state.
+  navigate(fundPath(isin, code), { state: { code } });
 };
 
   // ponytail: pehle yahan `toggleBookmark` call hota tha jo kahin define hi nahi tha —
@@ -215,6 +229,7 @@ export default function SearchPopup({ onClose }) {
         ].map((tag) => (
           <button
             key={tag}
+            title={TAG_TITLE[tag]}
             onClick={() => {
               setFilterTag(tag);
               if (query.length >= 2) searchAssets(query, tag);
@@ -297,10 +312,25 @@ export default function SearchPopup({ onClose }) {
                 dark:border-[var(--border-color)]
                 dark:hover:bg-[var(--gray-800)] dark:text-[var(--text-primary)] dark:bg-white/5"
             >
-              <div>
+              <div className="min-w-0">
                 <div className=" text-sm dark:text-[var(--text-primary)]">
                   {titleCase(asset.name)}
                 </div>
+
+                {/* Audit #1 / #4 — the ISIN the investor sees on their CAS, and the SEBI
+                    risk level, on the result itself. Never the BSE code. */}
+                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                  {asset.scheme_isin && (
+                    <span className="text-[11px] font-mono text-gray-500 dark:text-[var(--text-secondary)]">
+                      {asset.scheme_isin}
+                    </span>
+                  )}
+                  <RiskBadge risk={asset.risk} />
+                </div>
+                {/* Compliance #31 — said before the investor opens a fund they cannot buy here. */}
+                {isDirectPlan(asset) && (
+                  <div className="text-[11px] mt-0.5 text-amber-700 dark:text-amber-400">{DIRECT_NOT_OFFERED}</div>
+                )}
 
                 {asset.type && (
                   <div className="text-xs text-gray-500">

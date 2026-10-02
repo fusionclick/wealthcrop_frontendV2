@@ -151,7 +151,7 @@ const MoreMenu = ({ token }) => {
                   <MenuItem
                     icon={MessagesSquare}
                     title="Community"
-                    desc="Ask an expert, talk to investors."
+                    desc="Ask our support team, talk to investors."
                     onClick={() => navigate("/community")}
                   />
                 </div>
@@ -165,7 +165,7 @@ const MoreMenu = ({ token }) => {
                   {/* SRS §8 / §8.2 / §11 — three new sections nothing linked to. */}
                   <MenuItem
                     icon={Bot}
-                    title="Advisor"
+                    title="Asset Allocation"
                     desc="Get a plan in a few questions."
                     onClick={() => navigate("/advisor")}
                   />

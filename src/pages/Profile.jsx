@@ -203,8 +203,8 @@ const email = current?.email
                   </div>
 
                   <p className="text-sm text-gray-600 dark:text-gray-300">
-                    Complete risk profiling to get suitable investment
-                    recommendations.
+                    Complete the Product Suitability Assessment to see which
+                    schemes suit your risk profile.
                   </p>
 
                   <button

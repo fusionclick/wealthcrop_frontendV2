@@ -19,7 +19,7 @@ import { Bot, Target, BarChart3, ShieldCheck, Calculator, BookOpen, MessageSquar
  * Add a section here, not to either surface.
  */
 export const ACCOUNT_LINKS = [
-  { to: "/advisor", label: "Advisor", Icon: Bot },
+  { to: "/advisor", label: "Asset Allocation", Icon: Bot },
   { to: "/goals", label: "Goals", Icon: Target },
   { to: "/reports", label: "Reports", Icon: BarChart3 },
   { to: "/user/approvals", label: "Approvals", Icon: ShieldCheck },

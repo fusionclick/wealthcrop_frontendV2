@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ResponsiveContainer } from "recharts";
 import { postApi } from "../../api/api";
@@ -35,15 +35,20 @@ export default function CompareMF() {
 
   // "isin~code,isin~code" — both halves travel because either one alone can resolve a
   // scheme, and BSE's older rows are reachable only by code.
+  // Audit #1 — Explore now puts the ISIN alone in the URL and hands the exact codes over in
+  // router state (an IDCW payout and reinvestment option can share one ISIN).
+  const location = useLocation();
+  const stateCodes = location.state?.codes;
   const picks = useMemo(() => {
     return String(params.get("funds") || "")
       .split(",")
       .map((pair) => {
         const [isin, code] = pair.split("~");
-        return { isin: (isin || "").trim(), scheme_code: (code || "").trim() };
+        const key = (isin || "").trim();
+        return { isin: key, scheme_code: (code || stateCodes?.[key] || "").trim() };
       })
       .filter((p) => p.isin || p.scheme_code);
-  }, [params]);
+  }, [params, stateCodes]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["MF_COMPARE", picks],
@@ -222,27 +227,25 @@ export default function CompareMF() {
 
       <div className="rounded-2xl border border-slate-200 dark:border-[var(--border-color)] bg-white dark:bg-[var(--card-bg)] p-5">
         <div className="flex flex-wrap items-center gap-2 mb-4">
-          {Object.keys(RANGES).map((r) => {
-            const ok = RANGES[r] === Infinity || fullSpan >= RANGES[r] * 0.9;
-            return (
+          {/* Audit #6 — a window longer than the history these funds share is not offered,
+              rather than greyed out (same rule as the fund page's chart). */}
+          {Object.keys(RANGES)
+            .filter((r) => RANGES[r] === Infinity || fullSpan >= RANGES[r] * 0.9)
+            .map((r) => (
               <button
                 key={r}
                 type="button"
-                disabled={!ok}
                 onClick={() => setRange(r)}
-                title={ok ? `Last ${r}` : `These funds share about ${(fullSpan / 365).toFixed(1)} years of history`}
+                title={`Last ${r}`}
                 className={`px-2.5 py-1 rounded-md text-xs font-medium transition ${
-                  !ok
-                    ? "bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-[var(--white-5)] dark:text-[var(--text-secondary)]"
-                    : range === r
+                  range === r
                     ? "bg-blue-600 text-white"
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-[var(--white-5)] dark:text-[var(--text-primary)]"
                 }`}
               >
                 {r}
               </button>
-            );
-          })}
+            ))}
           <div className="ml-auto inline-flex rounded-md overflow-hidden border border-slate-200 dark:border-[var(--border-color)]">
             {[["absolute", "Absolute"], ["cagr", "CAGR"]].map(([k, label]) => (
               <button
@@ -334,6 +337,7 @@ export default function CompareMF() {
               <th className="py-3 px-4 font-semibold">Since {commonStart ? fmtDate(commonStart) : "start"}</th>
               <th className="py-3 px-4 font-semibold">Expense</th>
               <th className="py-3 px-4 font-semibold">Age</th>
+              <th className="py-3 px-4 font-semibold">Lock-in</th>
               <th className="py-3 px-4 font-semibold">NAV</th>
             </tr>
           </thead>
@@ -345,7 +349,8 @@ export default function CompareMF() {
                     <span className="mt-1.5 h-2.5 w-2.5 rounded-full shrink-0" style={{ background: COLORS[i % COLORS.length] }} />
                     <div className="min-w-0">
                       <button
-                        onClick={() => navigate(fundPath(f.scheme_isin, f.scheme_bse_code))}
+                        // Audit #1 — ISIN in the address bar; the exact BSE code rides in router state.
+                        onClick={() => navigate(fundPath(f.scheme_isin, f.scheme_bse_code), { state: { code: f.scheme_bse_code } })}
                         className="text-left font-medium text-[var(--text-primary)] hover:underline"
                       >
                         {titleCase(f.name)}
@@ -361,7 +366,9 @@ export default function CompareMF() {
                 <td className="py-3 px-4 text-[var(--text-primary)]">{retOf(f, "5Y")}</td>
                 <td className="py-3 px-4 font-medium text-[var(--text-primary)]">{sinceOf(f)}</td>
                 <td className="py-3 px-4 text-[var(--text-primary)]">{f.expense ? `${f.expense}%` : "—"}</td>
-                <td className="py-3 px-4 text-[var(--text-primary)]">{fmtAge(f.ageYears) || "—"}</td>
+                <td className="py-3 px-4 text-[var(--text-primary)]">{fmtAge(f.ageYears) || "N/A"}</td>
+                {/* Audit #3 — an ELSS shows its three years here too, not only on its own page. */}
+                <td className="py-3 px-4 text-[var(--text-primary)]">{f.lockIn?.label || "N/A"}</td>
                 <td className="py-3 px-4 text-[var(--text-primary)]">{f.nav != null ? `₹${Number(f.nav).toFixed(2)}` : "—"}</td>
               </tr>
             ))}

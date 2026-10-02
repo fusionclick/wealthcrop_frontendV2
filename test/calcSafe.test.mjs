@@ -6,7 +6,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync} from "node:fs";
 import { join } from "node:path";
-import { annuityFactor, capCalcInput, clampNum, finiteOr, inr, MAX_CALC_INPUT, num } from "../src/utils/calcSafe.js";
+import { annuityFactor, blank, capCalcInput, clampNum, finiteOr, inr, MAX_CALC_INPUT, num } from "../src/utils/calcSafe.js";
 
 test("num coerces input strings and refuses anything that is not a real number", () => {
   assert.equal(num("1500"), 1500);
@@ -75,11 +75,18 @@ test("the calculators that could loop or divide by zero now use the guards", () 
   // 0% is a legitimate rate and must not be rejected as an empty field.
   assert.doesNotMatch(ppf, /!interestRate \|\|/, "0% interest must not be treated as blank");
 
-  for (const f of ["ApyCalculator", "SwpCalculator", "EducationCalculator"]) {
+  for (const f of ["ApyCalculator", "SwpCalculator"]) {
     const src = readFileSync(`src/pages/calculators/${f}.jsx`, "utf8");
     assert.match(src, /annuityFactor\(/, `${f} must use the zero-safe annuity factor`);
     assert.doesNotMatch(src, /- 1\) \/ r\)/, `${f} still divides by a rate that can be 0`);
   }
+  // Audit #67 moved the Education maths into the shared model (educationPlan), which takes the
+  // same zero-safe factor; planningTools.test.mjs runs it at 0% return.
+  const education = readFileSync("src/pages/calculators/EducationCalculator.jsx", "utf8");
+  assert.match(education, /educationPlan\(/, "EducationCalculator must use the shared model");
+  assert.doesNotMatch(education, /- 1\) \/ r\)/, "EducationCalculator still divides by a rate that can be 0");
+  const models = readFileSync("src/utils/calculators.js", "utf8");
+  assert.match(models.slice(models.indexOf("export const educationPlan")), /annuityFactor\(r, months\)/);
 
   const cagr = readFileSync("src/pages/calculators/CagrCalculator.jsx", "utf8");
   // 1/years in the exponent: a fractional term becomes a huge power and overflows.
@@ -97,6 +104,20 @@ test("a non-number never reaches the screen as one", () => {
   for (const bad of [NaN, Infinity, -Infinity, undefined, null, "abc"]) {
     assert.equal(inr(bad), "—", `${String(bad)} must not print as a number`);
   }
+});
+
+test("blank is absent — and 0 is not blank", () => {
+  for (const v of [null, undefined, "", "   "]) assert.equal(blank(v), true, `${JSON.stringify(v)} is absent`);
+  for (const v of [0, "0", 0.5, "abc", NaN]) assert.equal(blank(v), false, `${String(v)} was typed in`);
+});
+
+// Audit #69 — absent is not zero. CalcShell fed a cleared field to the models as 0, so clearing
+// "Monthly Living Expenses" printed "Fund required ₹0" — a confident answer to nothing.
+test("the planning-tool shell shows no answer until every field is filled", () => {
+  const shell = readFileSync("src/pages/calculators/CalcShell.jsx", "utf8");
+  assert.match(shell, /const incomplete = fields\.some\(\(f\) => blank\(values\[f\.key\]\)\)/);
+  assert.match(shell, /incomplete \? "—"/, "an incomplete form shows a dash in every result");
+  assert.doesNotMatch(shell, /inr\(v \|\| 0\)/, "a missing value must not be printed as ₹0");
 });
 
 test("a real number still formats normally, and zero stays zero", () => {

@@ -5,9 +5,24 @@ import { MdOutlineInfo } from "react-icons/md";
 import { useParams } from "react-router-dom";
 import StockLiveChart from "./charts/StockLiveChart";
 import OrderEntryPage from "../pages/stocks/OrderEntryPage";
-import { fetchStockDetails } from "../api/marketApi";
+import { fetchFundamentals, fetchStockDetails } from "../api/marketApi";
 import { stockLogoUrl } from "../utils/stockLogo";
 import { normalizeTvSymbol, tradingViewChartUrl } from "../utils/tradingView";
+import {
+  DASH,
+  RATIO_LINES,
+  RECOMMENDATION,
+  STATEMENT_LINES,
+  fmtCrore,
+  fmtNum,
+  fmtPct,
+  fmtPrice,
+  fmtRupee,
+  fmtVolume,
+  periodLabel,
+  stockFundamentals,
+  weekRange,
+} from "../utils/stockFacts";
 
 const StockDetails = () => {
   const { name } = useParams();
@@ -40,17 +55,39 @@ const StockDetails = () => {
     };
   }, [name]);
 
-  // ponytail: financials removed until real source exists
+  // Audit #53 — statements, ratios and analyst consensus (FR 5.3 / 5.4). The endpoint has
+  // existed all along; nothing on this page called it. Fetched once per symbol — it is
+  // cached six hours server-side and does not move with the 5-second price poll.
+  // undefined = loading, null = the provider has no coverage for this company.
+  const [fin, setFin] = useState(undefined);
+  const [finTab, setFinTab] = useState("income_statement");
+
+  useEffect(() => {
+    if (!name) return;
+    let alive = true;
+    setFin(undefined);
+    fetchFundamentals(name)
+      .then((res) => {
+        if (!alive) return;
+        const data = res?.data || null;
+        setFin(data);
+        // Open on the first section the provider actually published.
+        const first = ["income_statement", "balance_sheet", "cash_flow", "ratios"].find((k) => data?.[k]);
+        if (first) setFinTab(first);
+      })
+      .catch(() => alive && setFin(null));
+    return () => {
+      alive = false;
+    };
+  }, [name]);
+
+  const stats = stockDetails?.stats || {};
+  const analyst = fin?.analyst || null;
 
   const livePrice = stockDetails?.priceInfo?.lastPrice ?? 0;
   const pctChange = stockDetails?.priceInfo?.pChange ?? 0;
-  const marketCapDisplay =
-    stockDetails?.securityInfo?.issuedSize && livePrice
-      ? (
-          (stockDetails.securityInfo.issuedSize * livePrice) /
-          1e7
-        ).toFixed(2) + " Cr"
-      : "—";
+  // Was shares-issued × price off an NSE field nothing populated, so always "—".
+  const marketCapDisplay = fmtCrore(stats.market_cap);
 
   const chartSymbol = normalizeTvSymbol(
     stockDetails?.info?.symbol || name
@@ -64,18 +101,8 @@ const StockDetails = () => {
 
   const tradedVolume = stockDetails?.priceInfo?.totalTradedVolume;
 
-  const fundamentals = stockDetails
-    ? [
-        { label: "Market Cap", value: marketCapDisplay },
-        { label: "P/E (TTM)", value: stockDetails?.metadata?.pdSymbolPe ?? "—" },
-        { label: "EPS (TTM)", value: stockDetails?.metadata?.pdSectorPe ?? "—" },
-        { label: "ROE", value: "—" },
-        { label: "Debt/Equity", value: "—" },
-        { label: "Book Value", value: stockDetails?.priceInfo?.basePrice ?? "—" },
-        { label: "Dividend Yield", value: "—" },
-        { label: "Beta", value: "—" },
-      ]
-    : [];
+  // Audit #53 — EPS used to print the sector P/E and Book Value the day's base price.
+  const fundamentals = stockDetails ? stockFundamentals(stockDetails, fin) : [];
 
   //! Definitons
   const fundamentalsDefinitions = {
@@ -226,7 +253,7 @@ const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
       <div className="flex items-end gap-3">
         <h2 className="text-4xl font-extrabold text-slate-900 dark:text-[var(--text-primary)]">
           {/* ₹{livePrice.toFixed(2)} */}
-          ₹{Number(livePrice || 0).toFixed(2)}
+          {fmtPrice(livePrice)}
         </h2>
 
         <div
@@ -310,7 +337,7 @@ const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
         P/E Ratio
       </p>
       <p className="text-lg font-semibold dark:text-[var(--text-primary)]">
-        {stockDetails?.metadata?.pdSymbolPe}
+        {fmtNum(stats.pe)}
       </p>
     </div>
 
@@ -328,7 +355,7 @@ const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
         52W Range
       </p>
       <p className="text-sm font-semibold dark:text-[var(--text-primary)]">
-        ₹{stockDetails?.priceInfo?.weekHighLow?.min} - ₹{stockDetails?.priceInfo?.weekHighLow?.max}
+        {weekRange(stockDetails)}
       </p>
     </div>
 
@@ -346,15 +373,22 @@ const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
         Analyst Rating
       </p>
 
-      <div className="flex items-center gap-2">
-        <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold">
-          —
+      {/* Audit #53 — was a hard-coded "—" over the words "Live market data". */}
+      {analyst?.recommendation ? (
+        <div>
+          <p className="text-base font-semibold text-slate-900 dark:text-[var(--text-primary)]">
+            {RECOMMENDATION[analyst.recommendation] || analyst.recommendation}
+          </p>
+          <p className="text-xs text-slate-600 dark:text-[var(--text-secondary)]">
+            {analyst.analysts ? `${analyst.analysts} analysts` : ""}
+            {analyst.target_mean ? ` · target ${fmtRupee(analyst.target_mean)}` : ""}
+          </p>
         </div>
-
-        <div className="text-sm text-slate-700 dark:text-[var(--text-secondary)]">
-          Live market data
-        </div>
-      </div>
+      ) : (
+        <p className="text-sm text-slate-600 dark:text-[var(--text-secondary)]">
+          {fin === undefined ? "Loading…" : "No analyst coverage published"}
+        </p>
+      )}
     </div>
 
   </div>
@@ -403,7 +437,7 @@ const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
       Day High
     </p>
     <p className="font-semibold dark:text-[var(--text-primary)]">
-      ₹{stockDetails?.priceInfo?.intraDayHighLow?.max}
+      {fmtPrice(stockDetails?.priceInfo?.intraDayHighLow?.max)}
     </p>
   </div>
 
@@ -419,7 +453,7 @@ const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
       Day Low
     </p>
     <p className="font-semibold dark:text-[var(--text-primary)]">
-      ₹{stockDetails?.priceInfo?.intraDayHighLow?.min}
+      {fmtPrice(stockDetails?.priceInfo?.intraDayHighLow?.min)}
     </p>
   </div>
 </div>
@@ -450,10 +484,9 @@ const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
     <p className="text-xs text-slate-500 dark:text-[var(--text-secondary)]">
       Avg Volume (3M)
     </p>
+    {/* Audit #53 — this printed shares issued, not volume. */}
     <p className="font-semibold dark:text-[var(--text-primary)]">
-      {stockDetails?.securityInfo?.issuedSize
-        ? Math.round(stockDetails.securityInfo.issuedSize / 1e6 * 10) / 10 + "M"
-        : "—"}
+      {fmtVolume(stats.avg_volume_3m)}
     </p>
   </div>
 
@@ -469,7 +502,7 @@ const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
     <p className="text-xs text-slate-500 dark:text-[var(--text-secondary)]">
       Beta
     </p>
-    <p className="font-semibold dark:text-[var(--text-primary)]">—</p>
+    <p className="font-semibold dark:text-[var(--text-primary)]">{fmtNum(stats.beta)}</p>
   </div>
 
   {/* Dividend Yield */}
@@ -484,7 +517,7 @@ const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
     <p className="text-xs text-slate-500 dark:text-[var(--text-secondary)]">
       Dividend Yield
     </p>
-    <p className="font-semibold dark:text-[var(--text-primary)]">—</p>
+    <p className="font-semibold dark:text-[var(--text-primary)]">{fmtPct(stats.dividend_yield)}</p>
   </div>
 </aside>
 
@@ -553,7 +586,164 @@ const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
       ))}
     </div>
   </aside>
+
+  {/* ANALYST CONSENSUS — Audit #53 / FR 5.4 */}
+  <aside className="bg-white/60 backdrop-blur-sm border border-white/40 rounded-2xl p-4 shadow-md dark:bg-[var(--white-10)] dark:border-[var(--border-color)]">
+    <h4 className="text-lg font-semibold text-slate-900 dark:text-[var(--text-primary)] mb-3">
+      Analyst consensus
+    </h4>
+    {!analyst ? (
+      <p className="text-sm text-slate-500 dark:text-[var(--text-secondary)]">
+        {fin === undefined ? "Loading…" : "No analyst covering this company has published a rating."}
+      </p>
+    ) : (
+      <div className="space-y-3 text-sm">
+        <div className="flex items-baseline justify-between">
+          <span className="text-base font-semibold text-slate-900 dark:text-[var(--text-primary)]">
+            {RECOMMENDATION[analyst.recommendation] || analyst.recommendation || DASH}
+          </span>
+          <span className="text-xs text-slate-500 dark:text-[var(--text-secondary)]">
+            {analyst.analysts ? `${analyst.analysts} analysts` : ""}
+          </span>
+        </div>
+        {analyst.counts && (
+          <div className="space-y-1">
+            {[
+              ["strong_buy", "Strong buy", "bg-emerald-600"],
+              ["buy", "Buy", "bg-emerald-400"],
+              ["hold", "Hold", "bg-amber-400"],
+              ["sell", "Sell", "bg-rose-400"],
+              ["strong_sell", "Strong sell", "bg-rose-600"],
+            ].map(([key, label, tone]) => {
+              const count = Number(analyst.counts[key] || 0);
+              const total = Object.values(analyst.counts).reduce((a, b) => a + Number(b || 0), 0) || 1;
+              return (
+                <div key={key} className="flex items-center gap-2 text-xs">
+                  <span className="w-20 text-slate-600 dark:text-[var(--text-secondary)]">{label}</span>
+                  <div className="flex-1 h-2 rounded bg-slate-100 dark:bg-[var(--gray-800)] overflow-hidden">
+                    <div className={`h-2 ${tone}`} style={{ width: `${(count / total) * 100}%` }} />
+                  </div>
+                  <span className="w-5 text-right text-slate-700 dark:text-[var(--text-primary)]">{count}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {analyst.target_mean && (
+          <div className="pt-2 border-t border-slate-200 dark:border-[var(--border-color)] text-xs space-y-1">
+            <div className="flex justify-between text-slate-600 dark:text-[var(--text-secondary)]">
+              <span>Target price (mean)</span>
+              <span className="font-semibold text-slate-900 dark:text-[var(--text-primary)]">{fmtRupee(analyst.target_mean)}</span>
+            </div>
+            <div className="flex justify-between text-slate-600 dark:text-[var(--text-secondary)]">
+              <span>Range</span>
+              <span>
+                {fmtRupee(analyst.target_low)} – {fmtRupee(analyst.target_high)}
+              </span>
+            </div>
+            {livePrice > 0 && (
+              <div className="flex justify-between text-slate-600 dark:text-[var(--text-secondary)]">
+                <span>vs today</span>
+                <span className={analyst.target_mean >= livePrice ? "text-emerald-600" : "text-rose-600"}>
+                  {analyst.target_mean >= livePrice ? "+" : ""}
+                  {(((analyst.target_mean - livePrice) / livePrice) * 100).toFixed(1)}%
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+        <p className="text-[11px] text-slate-400 dark:text-[var(--text-secondary)]">
+          Consensus of brokerage analysts as published by Yahoo Finance. Not advice from WealthCrop.
+        </p>
+      </div>
+    )}
+  </aside>
 </section>
+
+        {/* FINANCIALS — Audit #53 / FR 5.3: income statement, balance sheet, cash flow, ratios */}
+      <section className="bg-white/60 backdrop-blur-sm border border-white/40 rounded-2xl p-4 lg:p-6 shadow-md dark:bg-[var(--white-10)] dark:border-[var(--border-color)]">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-[var(--text-primary)]">Financials</h3>
+          {fin && (
+            <div className="flex flex-wrap gap-2">
+              {[
+                ["income_statement", "Income statement"],
+                ["balance_sheet", "Balance sheet"],
+                ["cash_flow", "Cash flow"],
+                ["ratios", "Key ratios"],
+              ]
+                .filter(([key]) => fin[key] && (Array.isArray(fin[key]) ? fin[key].length : Object.keys(fin[key]).length))
+                .map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setFinTab(key)}
+                    className={`px-3 py-1 rounded-lg text-xs font-medium ${
+                      finTab === key
+                        ? "bg-blue-600 text-white"
+                        : "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-[var(--text-secondary)]"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+            </div>
+          )}
+        </div>
+
+        {fin === undefined ? (
+          <p className="text-sm text-slate-500 dark:text-[var(--text-secondary)]">Loading financials…</p>
+        ) : !fin ? (
+          <p className="text-sm text-slate-500 dark:text-[var(--text-secondary)]">
+            No published financial statements for this company.
+          </p>
+        ) : finTab === "ratios" ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {RATIO_LINES.filter(([key]) => fin.ratios?.[key] != null).map(([key, label, format]) => (
+              <div key={key} className="p-3 rounded-md bg-white border border-gray-100 dark:bg-[var(--white-5)] dark:border-[var(--border-color)]">
+                <p className="text-xs text-slate-500 dark:text-[var(--text-secondary)]">{label}</p>
+                <p className="font-semibold dark:text-[var(--text-primary)]">{format(fin.ratios[key])}</p>
+              </div>
+            ))}
+          </div>
+        ) : !(fin[finTab] || []).length ? (
+          <p className="text-sm text-slate-500 dark:text-[var(--text-secondary)]">Not published for this company.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-slate-500 dark:text-[var(--text-secondary)]">
+                  <th className="py-2 pr-4 font-medium">₹ crore</th>
+                  {fin[finTab].map((p) => (
+                    <th key={p.period_ending} className="py-2 pr-4 font-medium text-right whitespace-nowrap">
+                      {periodLabel(p.period_ending)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {(STATEMENT_LINES[finTab] || [])
+                  .filter(([key]) => fin[finTab].some((p) => p[key] != null))
+                  .map(([key, label]) => (
+                    <tr key={key} className="border-t border-slate-100 dark:border-[var(--border-color)]">
+                      <td className="py-2 pr-4 text-slate-700 dark:text-[var(--text-secondary)] whitespace-nowrap">{label}</td>
+                      {fin[finTab].map((p) => (
+                        <td key={p.period_ending} className="py-2 pr-4 text-right text-slate-900 dark:text-[var(--text-primary)] whitespace-nowrap">
+                          {p[key] == null ? DASH : fmtCrore(p[key]).replace(/^₹| Cr$/g, "")}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {fin && (
+          <p className="mt-3 text-[11px] text-slate-400 dark:text-[var(--text-secondary)]">
+            Annual figures as published by Yahoo Finance. A line the company does not report is shown as “—”.
+          </p>
+        )}
+      </section>
 
 
         {/* MARKET DEPTH */}
@@ -686,9 +876,11 @@ const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
       About {stockDetails?.info?.companyName ?? name}
     </h3>
 
+    {/* Audit #53 — `industry` defaults to the word "Equity" server-side, which made this read
+        "operates in the Equity sector". Only a real industry from the provider is printed. */}
     <p className="text-sm leading-relaxed text-slate-700 dark:text-[var(--text-secondary)]">
-      {stockDetails?.industryInfo?.industry
-        ? `${stockDetails.info?.companyName} operates in the ${stockDetails.industryInfo.industry} sector on NSE.`
+      {stats.industry
+        ? `${stockDetails.info?.companyName} is listed on NSE and operates in ${stats.industry}${stats.sector ? ` (${stats.sector} sector)` : ""}.`
         : loading
           ? "Loading company info…"
           : "Company details will appear when market data is available."}
@@ -704,10 +896,10 @@ const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
         "
       >
         <p className="text-xs text-slate-500 dark:text-[var(--text-secondary)]">
-          Parent Organisation
+          Sector
         </p>
         <p className="font-semibold dark:text-[var(--text-primary)]">
-          {stockDetails?.info?.companyName ?? "—"}
+          {stats.sector || DASH}
         </p>
       </div>
 
@@ -722,7 +914,7 @@ const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
         <p className="text-xs text-slate-500 dark:text-[var(--text-secondary)]">
           Headquarters
         </p>
-        <p className="font-semibold dark:text-[var(--text-primary)]">India</p>
+        <p className="font-semibold dark:text-[var(--text-primary)]">{stats.headquarters || DASH}</p>
       </div>
     </div>
   </div>
@@ -742,6 +934,8 @@ const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
       Quick Links
     </h4>
 
+    {/* Audit #53 — these were three links to "#". NSE's own company page carries the
+        results, shareholding pattern and announcements they promised. */}
     <ul className="flex flex-col gap-2">
       <li>
         <a
@@ -749,33 +943,11 @@ const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
             text-slate-700 hover:underline
             dark:text-[var(--text-secondary)]
           "
-          href="#"
+          href={`https://www.nseindia.com/get-quotes/equity?symbol=${encodeURIComponent(yahooSymbol)}`}
+          target="_blank"
+          rel="noopener noreferrer"
         >
-          Quarterly results
-        </a>
-      </li>
-
-      <li>
-        <a
-          className="
-            text-slate-700 hover:underline
-            dark:text-[var(--text-secondary)]
-          "
-          href="#"
-        >
-          Shareholding pattern
-        </a>
-      </li>
-
-      <li>
-        <a
-          className="
-            text-slate-700 hover:underline
-            dark:text-[var(--text-secondary)]
-          "
-          href="#"
-        >
-          Corporate announcements
+          Results, shareholding &amp; announcements on NSE ↗
         </a>
       </li>
     </ul>

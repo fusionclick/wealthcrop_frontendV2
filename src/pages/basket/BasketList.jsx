@@ -64,7 +64,7 @@ export default function BasketList({ baskets }) {
           text-slate-600 dark:text-[var(--text-secondary)]
         "
           >
-            Explore expert-curated investment baskets designed for stable and
+            Explore Curated Mutual Fund Baskets designed for stable and
             long-term wealth creation.
           </p>
 

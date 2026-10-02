@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { passwordLoginSchema, otpLoginSchema } from "../utils/FormSchema";
+import { passwordLoginSchema, otpLoginSchema, loginIdentity } from "../utils/FormSchema";
 import { toastError, toastSuccess } from "../utils/notifyCustom";
 import { useDispatch } from "react-redux";
 import { login } from "../redux/authenticationSlice";
@@ -83,7 +83,8 @@ function LoginPage() {
   const onSubmit = async (data) => {
   if (loginMode === "password") { 
     const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_USER_LOGIN}`;
-    const res = await postApi(url, data)
+    // Audit #37 — the box holds an email or the verified mobile; send whichever it is.
+    const res = await postApi(url, { ...loginIdentity(data.email), password: data.password })
 
     if(res?.status === 200 || res?.status === true){
           // localStorage.setItem("token", res?.token)
@@ -154,7 +155,7 @@ if (!otpSent) {
   const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_SEND_OTP}`;
   try {
     // 📨 Step 1: Send OTP API call
-    const res = await postApi(url, { email: data.email }); // change payload key if API expects something else
+    const res = await postApi(url, loginIdentity(data.email));
 
     if (res.status === 200 || res.status === true) {
       // ponytail: never trust/store OTP from API body in prod (SMS path)
@@ -187,7 +188,7 @@ if (!otpSent) {
 
       try {
         const url = `${import.meta.env.VITE_URL}${import.meta.env.VITE_VERIFY_OTP}`
-        const res = await postApi(url, { email: data.email, otp: enteredOtp })
+        const res = await postApi(url, { ...loginIdentity(data.email), otp: enteredOtp })
         if(res?.status === 200 || res?.status === true){
           // localStorage.setItem("token", res?.token)
           localStorage.setItem("username", res?.data?.name)
@@ -272,13 +273,13 @@ if (!otpSent) {
       {/* Email */}
       <div>
         <label className="block text-sm font-medium text-blue-950 dark:text-gray-200 mb-1">
-          Email
+          Email or mobile number
         </label>
         <input
           {...register("email")}
-          type="email"
-          autoComplete="email"
-          placeholder="Enter your email"
+          type="text"
+          autoComplete="username"
+          placeholder="Email, or the mobile you verified"
           className="w-full border border-gray-300 dark:border-white/10 bg-white dark:bg-white/5 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-700 text-blue-950 dark:text-gray-100 placeholder:text-gray-400"
           required
         />
@@ -370,6 +371,12 @@ if (!otpSent) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Local dev only: the server returns the OTP there (no SMS provider yet), and a dev
+          build is the only place this state is ever filled. */}
+      {loginMode === "otp" && otpSent && saveOTP && (
+        <p className="text-center text-xs text-amber-700 dark:text-amber-300">Local dev only — your OTP is {saveOTP}</p>
+      )}
 
       {/* Submit Button */}
       <button
