@@ -190,3 +190,10 @@ test("#49: orders read in one state model, and a pending purchase can be cancell
   assert.match(approved, /r\.state === "approved" && r\.usable && r\.intent/);
   assert.match(approved, /disabled=\{!disc\.ready \|\| placing !== null\}/, "Place now must wait for the acknowledgement");
 });
+
+// A demo email must satisfy the same KYC and suitability rules as every investor.
+test("the former demo account cannot bypass investor readiness", async () => {
+  const { validateInvestorReady } = await import("../src/utils/nodeApi.js");
+  assert.match(validateInvestorReady({ email: "rminhal783@gmail.com" }), /KYC not complete/);
+  assert.match(validateInvestorReady({ email: "rminhal783@gmail.com", kyc: { ucc_code: "REAL", kyc_status: "pending" } }), /verification pending/);
+});
