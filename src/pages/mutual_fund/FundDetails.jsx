@@ -1484,9 +1484,12 @@ const pctOf = (key) => {
       Tax Implication
     </p>
     <p className="text-[var(--text-secondary)] text-sm mt-1 leading-relaxed">
-      If you redeem within two years, returns are taxed as per your Income
-      Tax slab. If you redeem after two years, returns exceeding ₹1.25
-      lakh in a financial year are taxed at 12.5%.
+      Tax treatment depends on the fund's tax classification, purchase date,
+      holding period and your tax status. Review the scheme's current tax
+      disclosures and the{" "}
+      <a href="https://www.incometaxindia.gov.in/en/sale-of-shares" target="_blank" rel="noopener noreferrer" className="underline">
+        Income Tax Department guidance
+      </a>.
     </p>
   </div>
 </div>
