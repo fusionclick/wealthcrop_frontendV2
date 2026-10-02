@@ -2,13 +2,6 @@ import React from "react";
 import { motion } from "framer-motion";
 
 const AboutSection = () => {
-  const stats = [
-    { label: "5000+", text: "Happy Investors" },
-    { label: "₹200 Cr+", text: "Assets Managed" },
-    { label: "24/7", text: "Portfolio Tracking" },
-    { label: "99.9%", text: "Secure Transactions" },
-  ];
-
   return (
     <section
   id="about"
@@ -40,36 +33,6 @@ const AboutSection = () => {
     From beginners to experienced investors, our platform empowers you with
     tools, analytics and Curated Mutual Fund Baskets to invest with confidence.
   </motion.p>
-
-  {/* Stats Section */}
-  <motion.div
-    initial={{ opacity: 0, y: 50 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.8 }}
-    viewport={{ once: false }}
-    className="mt-8 flex flex-wrap justify-center gap-8"
-  >
-    {stats.map((item, i) => (
-      <motion.div
-        key={i}
-        whileHover={{ scale: 1.05 }}
-        className="
-          w-64 p-6 rounded-xl
-          bg-white dark:bg-[#020617]
-          shadow-md dark:shadow-white/5
-          border-t-4 border-red-600
-          border border-transparent dark:border-white/10
-        "
-      >
-        <h3 className="text-3xl font-bold text-blue-950 dark:text-gray-100">
-          {item.label}
-        </h3>
-        <p className="text-gray-600 dark:text-gray-400 mt-2">
-          {item.text}
-        </p>
-      </motion.div>
-    ))}
-  </motion.div>
 
   {/* Extra Info Section */}
   <div className="mt-20 grid md:grid-cols-3 gap-10 max-w-6xl mx-auto text-left">

@@ -12,3 +12,10 @@ test("SPA HTML is never served from a stale browser cache", () => {
   const nginx = readFileSync("deploy/nginx.conf", "utf8");
   assert.match(nginx, /Cache-Control "no-store"/);
 });
+
+test("BSE proxy uses the backend private address for HTTP and sockets", () => {
+  const nginx = readFileSync("deploy/nginx.conf", "utf8");
+  assert.match(nginx, /proxy_pass http:\/\/172\.31\.10\.161:3000\/api\/;/);
+  assert.match(nginx, /proxy_pass http:\/\/172\.31\.10\.161:3000\/api\/socket\.io;/);
+  assert.doesNotMatch(nginx, /13\.203\.216\.202/);
+});
