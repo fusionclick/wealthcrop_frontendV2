@@ -1,3 +1,5 @@
+import { titleCase } from "../utils/schemeName";
+
 export default function FundCard({ fund }) {
   return (
  <div
@@ -17,7 +19,7 @@ export default function FundCard({ fund }) {
         dark:text-[var(--text-primary)]
       "
     >
-      {fund.name}
+      {titleCase(fund.name)}
     </p>
 
     <p

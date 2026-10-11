@@ -74,7 +74,7 @@ const SIPs = () => {
       {sips.length === 0 ? (
         <div className="min-h-[400px] flex flex-col justify-center items-center space-y-5">
           <img src={emptySip} className="w-72 opacity-90" alt="" />
-          <h1 className="text-2xl font-semibold dark:text-[var(--text-primary)]">No SIPs yet</h1>
+          <h1 className="text-2xl font-semibold dark:text-[var(--text-primary)]">No systematic plans yet</h1>
           <p className="text-slate-500 dark:text-[var(--text-secondary)] text-sm">
             When you start an SIP, it will appear here.
           </p>
@@ -88,7 +88,7 @@ const SIPs = () => {
       ) : (
         <>
           <div className="mb-6">
-            <h1 className="text-xl font-semibold dark:text-[var(--text-primary)]">Your SIPs</h1>
+            <h1 className="text-xl font-semibold dark:text-[var(--text-primary)]">Your Systematic Plans</h1>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             {sips.map((sip) => {

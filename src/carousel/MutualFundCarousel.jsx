@@ -28,7 +28,7 @@ function MutualFundCarousel() {
 
   const { data: fundData } = useQuery({
     queryKey: ["ticker-funds"],
-    queryFn: () => postApi(nodeUrl(import.meta.env.VITE_GET_ALL_FUNDS || "/master-scheme-list"), { start: 0, length: 25 }),
+    queryFn: () => postApi(nodeUrl(import.meta.env.VITE_GET_ALL_FUNDS || "/master-scheme-list"), { start: 0, length: 25, plan: "regular" }),
     enabled: mode === "funds",
     staleTime: 120_000,
   });

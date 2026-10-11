@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Trash2, Plus, FileUp } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import { deleteApiWithToken, getApiWithToken, postApi, postApiWithToken } from "../../api/api";
 import { externalTotals, laravelUrl, navForDate, navLooksPlausible, nodeUrl, unitsFor } from "../../utils/nodeApi";
 import { useNavMap, liveNav } from "../../utils/navSocket";
@@ -10,9 +11,10 @@ import FundDashboardSkeleton from "../../components/ui/skeleton/main/FundDashboa
 import HoldingSheet from "../../components/mutual_fund/HoldingSheet";
 import CasImport from "../../components/mutual_fund/CasImport";
 import usePortfolios, { holdingKey } from "../../hooks/usePortfolios";
+import { titleCase } from "../../utils/schemeName";
 
 const EXTERNAL_URL = () => laravelUrl(import.meta.env.VITE_EXTERNAL_MF || "/portfolio/mf/external");
-const money = (n) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+const money = (n) => n == null ? "—" : `₹${Number(n).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 const EMPTY = { units: "", invested_amount: "", folio: "", source: "", purchased_at: "" };
 // Aaj se aage ki tareekh purchase date nahi ho sakti. en-CA isi liye — YYYY-MM-DD local mein,
 // toISOString UTC deta hai to IST ki raat ko ek din peeche chala jata.
@@ -24,6 +26,11 @@ const ExternalMF = () => {
   const [form, setForm] = useState(EMPTY);
   const [showForm, setShowForm] = useState(false);
   const [showCas, setShowCas] = useState(false);
+  // Client 2026-10-09 — the menu's "CAS Upload" lands here with ?cas=1 and opens the import.
+  const [params] = useSearchParams();
+  useEffect(() => {
+    if (params.get("cas") === "1") setShowCas(true);
+  }, [params]);
   const [schemeText, setSchemeText] = useState("");
   const [schemeQuery, setSchemeQuery] = useState("");
   const [error, setError] = useState("");
@@ -62,7 +69,7 @@ const ExternalMF = () => {
   const extKey = (row) => holdingKey(row, "external");
 
   const navOf = (row) =>
-    liveNav({ scheme_isin: row.scheme_isin, scheme_bse_code: row.scheme_bse_code, nav: row.nav }, navs);
+    liveNav(row, navs);
   const totals = useMemo(() => externalTotals(rows, navOf), [rows, navs]);
 
   // ponytail: published NAV catalogue/AMFI se lao — Assets−Liabilities formula AMC calculate karti hai
@@ -153,6 +160,8 @@ const ExternalMF = () => {
       // NAV bhi save hoti hai: AMFI kuch schemes publish nahi karta aur socket map usi
       // par bana hai — warna aisi holding ki current value hamesha "—" rehti.
       nav: pickedNav,
+      nav_source: "catalogue",
+      nav_date: picked.nav_date || null,
       units,
       invested_amount: Number(form.invested_amount),
       purchased_at: form.purchased_at || null,
@@ -201,16 +210,15 @@ const ExternalMF = () => {
         <Card label="Invested" value={money(totals.invested)} />
         <Card
           label="P&amp;L"
-          value={`${totals.pnl >= 0 ? "+" : ""}${money(totals.pnl)}`}
-          tone={totals.pnl >= 0 ? "text-emerald-600" : "text-red-500"}
+          value={totals.pnl == null ? "—" : `${totals.pnl >= 0 ? "+" : ""}${money(totals.pnl)}`}
+          tone={totals.pnl == null ? "" : totals.pnl >= 0 ? "text-emerald-600" : "text-red-500"}
         />
-        <Card label="Returns" value={`${totals.pnlPct.toFixed(2)}%`} />
+        <Card label="Returns" value={totals.pnlPct == null ? "—" : `${totals.pnlPct.toFixed(2)}%`} />
       </div>
 
       {totals.priced < rows.length && (
         <p className="text-[11px] text-amber-600 mb-4">
-          {rows.length - totals.priced} holding(s) ki NAV nahi mili — un ki current value invested
-          ke barabar dikh rahi hai. Fund ko list se chun kar dobara add karo.
+          {rows.length - totals.priced} holding(s) ki current NAV unavailable hai — total current value aur P&amp;L unavailable hain.
         </p>
       )}
 
@@ -327,19 +335,19 @@ const ExternalMF = () => {
                 key={row.id}
                 role="button"
                 tabIndex={0}
-                onClick={() => setOpenHolding({ ...row, name: row.scheme_name, nav, current: value ?? inv })}
+                onClick={() => setOpenHolding({ ...row, name: row.scheme_name, nav, current: value })}
                 onKeyDown={(e) =>
                   (e.key === "Enter" || e.key === " ") &&
-                  setOpenHolding({ ...row, name: row.scheme_name, nav, current: value ?? inv })
+                  setOpenHolding({ ...row, name: row.scheme_name, nav, current: value })
                 }
                 className="p-4 rounded-lg border bg-white dark:bg-[var(--white-10)] dark:border-[var(--border-color)] flex justify-between gap-3 cursor-pointer hover:border-slate-300 hover:shadow-sm transition"
               >
                 <div className="min-w-0">
-                  <p className="font-medium text-sm truncate">{row.scheme_name}</p>
+                  <p className="font-medium text-sm truncate">{titleCase(row.scheme_name)}</p>
                   <div className="flex flex-wrap items-center gap-1 mt-0.5">
                     {nav == null && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
-                        NAV fetch pending — list se dubara add karo
+                        Current NAV unavailable
                       </span>
                     )}
                     {nav != null && !ok && (
@@ -354,9 +362,12 @@ const ExternalMF = () => {
                     {row.folio ? ` · Folio ${row.folio}` : ""}
                     {row.source ? ` · ${row.source}` : ""}
                   </p>
+                  {row.nav_source === "statement" && row.nav > 0 && (
+                    <p className="text-[11px] text-slate-500">Statement NAV ₹{Number(row.nav).toFixed(2)}{row.nav_date ? ` · ${String(row.nav_date).slice(0, 10)}` : " · date unavailable"}</p>
+                  )}
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="font-semibold text-sm">{value == null ? money(inv) : money(value)}</p>
+                  <p className="font-semibold text-sm">{money(value)}</p>
                   <p className="text-[11px] text-slate-500">Invested {money(inv)}</p>
                   {pnl != null ? (
                     <p className={`text-xs ${pnl >= 0 ? "text-emerald-600" : "text-red-500"}`}>
@@ -364,7 +375,7 @@ const ExternalMF = () => {
                       {money(pnl)}
                     </p>
                   ) : (
-                    <p className="text-[11px] text-amber-600">P&amp;L after units fix</p>
+                    <p className="text-[11px] text-amber-600">P&amp;L unavailable</p>
                   )}
                   <button
                     onClick={(e) => {

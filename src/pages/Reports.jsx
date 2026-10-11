@@ -17,6 +17,7 @@ import {
   toCsv,
   unrealisedFromLots,
 } from "../utils/taxlots";
+import { titleCase } from "../utils/schemeName";
 
 /**
  * SRS §11 — Statements of Account, Profit and Loss, and Capital Gain reports.
@@ -405,7 +406,7 @@ export default function Reports() {
           rows={statementFy.map((r) => [
             isoDay(r.date),
             <span key="s" className="block max-w-[220px] truncate" title={r.scheme_name}>
-              {r.scheme_name}
+              {titleCase(r.scheme_name)}
               {r.folio ? <span className="block text-[10px] text-slate-400">Folio {r.folio}</span> : null}
             </span>,
             r.dividend ? (
@@ -429,7 +430,7 @@ export default function Reports() {
             head={["Scheme", "Bought", "Sold", "Units", "Cost", "Proceeds", "Gain", "Term"]}
             rows={realisedFy.map((r) => [
               <span key="s" className="block max-w-[200px] truncate" title={r.scheme_name}>
-                {r.scheme_name}
+                {titleCase(r.scheme_name)}
               </span>,
               isoDay(r.buy_date),
               isoDay(r.sell_date),
@@ -461,7 +462,7 @@ export default function Reports() {
                 return (
                   <div key={sellId} className="mb-3">
                     <p className="text-xs font-medium text-slate-600 dark:text-[#94a3b8]">
-                      Sold {isoDay(sale.sell_date)} · {sale.scheme_name}
+                      Sold {isoDay(sale.sell_date)} · {titleCase(sale.scheme_name)}
                     </p>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {lots.map((l) => {
@@ -494,7 +495,7 @@ export default function Reports() {
           head={["Scheme", "Bought", "Units", "Cost NAV", "Current NAV", "Cost", "Value", "Gain"]}
           rows={unrealised.map((r) => [
             <span key="s" className="block max-w-[200px] truncate" title={r.scheme_name}>
-              {r.scheme_name}
+              {titleCase(r.scheme_name)}
             </span>,
             isoDay(r.buy_date),
             units(r.units),

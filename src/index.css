@@ -18,22 +18,6 @@
   }
 }
 
-
-@keyframes marquee {
-  0% {
-    transform: translateX(100%);
-  }
-  100% {
-    transform: translateX(-100%);
-  }
-}
-
-.animate-marquee {
-  display: inline-flex;
-  white-space: nowrap;
-  animation: marquee 65s linear infinite;
-}
-
 html, body {
   overflow-x: hidden;
 }
@@ -145,14 +129,24 @@ select option {
   }
 }
 
-/* For marque top header */
+/* For marque top header. The strip is rendered twice, so 0 → -50% loops seamlessly.
+   Client 2026-10-09: "smooth 60s loop" — this used to be 18s, and a duplicate 65s block above
+   was silently overridden by it. Paused on hover so a ticker link can actually be clicked. */
 @keyframes marquee {
   0% { transform: translateX(0); }
   100% { transform: translateX(-50%); }
 }
 
 .animate-marquee {
-  animation: marquee 18s linear infinite;
+  animation: marquee 60s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee { animation: none; }
 }
 
 

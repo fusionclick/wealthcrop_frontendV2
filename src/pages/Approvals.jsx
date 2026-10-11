@@ -1,6 +1,7 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getApiWithToken } from "../api/api";
+import { titleCase } from "../utils/schemeName";
 
 /**
  * SRS §4 — transactions held for authorisation.
@@ -72,7 +73,7 @@ export default function Approvals() {
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
                       <div className="truncate text-sm font-medium text-gray-900 dark:text-[var(--text-primary)]">
-                        {r.scheme_name || r.scheme_code}
+                        {titleCase(r.scheme_name) || r.scheme_code}
                       </div>
                       <div className="mt-0.5 text-[11px] text-gray-500 dark:text-[var(--text-secondary)]">
                         {KIND[r.kind] || r.kind} · {money(r.amount)}

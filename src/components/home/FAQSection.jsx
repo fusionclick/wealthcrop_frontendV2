@@ -140,20 +140,10 @@ const handleRedirect = (url)=>{
           Contact Support
         </button>
 
-        <button
-          onClick={() => handleRedirect("/support")}
-          className="
-            w-full py-2 rounded-lg font-medium
-            bg-gray-200 hover:bg-gray-300
-            dark:bg-white/10 dark:hover:bg-white/15
-            text-blue-950 dark:text-gray-100
-          "
-        >
-          Live Chat
-        </button>
-
+        {/* A "Live Chat" button here only opened /support again — there was no chat behind
+            it. The WhatsApp chat box (FloatingContact) is the chat now. */}
         <a
-          href="mailto:support@wealthcrop.co?subject=Help%20request"
+          href="mailto:support@wealthcrop.in?subject=%5BOther%5D%20Help%20request"
           className="
             block text-center
             w-full py-2 rounded-lg font-medium

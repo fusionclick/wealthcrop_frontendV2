@@ -37,16 +37,16 @@ const BottomHeader = () => {
 
   const tabs = [
     {
-      key: "stocks",
-      label: "Stocks",
-      icon: <PiChartLineUpFill size={20} />,
-      path: "/user/stocks/explore",
-    },
-    {
       key: "funds",
       label: "Funds",
       icon: <FaChartPie size={19} />,
       path: "/user/mutual_fund/explore",
+    },
+    {
+      key: "stocks",
+      label: "Stocks & F&O",
+      icon: <PiChartLineUpFill size={20} />,
+      path: "/user/stocks/explore",
     },
     {
       key: "baskets",

@@ -18,7 +18,6 @@ import { normalizeTvSymbol } from "../../utils/tradingView";
 import { toastSuccess } from "../../utils/notifyCustom";
 
 
-const WATCHLIST_KEY = "wealthcrop_watchlist";
 const STOCKS_CACHE_KEY = "wealthcrop_explore_stocks";
 
 const loadCachedStocks = () => {
@@ -34,15 +33,6 @@ const saveCachedStocks = (rows) => {
     localStorage.setItem(STOCKS_CACHE_KEY, JSON.stringify(rows));
   } catch {
     // ignore quota errors
-  }
-};
-
-const saveToWatchlist = (symbol) => {
-  const sym = String(symbol || "").toUpperCase();
-  if (!sym) return;
-  const list = JSON.parse(localStorage.getItem(WATCHLIST_KEY) || "[]");
-  if (!list.includes(sym)) {
-    localStorage.setItem(WATCHLIST_KEY, JSON.stringify([...list, sym]));
   }
 };
 
@@ -92,7 +82,8 @@ const Explore = () => {
   const [isSticky, setIsSticky] = useState(false);
   const [activeTab, setActiveTab] = useState("Gainers");
   const [hoveredRow, setHoveredRow] = useState(null);
-  const [isWatchlist, setIsWatchlist] = useState(false)
+  // Client 2026-10-09 — the symbol waiting to be filed into one of several watchlists.
+  const [watchSymbol, setWatchSymbol] = useState(null)
   // const [stockList, setStockList] = useState(null)
 
       const [open, setOpen] = useState(false);
@@ -308,8 +299,7 @@ const stockList =  useSelector((state) => state.stocks.stockList)
    const [bookmarked, setBookmarked] = useState({});
 
   const toggleBookmark = (index, symbol) => {
-    setIsWatchlist(true);
-    if (symbol) saveToWatchlist(symbol);
+    if (symbol) setWatchSymbol(String(symbol).toUpperCase());
     setBookmarked((prev) => ({
       ...prev,
       [index]: !prev[index],
@@ -775,7 +765,7 @@ const stockList =  useSelector((state) => state.stocks.stockList)
           <img src={topInvest} alt="" />
           <p className="mt-5">You haven’t invested yet</p>
           <Link to="/user/stocks/holdings" className="mt-3 text-xs text-emerald-600 font-medium">
-            Link Kotak / Holdings
+            Link Broker / Holdings
           </Link>
         </>
       ) : (
@@ -1224,7 +1214,7 @@ const stockList =  useSelector((state) => state.stocks.stockList)
       </div>
 
     {
-      isWatchlist && <WatchlistPopup onClose={() => setIsWatchlist(false)} />
+      watchSymbol && <WatchlistPopup symbol={watchSymbol} onClose={() => setWatchSymbol(null)} />
     }
 
 

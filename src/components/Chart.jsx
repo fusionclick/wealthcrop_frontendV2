@@ -21,7 +21,7 @@ ChartJS.register(
   Legend
 );
 
-export default function Chart({ type, data }) {
+export default function Chart({ type, data, labels = ["Equity", "Debt", "Commodity"] }) {
   if (type === "line") {
     return (
       <Line
@@ -49,11 +49,11 @@ export default function Chart({ type, data }) {
     return (
       <Pie
         data={{
-          labels: ["Equity", "Debt", "Commodity"],
+          labels,
           datasets: [
             {
               data: data,
-              backgroundColor: ["#2563eb", "#3b82f6", "#60a5fa"],
+              backgroundColor: ["#2563eb", "#3b82f6", "#60a5fa", "#f59e0b", "#94a3b8"],
             },
           ],
         }}

@@ -96,6 +96,7 @@ export default function PortfolioInsights({ allocation = [], funds = [], stocks 
       <div className={card}>
         <p className="text-sm font-semibold text-slate-900 dark:text-[var(--text-primary)]">Asset allocation{scopeLabel ? ` · ${scopeLabel}` : ""}</p>
         <p className={muted}>At market value — funds at the latest NAV, stocks at live prices.</p>
+        {funds.some((f) => fundValue(f) == null) && <p className={muted}>Unpriced funds are excluded; allocation covers valued holdings only.</p>}
         {allocation.length === 0 ? (
           <p className="text-sm text-slate-500 dark:text-[var(--text-secondary)] mt-4">Nothing to allocate in this view.</p>
         ) : (

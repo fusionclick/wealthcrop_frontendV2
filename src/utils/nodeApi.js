@@ -1,3 +1,5 @@
+import { fundValue, fundPortfolioValue } from "./portfolioAnalytics.js";
+
 /** Build Node BSE proxy URLs — production: same-origin HTTPS `/api/bse` (nginx → Node). */
 export const nodeUrl = (path = "") => {
   // ponytail: never fall back to Laravel /api/internal on wealthcrop.co.in — that is SPA territory
@@ -166,9 +168,8 @@ export const validateInvestorReady = (investorData, minAmount = 0, amount = 0, f
  */
 export const calcAbsoluteReturn = (funds = []) => {
   const invested = funds.reduce((a, f) => a + (Number(f.inv_amo) || 0), 0);
-  // Same rule as the dashboard: value the units where a NAV is known, and fall back to cost
-  // where it is not, so an unpriced scheme reads as no change rather than as a total loss.
-  const value = funds.reduce((a, f) => a + (Number(f.current_value) || Number(f.inv_amo) || 0), 0);
+  const value = fundPortfolioValue(funds);
+  if (value == null) return null;
   if (!invested) return "0.00";
   return (((value - invested) / invested) * 100).toFixed(2);
 };
@@ -278,6 +279,9 @@ export const mergePortfolio = (laravelOrders = [], bseHoldings = []) => {
       }
       prev.inv_amo += Number(f.inv_amo) || 0;
       prev.units += Number(f.units) || 0;
+      const previousValue = fundValue(prev);
+      const nextValue = fundValue(f);
+      prev.current_value = previousValue == null || nextValue == null ? null : previousValue + nextValue;
       // Prefer a folio over an empty one — Redeem and Switch both refuse without it.
       if (!prev.folio && f.folio) prev.folio = f.folio;
       if (Number(f.nav) > 0) prev.nav = Number(f.nav);
@@ -296,8 +300,7 @@ export const mergePortfolio = (laravelOrders = [], bseHoldings = []) => {
 
 /**
  * External holdings ke totals. `navOf(row)` NAV deta hai (socket map se) — jis row ki
- * NAV na mile uski current value invested ke barabar rakhi jaati hai, warna P&L jhoot
- * bolta hai. `priced` batata hai kitni rows par asli NAV lagi.
+ * Missing NAV leaves valuation unknown. `priced` counts holdings with usable NAV.
  */
 export const navLooksPlausible = (invested, units, nav) => {
   const inv = Number(invested);
@@ -402,6 +405,8 @@ export const casHoldingPayload = (row = {}) => ({
   scheme_bse_code: row.scheme_bse_code || "",
   scheme_category: row.scheme_category || "",
   nav: Number(row.nav) > 0 ? Number(row.nav) : null,
+  nav_source: row.nav_source || "statement",
+  nav_date: row.nav_date || null,
   units: Number(row.units),
   invested_amount: Number(row.invested_amount) || 0,
   folio: row.folio || "",
@@ -420,11 +425,12 @@ export const externalTotals = (rows = [], navOf = () => null) => {
     const ok = navLooksPlausible(inv, units, nav);
     const value = ok ? units * nav : null;
     invested += inv;
-    current += value == null ? inv : value;
+    current += value ?? 0;
     if (value != null) priced += 1;
   });
-  const pnl = current - invested;
-  return { invested, current, pnl, pnlPct: invested ? (pnl / invested) * 100 : 0, priced };
+  if (priced < rows.length) current = null;
+  const pnl = current == null ? null : current - invested;
+  return { invested, current, pnl, pnlPct: pnl == null ? null : invested ? (pnl / invested) * 100 : 0, priced };
 };
 
 /** Amount ko supplied current/purchase NAV se 4-decimal units mein badlo. */
@@ -462,6 +468,7 @@ export const navForDate = (series = [], date = "") => {
  */
 export const combinePortfolio = (internal = [], external = [], navOf = () => null) => {
   const map = new Map();
+  const sumValues = (a, b) => a == null || b == null ? null : a + b;
   // Merged row dono splits mein poora gin liya jaye to Internal + External kabhi total
   // ke barabar nahi hote. Is liye har side ka hissa yahan alag jama hota hai.
   const tally = {
@@ -479,7 +486,7 @@ export const combinePortfolio = (internal = [], external = [], navOf = () => nul
       m.set(p.source, {
         source: p.source,
         invested: prev.invested + p.invested,
-        current: prev.current + p.current,
+        current: sumValues(prev.current, p.current),
         units: (prev.units || 0) + (p.units || 0) || null,
         nav: prev.nav ?? p.nav,
         folio: prev.folio || p.folio,
@@ -495,7 +502,7 @@ export const combinePortfolio = (internal = [], external = [], navOf = () => nul
     map.set(row.key, {
       ...prev,
       invested: prev.invested + row.invested,
-      current: prev.current + row.current,
+      current: sumValues(prev.current, row.current),
       units: (prev.units || 0) + (row.units || 0) || null,
       nav: prev.nav ?? row.nav,
       // Internal side ISIN nahi bhejta, external bhejta hai — merge par jo mile wo rakho.
@@ -513,12 +520,13 @@ export const combinePortfolio = (internal = [], external = [], navOf = () => nul
   internal.forEach((f, i) => {
     const invested = Number(f.inv_amo) || 0;
     const pct = Number(f.ret_percentage) || 0;
-    const current = invested + (invested * pct) / 100;
+    const current = f.current_value !== undefined || f.current !== undefined
+      ? fundValue(f) : f.ret_percentage != null ? invested + (invested * pct) / 100 : null;
     const units = Number(f.units) || null;
     const nav = Number(f.nav) || null;
     const folio = f.folio || "";
     tally.internal.invested += invested;
-    tally.internal.current += current;
+    tally.internal.current = sumValues(tally.internal.current, current);
     tally.internal.count += 1;
     add({
       key: keyOf(f.scheme_bse_code, f.scheme_name, `i${i}`),
@@ -532,8 +540,8 @@ export const combinePortfolio = (internal = [], external = [], navOf = () => nul
       scheme_bse_code: f.scheme_bse_code || "",
       // Row par dono identifiers rakho — Invest more ka URL inhi se banta hai.
       scheme_isin: f.scheme_isin || "",
-      parts: [{ source: "internal", invested, current, units, nav, folio, priced: true }],
-      priced: true,
+      parts: [{ source: "internal", invested, current, units, nav, folio, priced: current != null }],
+      priced: current != null,
     });
   });
 
@@ -541,15 +549,15 @@ export const combinePortfolio = (internal = [], external = [], navOf = () => nul
     const invested = Number(r.invested_amount) || 0;
     const units = Number(r.units) || 0;
     const rawNav = Number(navOf(r));
-    // NAV na mile / cost se bilkul match na kare to current = invested — warna P&L jhoot bolta hai.
+    // Missing or inconsistent prices leave valuation unknown.
     const ok = navLooksPlausible(invested, units, rawNav);
     const value = ok ? units * rawNav : null;
-    const current = value == null ? invested : value;
+    const current = value;
     // published NAV display ke liye rakho chahe P&L skip ho
     const nav = Number.isFinite(rawNav) && rawNav > 0 ? rawNav : null;
     const folio = r.folio || "";
     tally.external.invested += invested;
-    tally.external.current += current;
+    tally.external.current = sumValues(tally.external.current, current);
     tally.external.count += 1;
     add({
       key: keyOf(r.scheme_bse_code || r.scheme_isin, r.scheme_name, `e${i}`),
@@ -572,14 +580,14 @@ export const combinePortfolio = (internal = [], external = [], navOf = () => nul
   const withPnl = ({ invested, current, count }) => ({
     invested,
     current,
-    pnl: current - invested,
-    pnlPct: invested ? ((current - invested) / invested) * 100 : 0,
+    pnl: current == null ? null : current - invested,
+    pnlPct: current == null ? null : invested ? ((current - invested) / invested) * 100 : 0,
     count,
   });
 
   // ponytail: merged row nahi — har external part ginna jiska NAV missing/galat hai
   const unpriced = rows.reduce(
-    (n, r) => n + r.parts.filter((p) => p.source === "external" && !p.priced).length,
+    (n, r) => n + r.parts.filter((p) => !p.priced).length,
     0
   );
 
@@ -587,7 +595,7 @@ export const combinePortfolio = (internal = [], external = [], navOf = () => nul
     rows,
     totals: withPnl({
       invested: rows.reduce((a, r) => a + r.invested, 0),
-      current: rows.reduce((a, r) => a + r.current, 0),
+      current: rows.reduce((a, r) => sumValues(a, r.current), 0),
       count: rows.length,
     }),
     internal: withPnl(tally.internal),

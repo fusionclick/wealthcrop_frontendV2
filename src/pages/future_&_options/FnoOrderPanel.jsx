@@ -37,10 +37,10 @@ const FnoOrderPanel = ({ instrument, onClose }) => {
         validity: "DAY",
       });
       if (res?.status === true) {
-        toastSuccess(res.message || `${side} order placed on Kotak`);
+        toastSuccess(res.message || `${side} order placed with your broker`);
         onClose?.();
       } else if (res?.needs_setup) {
-        toastError(res.message || "Link Kotak MPIN + TOTP in Holdings first");
+        toastError(res.message || "Link your broker MPIN + TOTP in Holdings first");
       } else {
         toastError(res?.message || `${side} order failed`);
       }

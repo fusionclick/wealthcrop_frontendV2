@@ -79,6 +79,14 @@ const FundDetails = () => {
   // SRS §11 — declared IDCW history. Uploaded by an admin from the AMC's declaration:
   // nothing this platform reads publishes it, and inferring it from NAV drops would
   // report a bad market day as a dividend. Empty is the normal answer for a growth plan.
+  const { data: factsheet = null } = useQuery({
+    queryKey: ["schemeFactsheet", isin, code],
+    queryFn: () => getApi(`${import.meta.env.VITE_URL}/scheme-factsheet?isin=${encodeURIComponent(isin || "")}&code=${encodeURIComponent(code || "")}`),
+    select: (res) => res?.data || null,
+    enabled: Boolean(isin || code),
+    staleTime: 1000 * 60 * 30,
+  });
+
   const { data: dividends = [] } = useQuery({
     queryKey: ["schemeDividends", isin, code],
     queryFn: () =>
@@ -1276,6 +1284,17 @@ const pctOf = (key) => {
         </div>
       ) : null}
 
+      <div className="bg-[var(--white-10)] border border-[var(--border-color)] rounded-2xl p-6 max-w-4xl mt-10">
+        <h2 className="text-2xl font-semibold mb-2 text-[var(--text-primary)]">Monthly Factsheet</h2>
+        {factsheet ? (
+          <>
+            <p className="text-sm text-[var(--text-secondary)] mb-3">AMC disclosure as of {fmtDate(factsheet.as_of)}.</p>
+            <a href={factsheet.url} target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] underline">Open or download PDF</a>
+            <iframe title="Monthly AMC factsheet PDF" src={factsheet.url} className="w-full h-[520px] mt-4 rounded-lg" />
+          </>
+        ) : <p className="text-sm text-[var(--text-secondary)]">The monthly AMC factsheet has not been uploaded for this scheme yet.</p>}
+      </div>
+
       {/* SRS §11 — dividend history.
           QA 7.12 said "couldn't find this feature". It was built end to end, but rendered
           only when declarations existed — so an IDCW plan whose declarations an admin has
@@ -1288,6 +1307,7 @@ const pctOf = (key) => {
           <h2 className="text-2xl font-semibold mb-1 text-[var(--text-primary)]">Dividend History</h2>
           <p className="text-xs text-[var(--text-secondary)] mb-4">
             IDCW declared by the AMC. Past distributions are not a promise of future ones.
+            If a new disclosure is unavailable, the last recorded declarations remain visible with their verification dates; NAV drops are never treated as dividends.
           </p>
           {dividends.length === 0 ? (
             <p className="text-sm text-[var(--text-secondary)]">
@@ -1302,6 +1322,7 @@ const pctOf = (key) => {
                   <th className="py-2 pr-4 text-right font-medium">Per unit</th>
                   <th className="py-2 pr-4 text-right font-medium">NAV</th>
                   <th className="py-2 text-right font-medium">Type</th>
+                  <th className="py-2 text-left font-medium">Source / verified</th>
                 </tr>
               </thead>
               <tbody>
@@ -1315,6 +1336,10 @@ const pctOf = (key) => {
                       {d.nav_on_record_date ? `₹${Number(d.nav_on_record_date).toFixed(4)}` : "—"}
                     </td>
                     <td className="py-2 text-right capitalize text-[var(--text-secondary)]">{d.kind}</td>
+                    <td className="py-2 pl-3 text-xs text-[var(--text-secondary)]">
+                      {d.source_url ? <a className="underline" href={d.source_url} target="_blank" rel="noopener noreferrer">AMC declaration</a> : "Source link unavailable"}
+                      <br />{d.confirmed_at ? fmtDate(d.confirmed_at) : "Verification date unavailable"}
+                    </td>
                   </tr>
                 ))}
               </tbody>

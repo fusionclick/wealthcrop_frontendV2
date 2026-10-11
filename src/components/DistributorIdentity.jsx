@@ -24,7 +24,11 @@ import { nodeUrl } from "../utils/nodeApi";
  * of registration — worse than an absent line, which is merely incomplete. The absence is
  * loud in the console instead, so an unconfigured deployment is noticed.
  */
-export default function DistributorIdentity({ className = "" }) {
+/**
+ * The same server answer for anything else that states the registration (the homepage trust
+ * strip). null while loading; empty strings when not configured — print nothing then.
+ */
+export function useDistributorIdentity() {
   const [info, setInfo] = useState(null);
 
   useEffect(() => {
@@ -35,14 +39,29 @@ export default function DistributorIdentity({ className = "" }) {
         const data = res?.data?.data || res?.data;
         setInfo({
           line: String(data?.distributor?.line || ""),
+          arn: String(data?.distributor?.arn || ""),
+          entity: String(data?.distributor?.legal_entity || ""),
+          validFrom: String(data?.distributor?.valid_from || ""),
+          validUntil: String(data?.distributor?.valid_until || ""),
+          address: String(data?.distributor?.address || ""),
+          termsUrl: String(data?.distributor?.terms_url || ""),
+          privacyUrl: String(data?.distributor?.privacy_url || ""),
+          charterUrl: String(data?.distributor?.charter_url || ""),
+          commissionUrl: String(data?.commission_url || ""),
           regularPlan: String(data?.disclaimers?.regular_plan_commission || ""),
         });
       })
-      .catch(() => live && setInfo({ line: "", regularPlan: "" }));
+      .catch(() => live && setInfo({ line: "", arn: "", entity: "", regularPlan: "" }));
     return () => {
       live = false;
     };
   }, []);
+
+  return info;
+}
+
+export default function DistributorIdentity({ className = "" }) {
+  const info = useDistributorIdentity();
 
   if (!info) return null;
 
@@ -57,6 +76,8 @@ export default function DistributorIdentity({ className = "" }) {
     <div className={`text-gray-700 dark:text-gray-300 ${className}`} style={{ fontSize: 16, lineHeight: 1.5 }}>
       {/* §1.A.1 — legal entity | AMFI-registered Mutual Fund Distributor | ARN */}
       <p className="font-semibold">{info.line}</p>
+      {info.validFrom && info.validUntil ? <p>ARN validity: {info.validFrom} to {info.validUntil}</p> : null}
+      {info.address ? <p>Registered office: {info.address}</p> : null}
       {/* §1.A.2 — the Regular Plan and trail commission disclosure. */}
       {info.regularPlan ? <p className="mt-1">{info.regularPlan}</p> : null}
     </div>

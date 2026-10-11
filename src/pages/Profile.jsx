@@ -337,24 +337,10 @@ const email = current?.email
   </div>
 </div>
 
-          {/* BALANCE */}
-          <div className="flex items-center gap-3 px-4 py-3
-                          border-b border-gray-100 dark:border-slate-700">
-            <IndianRupee size={18} className="text-gray-600 dark:text-gray-400" />
-            <div>
-              <p className="font-medium text-gray-900 dark:text-gray-100">
-                ₹0.00
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Stocks, F&O balance
-              </p>
-            </div>
-          </div>
-
           {/* LINKS */}
           <div className="py-2">
             {[
-              { to: "/user/order/stocks", icon: <FileText size={18} />, label: "All Orders" },
+              { to: "/user/order/mutual-funds", icon: <FileText size={18} />, label: "All Orders" },
               { to: "/support", icon: <Headphones size={18} />, label: "24 × 7 Customer Support" },
                {
     to: "/profile/basic",
@@ -407,6 +393,16 @@ const email = current?.email
                   <span>{label}</span>
                 </Link>
               ))}
+              {/* Client 2026-10-09 — after every mutual-fund option, for stock traders only. */}
+              <Link
+                to="/user/balance"
+                className="flex items-center gap-3 px-4 py-2
+                           text-gray-800 dark:text-gray-200
+                           hover:bg-gray-50 dark:hover:bg-slate-800 dark:bg-white/5"
+              >
+                <IndianRupee size={18} />
+                <span>Margin with Broker</span>
+              </Link>
             </div>
           </div>
 

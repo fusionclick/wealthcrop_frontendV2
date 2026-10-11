@@ -29,8 +29,18 @@ export const fundBucket = (category = "", name = "") => {
   return "Other";
 };
 
-/** What a fund holding is worth now; one the feed could not price stays at cost, never 0. */
-export const fundValue = (f) => Number(f?.current_value) || Number(f?.inv_amo) || 0;
+/** Unknown valuation is not investment cost; an explicit zero remains a real value. */
+export const fundValue = (f) => {
+  const raw = f?.current_value !== undefined ? f.current_value : f?.current;
+  if (raw == null || raw === "") return null;
+  const value = Number(raw);
+  return Number.isFinite(value) && value >= 0 ? value : null;
+};
+
+export const fundPortfolioValue = (funds = []) => {
+  const values = funds.map(fundValue);
+  return values.some((v) => v == null) ? null : values.reduce((sum, v) => sum + v, 0);
+};
 
 export const stockValue = (s) => (Number(s?.qty) || 0) * (Number(s?.ltp) || 0);
 

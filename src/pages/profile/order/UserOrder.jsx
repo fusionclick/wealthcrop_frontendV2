@@ -3,10 +3,12 @@ import { NavLink, Outlet } from 'react-router-dom'
 
 const UserOrder = () => {
 
+    // Client 2026-10-09 — Mutual Funds first, then Stocks and F&O. ("Others" waits for an
+    // order type that is not one of these three; none exists yet.)
     const headerItems = [
+  { name: "Mutual Funds", link: "mutual-funds" },
   { name: "Stocks", link: "stocks" },
   { name: "F&O", link: "futures-and-options" },
-  { name: "Mutual Funds", link: "mutual-funds" },
     ]
 
 

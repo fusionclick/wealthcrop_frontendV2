@@ -9,10 +9,11 @@ import Combo, { fieldClass } from "../../components/ui/Combo";
 import OrderDisclaimers, { useDisclaimers } from "../../components/mutual_fund/OrderDisclaimers";
 import SxpSchedule, { useSxpSchedule } from "../../components/mutual_fund/SxpSchedule";
 import { buildSxpIntent, sxpIntentError, retireReplacedPlan } from "../../utils/sxp";
+import { titleCase } from "../../utils/schemeName";
 
 // Folio isi liye label mein hai — ek hi scheme kai folios mein ho sakti hai,
 // aur switch hamesha ek folio se nikalta hai.
-const holdingLabel = (h) => `${h.scheme_name || "Fund"}${h.folio ? ` · ${h.folio}` : ""}`;
+const holdingLabel = (h) => `${titleCase(h.scheme_name) || "Fund"}${h.folio ? ` · ${h.folio}` : ""}`;
 
 const SwitchMF = () => {
   const navigate = useNavigate();
@@ -237,6 +238,7 @@ const SwitchMF = () => {
             mem_ord_ref_id: res.data?.items?.[0]?.mem_ord_ref_id || memRef,
             scheme_name: selectedDest.name,
             scheme_bse_code: destCode,
+            scheme_isin: selectedDest.scheme_isin || selectedDest.isin,
             inv_amo: switchAll ? selectedSource.inv_amo : Number(amount),
             folio: selectedSource.folio,
             order_type: "switch",

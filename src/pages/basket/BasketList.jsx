@@ -1,42 +1,41 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-// import BasketCard from "../../components/BasketCard";
-// import basket_dashboard from "../../assets/basket/basket_dashboard.png"
-import basket_dashboard from "../../assets/basket/basket_dashboard.png"
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import basket_dashboard from "../../assets/basket/basket_dashboard.png";
 import BasketCard from "./BasketCard";
+import BasketBuilderModal from "./BasketBuilderModal";
 import { getApiWithToken } from "../../api/api";
+import { useDistributorIdentity } from "../../components/DistributorIdentity";
 
-export default function BasketList({ baskets }) {
+// Client 2026-10-09 — category tabs. Curated baskets carry their `kind` from the server;
+// anything an investor built is a Custom basket (older rows have no kind at all).
+const TABS = [
+  ["all", "All"],
+  ["goal_based", "Goal-Based"],
+  ["thematic", "Thematic"],
+  ["asset_allocation", "Asset Allocation"],
+  ["custom", "Custom Baskets"],
+];
+const kindOf = (b) => (b?.is_curated && b?.kind ? b.kind : "custom");
 
-  console.log("Received baskets:", baskets);
-  
-  const [loading, setLoading] = useState(false)
-  const [filter, setFilter] = useState("All");
+export default function BasketList({ baskets: initial }) {
+  const [tab, setTab] = useState("all");
+  const [building, setBuilding] = useState(false);
+  const qc = useQueryClient();
+  const info = useDistributorIdentity();
 
-  const categories = ["All", "Equity", "Hybrid", "Debt", "Commodity"];
-  // const allBaskets = [...baskets,...basket]
+  // Read here rather than only from App's one-off fetch, so a basket created in the modal
+  // shows up without a reload.
+  const { data: baskets = Array.isArray(initial) ? initial : [] } = useQuery({
+    queryKey: ["baskets"],
+    queryFn: () => getApiWithToken(`${import.meta.env.VITE_URL}/baskets`).then((res) => res?.data?.data ?? []),
+    initialData: Array.isArray(initial) && initial.length ? initial : undefined,
+  });
 
-  // Pehle ye `b.category === filter` tha. `baskets.category` column kabhi set hi nahi
-  // hoti (createBasket sirf name/description/status likhta hai), is liye har chip par
-  // "No baskets found" aata tha. Sawal waise bhi ye hai ke basket ke ANDAR koi equity
-  // fund hai ya nahi — aur wo holdings se aata hai, jo API ab `categories` mein deti hai.
-  const categoriesOf = (b) =>
-    (Array.isArray(b?.categories) ? b.categories : [b?.category])
-      .filter(Boolean)
-      .map((c) => String(c).split("•")[0].trim().toLowerCase());
-
-  const filtered = (Array.isArray(baskets) ? baskets : []).filter(
-    (b) => filter === "All" || categoriesOf(b).includes(filter.toLowerCase())
-  );
+  const filtered = baskets.filter((b) => tab === "all" || kindOf(b) === tab);
+  const label = TABS.find(([k]) => k === tab)?.[1];
 
   return (
-    <div
-      className="
-    min-h-screen px-12 py-8
-    bg-[#f3f7fb]
-    dark:bg-[var(--app-bg)]
-  "
-    >
+    <div className="min-h-screen px-4 sm:px-12 py-8 bg-[#f3f7fb] dark:bg-[var(--app-bg)]">
       {/*  LIGHT / DARK BANNER */}
       <div
         className="
@@ -49,126 +48,57 @@ export default function BasketList({ baskets }) {
     "
       >
         <div className="max-w-lg">
-          <h1
-            className="
-          text-3xl font-bold leading-tight
-          text-blue-900 dark:text-[var(--text-primary)]
-        "
-          >
-            Mutual Fund Baskets
-          </h1>
-
-          <p
-            className="
-          mt-2 text-[15px] leading-relaxed
-          text-slate-600 dark:text-[var(--text-secondary)]
-        "
-          >
-            Explore Curated Mutual Fund Baskets designed for stable and
-            long-term wealth creation.
+          <h1 className="text-3xl font-bold leading-tight text-blue-900 dark:text-[var(--text-primary)]">Mutual Fund Baskets</h1>
+          <p className="mt-2 text-[15px] leading-relaxed text-slate-600 dark:text-[var(--text-secondary)]">
+            Curated Mutual Fund Baskets, or build your own from 2 to 5 schemes.
           </p>
-
-          <Link to="/create-basket">
-            <button
-              className="
-            mt-5 px-6 py-2.5 rounded-lg shadow transition
-            bg-blue-500 text-white hover:bg-blue-600
-          "
-            >
-              + Create Basket
-            </button>
-          </Link>
+          <button
+            type="button"
+            onClick={() => setBuilding(true)}
+            className="mt-5 px-6 py-2.5 rounded-lg shadow transition bg-blue-500 text-white hover:bg-blue-600"
+          >
+            + Create Basket
+          </button>
         </div>
-
-        {/* ILLUSTRATION */}
-        <img
-          src={basket_dashboard}
-          className="w-36 opacity-80 hidden sm:block"
-          alt="Investment"
-        />
+        <img src={basket_dashboard} className="w-36 opacity-80 hidden sm:block" alt="Investment" />
       </div>
 
-      {/* CATEGORY CHIPS */}
-      <div className="flex gap-3 mb-6 flex-wrap">
-        {categories.map((cat) => (
+      {/* CATEGORY TABS */}
+      <div className="flex gap-3 mb-6 flex-wrap" role="tablist">
+        {TABS.map(([key, text]) => (
           <button
-            key={cat}
-            onClick={() => setFilter(cat)}
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={tab === key}
+            onClick={() => setTab(key)}
             className={`px-4 py-1.5 rounded-full text-sm font-medium transition border ${
-              filter === cat
+              tab === key
                 ? "bg-blue-500 text-white border-blue-500"
-                : `
-              bg-white text-slate-700 border-[#d2dae3] hover:bg-blue-50
-              dark:bg-[var(--white-5)]
-              dark:text-[var(--text-primary)]
-              dark:border-[var(--border-color)]
-              dark:hover:bg-blue-500/15
-            `
+                : "bg-white text-slate-700 border-[#d2dae3] hover:bg-blue-50 dark:bg-[var(--white-5)] dark:text-[var(--text-primary)] dark:border-[var(--border-color)] dark:hover:bg-blue-500/15"
             }`}
           >
-            {cat}
+            {text}
           </button>
         ))}
       </div>
 
       {/* EMPTY STATE */}
       {filtered.length === 0 && (
-        <div
-          className="
-        bg-white rounded-xl shadow-md border border-[#e0e7ef]
-        p-10 text-center max-w-lg mx-auto
-
-        dark:bg-[var(--card-bg)]
-        dark:border-[var(--border-color)]
-      "
-        >
-          <img
-            src="https://cdn-icons-png.flaticon.com/512/4076/4076549.png"
-            className="w-24 mx-auto mb-4 opacity-80"
-            alt="Empty"
-          />
-
-          <h2
-            className="
-          text-xl font-semibold
-          text-slate-800 dark:text-[var(--text-primary)]
-        "
-          >
-            {filter === "All" ? "No baskets found" : `No ${filter} baskets`}
+        <div className="bg-white rounded-xl shadow-md border border-[#e0e7ef] p-10 text-center max-w-lg mx-auto dark:bg-[var(--card-bg)] dark:border-[var(--border-color)]">
+          <h2 className="text-xl font-semibold text-slate-800 dark:text-[var(--text-primary)]">
+            {tab === "all" ? "No baskets yet" : `No ${label} baskets yet`}
           </h2>
-
-          {/* Filter lagne par bhi yahi "apna pehla basket banaiye" likha aata tha,
-              halanke baskets mojood hain — bas is category mein nahi. */}
-          <p
-            className="
-          mt-1 text-sm
-          text-gray-500 dark:text-[var(--text-secondary)]
-        "
-          >
-            {filter === "All"
-              ? "Start by creating your first custom basket."
-              : `None of your baskets hold a ${filter.toLowerCase()} fund.`}
+          <p className="mt-1 text-sm text-gray-500 dark:text-[var(--text-secondary)]">
+            {tab === "custom" || tab === "all" ? "Build your own basket from 2 to 5 schemes." : "Curated baskets of this kind will appear here once published."}
           </p>
-
-          {filter === "All" ? (
-            <Link to="/create-basket">
-              <button
-                className="
-            mt-5 px-6 py-3 rounded-xl shadow transition
-            bg-blue-500 text-white hover:bg-blue-600
-          "
-              >
-                + Create Basket
-              </button>
-            </Link>
-          ) : (
-            <button
-              onClick={() => setFilter("All")}
-              className="mt-5 px-6 py-3 rounded-xl shadow transition bg-blue-500 text-white hover:bg-blue-600"
-            >
-              Show all baskets
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setBuilding(true)}
+            className="mt-5 px-6 py-3 rounded-xl shadow transition bg-blue-500 text-white hover:bg-blue-600"
+          >
+            + Create Basket
+          </button>
         </div>
       )}
 
@@ -178,6 +108,16 @@ export default function BasketList({ baskets }) {
           <BasketCard key={basket.id} basket={basket} />
         ))}
       </div>
+
+      {/* Client 2026-10-09 — mandatory, persistent footnote. The entity and ARN are the
+          server's (Admin → Settings), never typed into the bundle. */}
+      <p className="mt-10 rounded-xl border border-slate-200 dark:border-[var(--border-color)] bg-white dark:bg-[var(--card-bg)] p-4 text-xs leading-relaxed text-slate-600 dark:text-[var(--text-secondary)]">
+        Mutual Fund Baskets are pre-configured execution tools provided solely for user convenience.{" "}
+        {info?.entity || "Wealthcrop"}
+        {info?.arn ? ` (${info.arn})` : ""} operates as an AMFI-registered Mutual Fund Distributor offering Regular Plans.
+      </p>
+
+      {building && <BasketBuilderModal onClose={() => setBuilding(false)} onCreated={() => qc.invalidateQueries({ queryKey: ["baskets"] })} />}
     </div>
   );
 }

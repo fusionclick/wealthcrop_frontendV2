@@ -52,7 +52,12 @@ test("the stock page reads stats and fundamentals, not the empty NSE fields", ()
   assert.doesNotMatch(page, /pdSectorPe|basePrice|issuedSize|pdSymbolPe/, "a tile still reads an NSE field nothing fills");
   assert.match(page, /fetchFundamentals\(name\)/, "the fundamentals endpoint must actually be called");
   assert.match(page, /fmtVolume\(stats\.avg_volume_3m\)/, "Avg Volume (3M) must be a volume");
-  assert.match(page, /analyst\?\.recommendation/, "the analyst tile must read the consensus");
+  assert.match(page, /RECOMMENDATION\[analyst\.recommendation\]/, "the analyst card must read the consensus");
+  // Client 2026-10-09 — one analyst card, below Financials and away from Buy/Sell, carrying
+  // the third-party disclaimer in its header.
+  assert.ok(page.search(/>\s*Analyst consensus\s*</) > page.search(/>Financials<\/h3>/), "the analyst card must sit below Financials");
+  assert.equal((page.match(/RECOMMENDATION\[/g) || []).length, 1, "the header analyst tile beside Buy/Sell is back");
+  assert.match(page, /Wealthcrop does not provide stock recommendations or price targets/);
   assert.doesNotMatch(page, /Live market data/, "the hard-coded analyst placeholder is back");
   assert.doesNotMatch(page, /href="#"/, "dead links are back");
 });
@@ -70,9 +75,13 @@ test("Explore no longer labels the gainers list as news or as most valuable", ()
 test("an unpriced row reads — on every stock list, never ₹0 or +0%", () => {
   const list = code("src/pages/stocks/StockList.jsx");
   assert.match(list, /item\.price \? `\$\{item\.percent >= 0 \? "\+" : ""\}\$\{item\.percent\.toFixed\(2\)\}%` : "—"/);
+  // Client 2026-10-09 — the watchlist is a table of several columns now; every number goes
+  // through one formatter that prints "—" for anything not above zero.
   const watch = code("src/pages/stocks/Watchlist.jsx");
   assert.doesNotMatch(watch, /₹\{item\.price\}/);
-  assert.match(watch, /Number\(item\.price\) > 0 \? `₹\$\{item\.price\}` : "—"/);
+  assert.match(watch, /const num = \(v, dp = 2\) => \(Number\(v\) > 0 \? [\s\S]+? : "—"\);/);
+  assert.match(watch, /\{num\(q\.lastPrice\)\}/);
+  assert.match(watch, /priced \? `\$\{ch >= 0 \? "\+" : ""\}\$\{ch\.toFixed\(2\)\}%` : "—"/);
 });
 
 test("the markets page shows rupee rates and is honest that news is not connected", () => {

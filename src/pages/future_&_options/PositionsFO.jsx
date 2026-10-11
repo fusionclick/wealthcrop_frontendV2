@@ -22,11 +22,11 @@ const PositionsFO = () => {
     <div className="w-full max-w-7xl mx-auto px-4 py-6">
       <h1 className="text-2xl font-bold text-slate-900 dark:text-white">F&amp;O Positions</h1>
       <p className="mb-6 text-sm text-slate-500 dark:text-slate-400">
-        Live positions from your linked Kotak Neo account
+        Live positions from your linked broker account
       </p>
 
       {loading && positions.length === 0 && (
-        <p className="py-8 text-center text-sm text-slate-500">Loading Kotak positions…</p>
+        <p className="py-8 text-center text-sm text-slate-500">Loading positions…</p>
       )}
       {!loading && positions.length === 0 && (
         <p className="py-8 text-center text-sm text-slate-500">No open F&amp;O positions found.</p>

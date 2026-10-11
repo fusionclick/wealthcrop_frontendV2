@@ -44,7 +44,7 @@ const SipCalculator = () => {
   );
   // The same model the chart has always drawn, so the bars and the headline agree.
   const growth = useMemo(() => sipSeries({ monthly, years, cagr }), [monthly, years, cagr]);
-  const grown = growth.at(-1);
+  const grown = growth[growth.length - 1];
   const data =
     mode === "goal"
       ? result.series

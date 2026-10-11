@@ -25,8 +25,24 @@ const faqs = [
   },
 ];
 
+const SUPPORT_EMAIL = "support@wealthcrop.in";
+const INVEST_EMAIL = "invest@wealthcrop.in";
+const CATEGORIES = ["Account & KYC", "Bank or nominee update", "SIP / STP / SWP", "Purchase or redemption", "Statements & tax", "Stocks & F&O", "Other"];
+const field =
+  "mt-1 w-full rounded-lg border border-gray-300 dark:border-[var(--border-color)] bg-white dark:bg-[var(--white-5)] px-3 py-2 text-sm text-gray-900 dark:text-[var(--text-primary)]";
+
 const Support = () => {
   const [openIndex, setOpenIndex] = useState(null);
+  const [form, setForm] = useState({ who: "existing", category: "", subject: "", message: "" });
+  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  // The category is the first thing in the subject, so the desk can sort without opening it.
+  const sendMail = (e) => {
+    e.preventDefault();
+    const to = form.who === "new" ? INVEST_EMAIL : SUPPORT_EMAIL;
+    const subject = `[${form.category}] ${form.subject.trim()}`;
+    window.location.href = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(form.message)}`;
+  };
 
   const toggleFAQ = (index) => {
     setOpenIndex(openIndex === index ? null : index);
@@ -66,38 +82,65 @@ const Support = () => {
       koi onClick hi nahi tha. Helpline number aur email dono template ki baqiyat thay:
       na number hamara tha, na email ka domain. Live chat ke peeche koi backend bhi nahi
       hai. Jo cheez waqai mojood hai sirf wahi rehne di gayi hai. */}
-  <div className="max-w-md mx-auto mb-10">
+  {/* Client 2026-10-09 — two addresses (existing investors → support@, new investors →
+      invest@) and a short form whose category goes into the subject line, mandatory.
+      ponytail: the form opens the visitor's own mail app (mailto:) — there is no contact
+      endpoint, and a complaint already has its own tracked route (/support/complaint). */}
+  <div id="contact" className="max-w-2xl mx-auto mb-10 scroll-mt-24">
     <div
       className="
         bg-white shadow-md rounded-xl p-6
-        flex flex-col items-center text-center
-        hover:shadow-lg transition
 
         dark:bg-[var(--card-bg)] dark:border-2 dark:border-[var(--border-color)]
       "
     >
-      <div className="bg-purple-100 text-purple-600 p-3 rounded-full mb-3 dark:bg-purple-500/15 dark:text-purple-400">
-        <Mail size={28} />
+      <div className="flex items-center gap-3 mb-4">
+        <div className="bg-purple-100 text-purple-600 p-3 rounded-full dark:bg-purple-500/15 dark:text-purple-400">
+          <Mail size={24} />
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold text-blue-950 dark:text-[var(--text-primary)]">Write to us</h3>
+          <p className="text-gray-600 text-sm dark:text-[var(--text-secondary)]">
+            Existing investors: <a className="font-medium text-blue-700 dark:text-blue-400" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>
+            {" · "}New investors: <a className="font-medium text-blue-700 dark:text-blue-400" href={`mailto:${INVEST_EMAIL}`}>{INVEST_EMAIL}</a>
+          </p>
+        </div>
       </div>
 
-      <h3 className="text-lg font-semibold text-blue-950 dark:text-[var(--text-primary)]">
-        Email Us
-      </h3>
-
-      <p className="text-gray-600 text-sm mt-1 dark:text-[var(--text-secondary)]">
-        Send us your query and we’ll get back soon.
-      </p>
-
-      <p className="font-medium text-blue-950 mt-2 text-sm dark:text-[var(--text-primary)]">
-        support@wealthcrop.co
-      </p>
-
-      <a
-        href="mailto:support@wealthcrop.co?subject=Help%20request"
-        className="mt-4 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
-      >
-        Send Email
-      </a>
+      <form onSubmit={sendMail} className="grid gap-3 sm:grid-cols-2">
+        <label className="text-sm text-gray-700 dark:text-[var(--text-secondary)]">
+          I am
+          <select required value={form.who} onChange={set("who")} className={field}>
+            <option value="existing">An existing investor</option>
+            <option value="new">A new investor</option>
+          </select>
+        </label>
+        <label className="text-sm text-gray-700 dark:text-[var(--text-secondary)]">
+          Category of support
+          <select required value={form.category} onChange={set("category")} className={field}>
+            <option value="">Choose one</option>
+            {CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-sm text-gray-700 dark:text-[var(--text-secondary)] sm:col-span-2">
+          Subject
+          <input required value={form.subject} onChange={set("subject")} maxLength={120} className={field} placeholder="e.g. SIP debit did not happen" />
+        </label>
+        <label className="text-sm text-gray-700 dark:text-[var(--text-secondary)] sm:col-span-2">
+          Message
+          <textarea required rows={4} value={form.message} onChange={set("message")} className={field} />
+        </label>
+        <div className="sm:col-span-2 flex flex-wrap items-center gap-3">
+          <button type="submit" className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition">
+            Send
+          </button>
+          <span className="text-xs text-gray-500 dark:text-[var(--text-secondary)]">Opens your email app with the subject “[{form.category || "Category"}] …”.</span>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -161,7 +204,7 @@ const Support = () => {
       Raise a complaint
     </Link>
     <a
-      href="mailto:support@wealthcrop.co?subject=Help%20request"
+      href="mailto:support@wealthcrop.in?subject=%5BOther%5D%20Help%20request"
       className="inline-block mt-4 ml-3 text-blue-700 dark:text-blue-400 text-sm font-medium underline underline-offset-2"
     >
       Or email us a general question

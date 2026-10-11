@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Target, Plus, Pencil, Trash2, TrendingUp, Wallet, Link2 } from "lucide-react";
 import { deleteApiWithToken, getApiWithToken, postApiWithToken, putApiWithToken } from "../api/api";
-import { laravelUrl, nodeUrl, mergePortfolio, mapXspToSip, xspItems } from "../utils/nodeApi";
+import { laravelUrl, nodeUrl, mergePortfolio, mapXspToSip, xspItems, fundSipPath, MF_EXPLORE_PATH } from "../utils/nodeApi";
 import { linkedValue, linksOverlap, planVsActual, splitBudget } from "../utils/goals";
 import { toastError, toastSuccess } from "../utils/notifyCustom";
+import { titleCase } from "../utils/schemeName";
 
 /**
  * SRS §8.2 and §12.5 — Goal Setting, Progress Tracking, Goal Progress Alerts.
@@ -42,6 +44,9 @@ const BLANK = {
   monthly_contribution: "",
   saved_amount: "",
   expected_return: 12,
+  // Client 2026-10-09 — Inflation Adjuster: the target is in today's money; the server grows
+  // it to the target date at this rate before judging progress and the monthly needed.
+  inflation_pct: 6,
 };
 
 // Audit #59 — the budget is one number the investor types; kept per browser and per login,
@@ -155,6 +160,7 @@ export default function Goals() {
       monthly_contribution: Number(form.monthly_contribution || 0),
       saved_amount: Number(form.saved_amount || 0),
       expected_return: Number(form.expected_return || 12),
+      inflation_pct: Number(form.inflation_pct || 0),
     };
 
     setBusy(true);
@@ -191,6 +197,7 @@ export default function Goals() {
       monthly_contribution: goal.monthly_contribution ?? "",
       saved_amount: goal.saved_amount ?? "",
       expected_return: goal.expected_return ?? 12,
+      inflation_pct: goal.inflation_pct ?? 0,
     });
     setEditingId(goal.id);
     setShowForm(true);
@@ -295,6 +302,11 @@ export default function Goals() {
             <label className="text-xs text-slate-500">
               Expected return (% a year)
               <input type="number" step="0.5" value={form.expected_return} onChange={(e) => setForm({ ...form, expected_return: e.target.value })} className={field} />
+            </label>
+
+            <label className="text-xs text-slate-500">
+              Inflation (% a year, 0 to ignore)
+              <input type="number" min="0" max="15" step="0.5" value={form.inflation_pct} onChange={(e) => setForm({ ...form, inflation_pct: e.target.value })} className={field} />
             </label>
 
             <div className="md:col-span-3 flex items-center gap-2">
@@ -416,6 +428,15 @@ function GoalCard({ goal, holdings, sips, otherLinks, suggested, onContribute, o
   const linked = links.length > 0;
   const value = linkedValue(links, holdings);
   const chart = useMemo(() => planVsActual(goal.plan_curve || [], goal.history || []), [goal.plan_curve, goal.history]);
+  const navigate = useNavigate();
+  // Client 2026-10-09 — when the projection falls short of the target, say by how much the
+  // SIP has to rise, and offer the one click that does it: a SIP (top-up / step-up) on the
+  // goal's own linked scheme, pre-filled with the gap, through the normal BSE SIP flow.
+  const shortfall = goal.status === "achieved" || goal.on_track ? 0 : Math.max(0, Math.round(Number(goal.required_monthly || 0) - Number(goal.monthly_contribution || 0)));
+  const stepUp = () => {
+    const code = links[0]?.scheme_bse_code;
+    navigate(code ? fundSipPath("", code) : MF_EXPLORE_PATH, code ? { state: { amount: shortfall } } : undefined);
+  };
 
   // What can be linked: every holding (scheme + folio) and every active SIP (its scheme).
   const candidates = useMemo(
@@ -425,7 +446,7 @@ function GoalCard({ goal, holdings, sips, otherLinks, suggested, onContribute, o
         .map((h) => ({
           scheme_bse_code: h.scheme_bse_code,
           folio: h.folio || null,
-          label: `${h.scheme_name}${h.folio ? ` · folio ${h.folio}` : ""}`,
+          label: `${titleCase(h.scheme_name)}${h.folio ? ` · folio ${h.folio}` : ""}`,
           kind: "holding",
         })),
       ...sips.map((s) => ({
@@ -448,7 +469,8 @@ function GoalCard({ goal, holdings, sips, otherLinks, suggested, onContribute, o
             <span className="ml-2 text-[10px] uppercase font-semibold text-slate-400">{goal.priority}</span>
           </p>
           <p className="text-xs text-slate-500 dark:text-[#94a3b8]">
-            {money(goal.saved_amount)} of {money(goal.target_amount)} · by{" "}
+            {money(goal.saved_amount)} of {money(goal.target_amount)}
+            {Number(goal.inflation_pct) > 0 && goal.target_future ? ` (${money(goal.target_future)} then, at ${goal.inflation_pct}% inflation)` : ""} · by{" "}
             {new Date(goal.target_date).toLocaleDateString("en-IN", { month: "short", year: "numeric" })} · {goal.months_left} months left
           </p>
         </div>
@@ -465,6 +487,22 @@ function GoalCard({ goal, holdings, sips, otherLinks, suggested, onContribute, o
           {goal.status === "achieved" ? "Achieved" : goal.on_track ? "On track" : goal.planned_now != null ? "Behind plan" : "Behind"}
         </span>
       </div>
+
+      {shortfall > 0 && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-semibold px-2 py-1 rounded-md bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300">
+            Shortfall: Increase SIP by {money(shortfall)}/mo
+          </span>
+          <button
+            type="button"
+            onClick={stepUp}
+            className="text-[11px] font-semibold px-3 py-1 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white"
+            title={links.length ? "Start a SIP for the gap in this goal's linked fund" : "Link a fund to this goal, or pick one to start the SIP"}
+          >
+            Top-up / Step-Up SIP
+          </button>
+        </div>
+      )}
 
       <div className="mt-3 h-2 rounded-full bg-slate-100 dark:bg-white/10 overflow-hidden">
         <div

@@ -185,11 +185,16 @@ test("#11 Explore: grouped filters, both sort directions, honest count, clear, a
   assert.doesNotMatch(ex, /navigate\(`\/mutual_fund\/collections/);
 });
 
-test("#11 Search's MF/ETF/Growth/IDCW/Dividend tags reach the server as filters", () => {
+test("#11 Search's MF sub-filters reach the server as filters", () => {
   const popup = code("../src/components/SearchPopup.jsx");
   assert.doesNotMatch(popup, /fields: \[tag/);
-  assert.match(popup, /txn: TAG_TXN\[tag\] \|\| ""/);
-  assert.match(popup, /ETF: "etf", Growth: "growth", IDCW: "idcw_payout", Dividend: "idcw_reinvest"/);
+  // Client 2026-10-09 — MF first and default, then All and Stocks; Growth / IDCW-Payout /
+  // IDCW-Reinvestment / ETF under MF; Regular plans only, always.
+  assert.match(popup, /const TAGS = \["MF", "All", "Stocks"\]/);
+  assert.match(popup, /useState\("MF"\)/);
+  assert.match(popup, /txn: \(tag === "MF" && SUB_TXN\[sub\]\) \|\| ""/);
+  assert.match(popup, /Growth: "growth", "IDCW-Payout": "idcw_payout", "IDCW-Reinvestment": "idcw_reinvest", ETF: "etf"/);
+  assert.match(popup, /plan: "regular",/);
 });
 
 test("Compliance #31: a Direct plan is labelled and never offered for purchase", async () => {

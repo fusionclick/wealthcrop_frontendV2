@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { apiErrorMessage, isSell, laravelUrl, nodeUrl, orderTypeLabel, orderTypeTone, withLiveOrderStatus } from "../../../utils/nodeApi";
 import { toastError, toastSuccess } from "../../../utils/notifyCustom";
 import ApprovedOrders from "./ApprovedOrders";
+import { titleCase } from "../../../utils/schemeName";
 
 /**
  * Audit #49 — one state model for an order, whichever word the row carries: the platform's
@@ -141,7 +142,7 @@ const MutualFundOrder = () => {
               {rows.map((fund, idx) => (
                 <tr key={idx} className="border-t transition hover:bg-gray-50 dark:bg-[var(--white-5)] dark:border-[var(--border-color)] dark:hover:bg-[var(--white-5)]">
                   <td className="px-4 py-2 font-medium whitespace-nowrap text-blue-950 dark:text-[var(--text-primary)]">
-                    {fund.scheme_name || "—"}
+                    {titleCase(fund.scheme_name) || "—"}
                   </td>
                   <td className="px-4 py-2 whitespace-nowrap">
                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${orderTypeTone(fund.order_type)}`}>

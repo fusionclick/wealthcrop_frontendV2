@@ -1,9 +1,9 @@
-import { FaLandmark, FaCoins, FaChartLine, FaChartPie } from "react-icons/fa";
+import { FaLandmark, FaCoins, FaChartLine, FaChartPie, FaLayerGroup, FaShieldAlt } from "react-icons/fa";
 import { MdChevronRight } from "react-icons/md";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { postApi } from "../../api/api";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import FundListSkeleton from "../../components/ui/skeleton/main/FundListSkeleton";
 import { nodeUrl, fundPath, fundSipPath } from "../../utils/nodeApi";
 import AmcMark from "../../components/AmcMark";
@@ -12,21 +12,22 @@ import FundBadges, { DIRECT_NOT_OFFERED, isDirectPlan } from "../../components/F
 import AddToBasket from "../../components/AddToBasket";
 import { toastInfo } from "../../utils/notifyCustom";
 import { titleCase, fmtPct } from "../../utils/schemeName";
+import { MF_COLLECTIONS, TOP_AMCS, COLLECTIONS_NOTE, collectionSlug } from "../../utils/mfCollections";
+import { fetchNfos, NfoCard } from "../NFO";
+import { groupNfos } from "../../utils/nfo";
 
 const PAGE_SIZE = 20;
-// Audit #11 — collections are quick filters on the list below (the server's `category`
-// slug), so "High Return" and "5 Star Funds" now mean real data: funds with a 3-year return,
-// ranked by it, and funds the rating feed gives five stars. They used to be name searches
-// for "FLEXI CAP" and "BLUECHIP".
-const collections = [
-  { name: "Gold Funds", slug: "gold_funds", icon: <FaCoins size={22} className="text-amber-500" /> },
-  { name: "Large Cap", slug: "large_cap", icon: <FaChartPie size={22} className="text-indigo-500" /> },
-  { name: "Mid Cap", slug: "mid_cap", icon: <FaChartLine size={22} className="text-cyan-500" /> },
-  { name: "Small Cap", slug: "small_cap", icon: <FaChartPie size={22} className="text-pink-500" /> },
-  { name: "High Return", slug: "high_return", icon: <FaChartLine size={22} className="text-emerald-500" /> },
-  { name: "5 Star Funds", slug: "5_star_funds", icon: <FaLandmark size={22} className="text-sky-500" /> },
-  { name: "Kotak Funds", slug: "kotak_funds", icon: <FaLandmark size={22} className="text-red-500" /> },
-];
+// Collections are quick filters on the list below (the server's `category` slug). The set
+// itself, and why it changed, lives in utils/mfCollections.
+const ICONS = {
+  gold_funds: <FaCoins size={22} className="text-amber-500" />,
+  large_cap: <FaChartPie size={22} className="text-indigo-500" />,
+  mid_cap: <FaChartLine size={22} className="text-cyan-500" />,
+  small_cap: <FaChartPie size={22} className="text-pink-500" />,
+  flexi_cap: <FaLayerGroup size={22} className="text-emerald-500" />,
+  elss: <FaShieldAlt size={22} className="text-sky-500" />,
+};
+const collections = MF_COLLECTIONS.map((c) => ({ ...c, icon: ICONS[c.slug] }));
 
 // Server-side filters — BSE ke apne per-scheme flags. Yahan filter karna is liye zaroori
 // hai ke page sirf 20 rows ka hai; client par chhaanne se poore catalogue ka "Direct only"
@@ -45,6 +46,7 @@ const FILTER_GROUPS = [
       { key: "schemeCategory", label: "Category", facet: "category", any: "All categories" },
       { key: "subCategory", label: "Sub-category", facet: "sub", any: "All sub-categories" },
       { key: "plan", label: "Plan", options: [["", "All plans"], ["regular", "Regular plan"], ["direct", "Direct plan"]] },
+      { key: "amc", label: "AMC", options: [["", "All AMCs"], ...TOP_AMCS.map(([label, term]) => [term, label])] },
     ],
   },
   // SEBI's six riskometer levels. The backend only ever labels a scheme with one of these
@@ -124,6 +126,8 @@ const SORTS = [
   ["aum:desc", "Fund size: high to low"],
   ["aum:asc", "Fund size: low to high"],
   ["age:desc", "Oldest first"],
+  // Client 2026-10-09 — "Browse newly listed funds" from the NFO page lands here.
+  ["age:asc", "Newest first"],
   ["expense:asc", "Expense ratio: low to high"],
   ["min_sip:asc", "Minimum SIP: low to high"],
   ["nav:desc", "NAV: high to low"],
@@ -150,7 +154,17 @@ const DEFAULT_FILTERS = {
   schemeCategory: "",
   subCategory: "",
   category: "",
+  amc: "",
 };
+
+// Client 2026-10-09 — footer and menu links land here pre-filtered: ?collection=flexi_cap,
+// the client's own ?category=equity&sub_category=flexi_cap shape, ?amc=HDFC, or
+// ?view=amc_directory for the AMC chooser.
+const filtersFromUrl = (params) => ({
+  ...DEFAULT_FILTERS,
+  category: collectionSlug(params.get("collection") || params.get("sub_category") || ""),
+  amc: params.get("amc") || "",
+});
 
 // How many funds can sit in the comparison tray at once. The compare endpoint loads a full
 // NAV history per fund, and more than a handful of overlapping lines is unreadable anyway.
@@ -187,9 +201,25 @@ const ExploreMF = () => {
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
-  const [sort, setSort] = useState("");
-  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const [params] = useSearchParams();
+  const [sort, setSort] = useState(() => (SORTS.some(([v]) => v && v === params.get("sort")) ? params.get("sort") : ""));
+  const { data: nfoList = [] } = useQuery({ queryKey: ["nfos"], queryFn: fetchNfos, staleTime: 10 * 60 * 1000 });
+  const openNfos = groupNfos(nfoList).open;
+  const [filters, setFilters] = useState(() => filtersFromUrl(params));
+  const [showAmcs, setShowAmcs] = useState(() => params.get("view") === "amc_directory");
   const navs = useNavMap();
+
+  // A footer link clicked while already on this page changes only the query string — the
+  // page does not remount, so the filters have to follow it.
+  const urlKey = params.toString();
+  useEffect(() => {
+    if (!urlKey) return;
+    setPage(0);
+    setFilters(filtersFromUrl(params));
+    if (params.get("view") === "amc_directory") setShowAmcs(true);
+    document.getElementById("all-funds")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlKey]);
   const url = nodeUrl(import.meta.env.VITE_GET_ALL_FUNDS || "/master-scheme-list");
 
   const [sortField, sortOrder] = sort ? sort.split(":") : ["", ""];
@@ -399,7 +429,7 @@ const ExploreMF = () => {
             to="/advisor"
             className="mt-4 px-5 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium"
           >
-            Try Asset Allocation
+            Try Wealthcrop Asset Navigator
           </Link>
           <a
             href="#all-funds"
@@ -417,15 +447,42 @@ const ExploreMF = () => {
 
       <div className="mb-8">
         <SectionHead title="New Fund Offer (NFO)" to="/nfo" />
-        <div className="rounded-2xl p-6 bg-white dark:bg-[var(--card-bg)] border border-slate-200 dark:border-[var(--border-color)] text-sm text-slate-500 dark:text-[var(--text-secondary)] text-center">
-          No NFOs are open right now.
-        </div>
+        {openNfos.length ? (
+          <div className="grid sm:grid-cols-2 gap-4">
+            {openNfos.slice(0, 2).map((n) => (
+              <NfoCard key={n.id} nfo={n} status="open" />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl p-6 bg-white dark:bg-[var(--card-bg)] border border-slate-200 dark:border-[var(--border-color)] text-sm text-slate-500 dark:text-[var(--text-secondary)] text-center">
+            No NFOs are open right now.
+          </div>
+        )}
       </div>
 
       <div className="mb-10">
-        <SectionHead title="Collections to get you started" />
+        <SectionHead title="Collections to get you started" subtitle={COLLECTIONS_NOTE} />
         <Rail>
-          {collections.map((item) => {
+          {[...collections, { name: "Top AMCs", slug: "__amcs", icon: <FaLandmark size={22} className="text-sky-500" /> }].map((item) => {
+            if (item.slug === "__amcs") {
+              return (
+                <button
+                  key={item.slug}
+                  onClick={() => setShowAmcs((v) => !v)}
+                  aria-expanded={showAmcs}
+                  className="snap-start shrink-0 w-24 flex flex-col items-center gap-2 group"
+                >
+                  <div
+                    className={`w-16 h-16 rounded-full bg-white dark:bg-[var(--card-bg)] border shadow-sm flex items-center justify-center group-hover:shadow-md transition ${
+                      showAmcs || filters.amc ? "border-emerald-500 ring-2 ring-emerald-500/40" : "border-slate-200 dark:border-[var(--border-color)]"
+                    }`}
+                  >
+                    {item.icon}
+                  </div>
+                  <p className="text-xs font-medium text-center leading-tight text-slate-700 dark:text-[var(--text-secondary)]">{item.name}</p>
+                </button>
+              );
+            }
             const on = filters.category === item.slug;
             return (
               <button
@@ -446,6 +503,31 @@ const ExploreMF = () => {
             );
           })}
         </Rail>
+        {showAmcs && (
+          <div className="flex flex-wrap gap-2 mt-3">
+            {TOP_AMCS.map(([label, term]) => {
+              const on = filters.amc === term;
+              return (
+                <button
+                  key={term}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => {
+                    setFilter("amc", on ? "" : term);
+                    document.getElementById("all-funds")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
+                  className={`px-3 py-1.5 rounded-full border text-xs font-medium transition ${
+                    on
+                      ? "border-emerald-500 bg-emerald-50 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300"
+                      : "border-slate-200 dark:border-[var(--border-color)] text-slate-700 dark:text-[var(--text-secondary)] hover:border-emerald-400"
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div id="all-funds" className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-4 scroll-mt-24">

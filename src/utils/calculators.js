@@ -264,7 +264,7 @@ export const retirementPlan = ({
   const monthlySIP = Math.max(0, corpus - savingsAtRetirement) / annuityFactor(pre, months);
 
   const projection = savingYears({ age, years: yearsToRetire, savings, monthlyRate: pre, monthlySIP });
-  let balance = projection.at(-1).balance;
+  let balance = projection[projection.length - 1].balance;
   for (let y = 0; y < yearsRetired; y++) {
     const spend = firstYear * (1 + g) ** y;
     balance = (balance - spend) * (1 + post);
@@ -317,7 +317,7 @@ export const educationPlan = ({
   const monthlySIP = Math.max(0, totalNeeded - savingsAtStart) / annuityFactor(r, months);
 
   const projection = savingYears({ age, years: yearsToStart, savings, monthlyRate: r, monthlySIP });
-  let balance = projection.at(-1).balance;
+  let balance = projection[projection.length - 1].balance;
   fees.forEach((fee, k) => {
     balance -= fee;
     projection.push({ age: start + k + 1, phase: "Studying", paidIn: 0, paidOut: fee, balance });

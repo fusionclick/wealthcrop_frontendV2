@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { X } from "lucide-react";
 import { fundBuyPath } from "../../utils/nodeApi";
 import { titleCase } from "../../utils/schemeName";
+import { SETTLED, classifyFlow, parseFlowDate } from "../../utils/xirr";
+import { fundValue } from "../../utils/portfolioAnalytics";
 
 // ponytail: native <dialog> — Esc se band hona, focus trap aur backdrop browser deta hai.
 // Koi modal library, koi focus-trap hook nahi.
@@ -39,6 +41,9 @@ export default function HoldingSheet({
   portfolios = [],
   currentPortfolioId = null,
   onAssignPortfolio,
+  // Client 2026-10-09 — this scheme's own orders and its XIRR (optional, internal holdings).
+  history = null,
+  xirr = undefined,
 }) {
   const ref = useRef(null);
   const navigate = useNavigate();
@@ -54,9 +59,11 @@ export default function HoldingSheet({
   if (!holding) return null;
 
   const invested = Number(holding.invested ?? holding.inv_amo ?? holding.invested_amount ?? 0);
-  const current = Number(holding.current ?? invested);
-  const pnl = current - invested;
-  const pct = invested ? (pnl / invested) * 100 : 0;
+  // Internal rows carry `current_value` (getClientPortfolio prices each folio); reading only
+  // `current` showed every internal holding at cost, with a ₹0 return.
+  const current = fundValue(holding);
+  const pnl = current == null ? null : current - invested;
+  const pct = pnl == null ? null : invested ? (pnl / invested) * 100 : 0;
   const code = holding.scheme_bse_code || holding.scheme_code || "";
   const isin = holding.scheme_isin || "";
   const isInternal = source !== "external";
@@ -93,25 +100,58 @@ export default function HoldingSheet({
         <div className="grid grid-cols-2 gap-3 mb-4">
           <div className="rounded-xl bg-slate-50 dark:bg-[var(--white-10)] p-3">
             <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">Current value</p>
-            <p className="text-lg font-semibold">{money(current)}</p>
+            <p className="text-lg font-semibold">{current == null ? "—" : money(current)}</p>
+            {current == null && <p className="text-xs text-slate-500">Valuation unavailable</p>}
           </div>
           <div className="rounded-xl bg-slate-50 dark:bg-[var(--white-10)] p-3">
             <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">Returns</p>
-            <p className={`text-lg font-semibold ${pnl >= 0 ? "text-emerald-600" : "text-red-500"}`}>
-              {pnl >= 0 ? "+" : ""}
-              {money(pnl)}
-              <span className="text-xs font-medium ml-1">({pct.toFixed(2)}%)</span>
+            <p className={`text-lg font-semibold ${pnl == null ? "" : pnl >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+              {pnl == null ? "—" : `${pnl >= 0 ? "+" : ""}${money(pnl)}`}
+              {pct != null && <span className="text-xs font-medium ml-1">({pct.toFixed(2)}%)</span>}
             </p>
           </div>
         </div>
 
         <Row label="Invested" value={money(invested)} />
         <Row label="Units" value={holding.units ? Number(holding.units).toLocaleString("en-IN") : null} />
-        <Row label="NAV" value={holding.nav ? money(holding.nav) : null} />
+        <Row label="NAV" value={isInternal ? holding.current_nav > 0 ? money(holding.current_nav) : "— (current NAV unavailable)" : holding.nav ? money(holding.nav) : null} />
         <Row label="Folio" value={holding.folio || null} />
         {/* ISIN, not the BSE scheme code — `code` still drives the buy/redeem links below. */}
         <Row label="ISIN" value={isin || null} />
         <Row label="Purchased on" value={asDate(holding.purchased_at)} />
+        {xirr !== undefined && (
+          <Row label="XIRR" value={current == null ? "— (valuation unavailable)" : xirr == null ? "— (not enough settled orders)" : `${xirr >= 0 ? "+" : "−"}${Math.abs(xirr).toFixed(2)}% p.a.`} />
+        )}
+
+        {/* Client 2026-10-09 — "the breakup on click: investment history". Every order in
+            this scheme, newest first; only settled ones count toward cost and XIRR. */}
+        {Array.isArray(history) && (
+          <div className="mt-4">
+            <p className="text-xs font-semibold text-slate-700 dark:text-[var(--text-primary)] mb-1">Investment history</p>
+            {history.length === 0 ? (
+              <p className="text-xs text-slate-500 dark:text-[var(--text-secondary)]">No orders found for this scheme.</p>
+            ) : (
+              <ul className="max-h-48 overflow-y-auto divide-y divide-slate-100 dark:divide-[var(--border-color)]">
+                {[...history]
+                  .sort((a, b) => (parseFlowDate(b.date)?.getTime() || 0) - (parseFlowDate(a.date)?.getTime() || 0))
+                  .map((o, i) => {
+                    const d = parseFlowDate(o.date);
+                    const out = classifyFlow(o) > 0;
+                    return (
+                      <li key={`${o.order_id || o.id || i}`} className="flex justify-between gap-3 py-1.5 text-xs">
+                        <span className="text-slate-600 dark:text-[var(--text-secondary)]">
+                          {d ? `${String(d.getDate()).padStart(2, "0")} ${MONTHS[d.getMonth()]} ${d.getFullYear()}` : "—"} · {out ? "Redemption" : "Purchase"}
+                        </span>
+                        <span className={SETTLED.test(String(o.status || "")) ? "text-slate-900 dark:text-[var(--text-primary)]" : "text-slate-400 dark:text-[var(--text-secondary)]"}>
+                          {money(o.amount)} · {String(o.status || "—").toLowerCase()}
+                        </span>
+                      </li>
+                    );
+                  })}
+              </ul>
+            )}
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-3 mt-5">
           <button

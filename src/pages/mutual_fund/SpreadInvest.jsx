@@ -9,6 +9,7 @@ import Combo, { fieldClass } from "../../components/ui/Combo";
 import OrderDisclaimers, { useDisclaimers } from "../../components/mutual_fund/OrderDisclaimers";
 import { buildSxpIntent } from "../../utils/sxp";
 import { buildSpreadPlan, instalmentDates } from "../../utils/spread";
+import { titleCase } from "../../utils/schemeName";
 
 /**
  * SRS §4 "Spread" — dividing a lump sum into smaller, periodic investments across
@@ -28,7 +29,7 @@ import { buildSpreadPlan, instalmentDates } from "../../utils/spread";
  * POST /spreads, never from this file.
  */
 
-const holdingLabel = (h) => `${h.scheme_name || "Fund"}${h.folio ? ` · ${h.folio}` : ""}`;
+const holdingLabel = (h) => `${titleCase(h.scheme_name) || "Fund"}${h.folio ? ` · ${h.folio}` : ""}`;
 // Same six-digit reference the single-fund invest page generates, per order.
 const generateOrderRefId = () => orderRefId();
 const money = (n) => `₹${Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -516,7 +517,7 @@ export default function SpreadInvest() {
                   {openId !== s.id && s.legs.some((l) => l.error) && (
                     <ul className="mt-2 space-y-0.5 text-[11px] text-red-600 dark:text-red-400">
                       {s.legs.filter((l) => l.error).map((l) => (
-                        <li key={l.id}>{l.scheme_name || l.scheme_code}: {l.error}</li>
+                        <li key={l.id}>{titleCase(l.scheme_name) || l.scheme_code}: {l.error}</li>
                       ))}
                     </ul>
                   )}
@@ -528,7 +529,7 @@ export default function SpreadInvest() {
                         <div key={l.id} className="rounded-lg bg-gray-50 dark:bg-white/5 px-2 py-1.5">
                           <div className="flex flex-wrap items-baseline justify-between gap-2">
                             <span className="min-w-0 flex-1 truncate text-[11px] text-gray-700 dark:text-[var(--text-primary)]">
-                              {l.scheme_name || l.scheme_code} · {money(l.per_instalment)}
+                              {titleCase(l.scheme_name) || l.scheme_code} · {money(l.per_instalment)}
                               {s.instalments > 1 && <> × {s.instalments}</>}
                             </span>
                             <span

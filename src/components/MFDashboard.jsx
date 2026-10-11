@@ -40,7 +40,8 @@ const MFDashboard = () => {
   { name: "My Investments", link: "investments" },
   { name: "External Portfolio", link: "external" },
   { name: "Combined Portfolio", link: "combined" },
-  { name: "SIPs", link: "sip" },
+  // Client 2026-10-09 — "Systematic Plans" covers SIP, STP, SWP and step-up SIPs alike.
+  { name: "Systematic Plans", link: "systematic-plans" },
   { name: "Orders", link: "orders" },
   { name: "Watchlist", link: "watchlist" },
 ];

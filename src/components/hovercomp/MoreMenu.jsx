@@ -9,7 +9,6 @@ import {
   Calculator,
   ArrowRight,
   MessagesSquare,
-  Target,
   Bot,
   BarChart3,
   ShieldCheck,
@@ -33,15 +32,16 @@ const MoreMenu = ({ token }) => {
       onMouseEnter={() => setOpenMenu(true)}
       onMouseLeave={() => setOpenMenu(false)}
     >
-      {/* NAV ITEM */}
+      {/* NAV ITEM — client 2026-10-09: "Research" is now "Markets & Insights", and it is a
+          top-level menu for everyone (MF, Stocks & F&O, Markets & Insights, Account). */}
       <button className="h-16 px-4 font-semibold cursor-pointer
                          text-blue-900 dark:text-white
                          hover:text-blue-600 dark:hover:text-blue-400">
-        More
+        Markets &amp; Insights
       </button>
 
       {/* MEGA MENU */}
-      {openMenu && !token && (
+      {openMenu && (
         <div
           className="
             fixed left-0 right-0 top-full z-50
@@ -66,13 +66,13 @@ const MoreMenu = ({ token }) => {
                 </div>
 
                 <h2 className="text-xl font-semibold text-blue-950 dark:text-gray-100 mb-2">
-                  Tools & Resources
+                  Markets &amp; Insights
                 </h2>
 
                 <p className="text-sm leading-relaxed mb-4
                               text-slate-600 dark:text-gray-400">
-                  Explore calculators, learning resources, research tools and
-                  account-related services to manage your finances better.
+                  Market news, learning resources, calculators and community
+                  discussion in one place.
                 </p>
 
                 <button
@@ -120,10 +120,10 @@ const MoreMenu = ({ token }) => {
                   />
                 </div>
 
-                {/* Research */}
+                {/* Markets & Insights (was "Research") */}
                 <div className="space-y-4 pr-8 border-r border-slate-300 dark:border-white/10">
                   <h3 className="font-semibold text-blue-950 dark:text-gray-100">
-                    Research
+                    Markets &amp; Insights
                   </h3>
 
                   <MenuItem
@@ -156,7 +156,9 @@ const MoreMenu = ({ token }) => {
                   />
                 </div>
 
-                {/* Account & Support */}
+                {/* Account & Support — signed-out visitors only. Signed in, these live in the
+                    account dropdown (utils/accountLinks), which is why that list exists. */}
+                {!token && (
                 <div className="space-y-4">
                   <h3 className="font-semibold text-blue-950 dark:text-gray-100">
                     Account & Support
@@ -165,16 +167,9 @@ const MoreMenu = ({ token }) => {
                   {/* SRS §8 / §8.2 / §11 — three new sections nothing linked to. */}
                   <MenuItem
                     icon={Bot}
-                    title="Asset Allocation"
-                    desc="Get a plan in a few questions."
+                    title="Wealthcrop Asset Navigator"
+                    desc="Rule-based rebalancing across market cycles."
                     onClick={() => navigate("/advisor")}
-                  />
-
-                  <MenuItem
-                    icon={Target}
-                    title="Goals"
-                    desc="Track what you are saving for."
-                    onClick={() => navigate("/goals")}
                   />
 
                   <MenuItem
@@ -205,6 +200,7 @@ const MoreMenu = ({ token }) => {
                     onClick={() => navigate("/support")}
                   />
                 </div>
+                )}
               </div>
             </div>
             {/* ================================================== */}

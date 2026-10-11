@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createChart } from "lightweight-charts";
 import { fetchStockChart } from "../../api/marketApi";
 import { INDICATORS } from "../../utils/indicators";
+import { quoteCandle } from "../../utils/stockChart";
 
 /**
  * FR 5.2 — "Interactive historical price charts should support zoom, scroll, technical
@@ -14,9 +15,11 @@ import { INDICATORS } from "../../utils/indicators";
  * chart and the data, the other owns the indicator series. Collapsing them would mean
  * every click on "MA 20" throws away the candles and the investor's zoom level with them.
  */
-const StockLiveChart = ({ symbol, height = 360 }) => {
+const StockLiveChart = ({ symbol, height = 360, quote }) => {
   const containerRef = useRef(null);
   const chartRef = useRef(null);
+  const candlesRef = useRef(null);
+  const latestCandleRef = useRef(null);
   const seriesRef = useRef({});
   const [bars, setBars] = useState([]);
   const [active, setActive] = useState([]);
@@ -28,6 +31,7 @@ const StockLiveChart = ({ symbol, height = 360 }) => {
     let cancelled = false;
     setError(false);
     setBars([]);
+    latestCandleRef.current = null;
 
     if (chartRef.current) {
       chartRef.current.remove();
@@ -56,6 +60,7 @@ const StockLiveChart = ({ symbol, height = 360 }) => {
       wickUpColor: "#16a34a",
       wickDownColor: "#dc2626",
     });
+    candlesRef.current = series;
 
     fetchStockChart(symbol)
       .then((res) => {
@@ -74,6 +79,7 @@ const StockLiveChart = ({ symbol, height = 360 }) => {
           return;
         }
         series.setData(rows);
+        latestCandleRef.current = rows[rows.length - 1];
         chart.timeScale().fitContent();
         // Held so an indicator can be drawn later without asking for the data again.
         setBars(rows);
@@ -99,6 +105,18 @@ const StockLiveChart = ({ symbol, height = 360 }) => {
       }
     };
   }, [symbol, height]);
+
+  // The header quote's trading session is authoritative for the latest candle; today's
+  // calendar date would skip the last session on weekends and market holidays.
+  useEffect(() => {
+    const series = candlesRef.current;
+    const last = latestCandleRef.current;
+    const candle = quoteCandle(last, quote);
+    if (series && candle) {
+      series.update(candle);
+      latestCandleRef.current = candle;
+    }
+  }, [quote, bars]);
 
   // Draw or clear the selected indicators. Only what changed is touched.
   useEffect(() => {

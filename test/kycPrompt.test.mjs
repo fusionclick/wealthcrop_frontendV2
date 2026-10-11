@@ -24,11 +24,11 @@ test("a verified investor, or investor-data still loading, is never prompted", (
   assert.equal(shouldPromptKyc({ id: 1, kyc_status: "approved", kyc: null }, null), false);
 });
 
-test("App mounts the prompt only when signed in, unlocked and off the onboarding routes", () => {
+test("App mounts the prompt only when signed in, unlocked and off onboarding and public legal routes", () => {
   const app = readFileSync("src/App.jsx", "utf8");
   assert.match(
     app,
-    /\{token && !locked && !PIN_FREE_ROUTES\.some\(\(p\) => pathname\.startsWith\(p\)\) && <KycPrompt \/>\}/
+    /\{token && !locked && !PIN_FREE_ROUTES\.some\(\(p\) => pathname\.startsWith\(p\)\) && !PUBLIC_LEGAL_ROUTES\.includes\(pathname\) && <KycPrompt \/>\}/
   );
   // /kyc itself is an onboarding route — the prompt never covers the form it points to.
   assert.match(app, /const PIN_FREE_ROUTES = \[[^\]]*"\/kyc"/);

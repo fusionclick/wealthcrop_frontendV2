@@ -98,7 +98,7 @@ const StockList = () => {
             {title}
           </h1>
           <p className="text-sm text-gray-500 dark:text-[var(--text-secondary)] mt-1">
-            {loading ? "Loading…" : `${filteredList.length} stocks from Kotak NSE`}
+            {loading ? "Loading…" : `${filteredList.length} stocks on NSE`}
           </p>
         </div>
 

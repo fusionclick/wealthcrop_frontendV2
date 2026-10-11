@@ -13,7 +13,8 @@ const readCode = (p) =>
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .replace(/^[ \t]*\/\/.*$/gm, "");
 
-const MENUS = ["StocksMenu", "FOMenu", "MutualFundsMenu", "MoreMenu"].map(
+// FOMenu was merged into StocksMenu ("Stocks & F&O", client 2026-10-09).
+const MENUS = ["StocksMenu", "MutualFundsMenu", "MoreMenu"].map(
   (m) => `../src/components/hovercomp/${m}.jsx`
 );
 

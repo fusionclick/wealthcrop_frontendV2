@@ -10,7 +10,8 @@ import { ensureExternalNav } from "../../utils/externalNav";
 import FundDashboardSkeleton from "../../components/ui/skeleton/main/FundDashboardSkeleton";
 
 const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#6366f1"];
-const money = (n) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+const money = (n) => n == null ? "—" : `₹${Number(n).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+const pnlText = (pnl, pct) => pnl == null ? "—" : `${pnl >= 0 ? "+" : ""}${money(pnl)} (${pct.toFixed(2)}%)`;
 
 const CombinedMF = () => {
   const navigate = useNavigate();
@@ -70,7 +71,7 @@ const CombinedMF = () => {
   const combined = useMemo(
     () =>
       combinePortfolio(internal, externalRows, (row) =>
-        liveNav({ scheme_isin: row.scheme_isin, scheme_bse_code: row.scheme_bse_code, nav: row.nav }, navs)
+        liveNav(row, navs)
       ),
     [internal, externalRows, navs]
   );
@@ -133,10 +134,10 @@ const CombinedMF = () => {
             <Card label="Invested" value={money(totals.invested)} />
             <Card
               label="P&amp;L"
-              value={`${totals.pnl >= 0 ? "+" : ""}${money(totals.pnl)}`}
-              tone={totals.pnl >= 0 ? "text-emerald-600" : "text-red-500"}
+              value={pnlText(totals.pnl, totals.pnlPct)}
+              tone={totals.pnl == null ? "" : totals.pnl >= 0 ? "text-emerald-600" : "text-red-500"}
             />
-            <Card label="Returns" value={`${totals.pnlPct.toFixed(2)}%`} />
+            <Card label="Returns" value={totals.pnlPct == null ? "—" : `${totals.pnlPct.toFixed(2)}%`} />
           </div>
 
           {/* Kis taraf se kitna — combined number ka breakdown */}
@@ -147,13 +148,12 @@ const CombinedMF = () => {
 
           {combined.unpriced > 0 && (
             <p className="text-[11px] text-amber-600 mb-4">
-              {combined.unpriced} holding(s) ki NAV missing ya invested se match nahi karti — un ki
-              current value invested ke barabar dikh rahi hai. Fund ko list se chun kar dobara add karo.
+              {combined.unpriced} holding(s) ki current valuation unavailable hai — total current value aur P&amp;L unavailable hain.
             </p>
           )}
 
           <div className="bg-white dark:bg-[var(--white-10)] border dark:border-[var(--border-color)] rounded-xl p-4 mb-4">
-            <p className="text-sm font-semibold mb-2">Asset Allocation (dono milaa kar)</p>
+            <p className="text-sm font-semibold mb-2">Asset Allocation (invested cost)</p>
             <div className="h-56">
               <ResponsiveContainer>
                 <PieChart>
@@ -216,8 +216,8 @@ const CombinedMF = () => {
 
           <div className="space-y-3">
             {shown.map((r) => {
-              const pnl = r.current - r.invested;
-              const pct = r.invested ? (pnl / r.invested) * 100 : 0;
+              const pnl = r.current == null ? null : r.current - r.invested;
+              const pct = pnl == null ? null : r.invested ? (pnl / r.invested) * 100 : 0;
               const merged = r.parts.length > 1;
 
               const body = (
@@ -249,9 +249,8 @@ const CombinedMF = () => {
                   <div className="text-right shrink-0">
                     <p className="font-semibold text-sm">{money(r.current)}</p>
                     <p className="text-[11px] text-slate-500">Invested {money(r.invested)}</p>
-                    <p className={`text-xs ${pnl >= 0 ? "text-emerald-600" : "text-red-500"}`}>
-                      {pnl >= 0 ? "+" : ""}
-                      {money(pnl)} ({pct.toFixed(2)}%)
+                    <p className={`text-xs ${pnl == null ? "text-slate-500" : pnl >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                      {pnlText(pnl, pct)}
                     </p>
                     {r.sources.includes("internal") && r.scheme_bse_code && (
                       // Mutual fund par sirf do actions hote hain — Invest more aur Redeem.
@@ -309,8 +308,8 @@ const CombinedMF = () => {
                   </summary>
                   <div className="mt-3 pt-3 border-t dark:border-[var(--border-color)] space-y-2">
                     {r.parts.map((p) => {
-                      const ppnl = p.current - p.invested;
-                      const ppct = p.invested ? (ppnl / p.invested) * 100 : 0;
+                      const ppnl = p.current == null ? null : p.current - p.invested;
+                      const ppct = ppnl == null ? null : p.invested ? (ppnl / p.invested) * 100 : 0;
                       return (
                         <div key={p.source} className="flex justify-between gap-3 text-xs">
                           <div className="min-w-0">
@@ -327,8 +326,7 @@ const CombinedMF = () => {
                               Invested {money(p.invested)}
                             </span>
                             <span className={`ml-2 ${ppnl >= 0 ? "text-emerald-600" : "text-red-500"}`}>
-                              {ppnl >= 0 ? "+" : ""}
-                              {money(ppnl)} ({ppct.toFixed(2)}%)
+                              {pnlText(ppnl, ppct)}
                             </span>
                           </div>
                         </div>
@@ -370,8 +368,7 @@ const Split = ({ title, t, tone }) => (
     <div className="flex justify-between text-sm mt-1">
       <span className="font-semibold">{money(t.current)}</span>
       <span className={t.pnl >= 0 ? "text-emerald-600" : "text-red-500"}>
-        {t.pnl >= 0 ? "+" : ""}
-        {money(t.pnl)} ({t.pnlPct.toFixed(2)}%)
+        {pnlText(t.pnl, t.pnlPct)}
       </span>
     </div>
     <p className="text-[11px] text-slate-500">Invested {money(t.invested)}</p>

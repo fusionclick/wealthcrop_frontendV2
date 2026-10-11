@@ -60,7 +60,7 @@ const Orders = () => {
       return;
     }
     if (res?.needs_setup) {
-      toastError(res.message || "Link Kotak in Holdings first");
+      toastError(res.message || "Link your broker in Holdings first");
     }
   };
 

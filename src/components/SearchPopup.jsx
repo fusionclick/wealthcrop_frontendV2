@@ -10,22 +10,24 @@ import { RiskBadge, DIRECT_NOT_OFFERED, isDirectPlan } from "./FundBadges";
 
 const savedKeysNow = () => new Set(loadMfWatchlist().map((f) => `${f.isin}|${f.code}`));
 
-// Audit #11 — the fund tags used to change nothing: the `fields` value they sent is ignored by
-// the backend. Each now names a catalogue filter (master-scheme-list `txn` keys), so the
-// server narrows the whole catalogue, not just the 100 rows it returns. "MF" is every mutual
-// fund (no stocks), so it needs no key.
-const TAG_TXN = { ETF: "etf", Growth: "growth", IDCW: "idcw_payout", Dividend: "idcw_reinvest" };
-const TAG_TITLE = {
-  ETF: "Exchange traded funds and funds of ETFs",
+// Client 2026-10-09 — MF is the default filter, then All and Stocks; under MF sit Growth,
+// IDCW-Payout, IDCW-Reinvestment and ETF. Each sub-filter names a catalogue filter
+// (master-scheme-list `txn` keys, Audit #11), so the server narrows the whole catalogue, not
+// just the 100 rows it returns.
+const TAGS = ["MF", "All", "Stocks"];
+const SUB_TXN = { Growth: "growth", "IDCW-Payout": "idcw_payout", "IDCW-Reinvestment": "idcw_reinvest", ETF: "etf" };
+const SUB_TITLE = {
   Growth: "Growth option — gains stay invested",
-  IDCW: "IDCW payout — distributions paid out",
-  Dividend: "Dividend reinvestment — distributions bought back as units",
+  "IDCW-Payout": "IDCW payout — distributions paid out",
+  "IDCW-Reinvestment": "IDCW reinvestment — distributions bought back as units",
+  ETF: "Exchange traded funds and funds of ETFs",
 };
 
 export default function SearchPopup({ onClose }) {
   const containerRef = useRef(null);
 
-  const [filterTag, setFilterTag] = useState("All")
+  const [filterTag, setFilterTag] = useState("MF")
+  const [subTag, setSubTag] = useState("")
   const [query, setQuery] = useState("");
     const [results, setResults] = useState([]);
     const [stockResults, setStockResults] = useState([]);
@@ -48,7 +50,7 @@ export default function SearchPopup({ onClose }) {
 
   // ponytail: tag argument is liye ke tag badalte hi dobara search chalani hoti hai aur
   // usi render mein `filterTag` abhi purana hota hai.
-  const searchAssets = async (text, tag = filterTag) => {
+  const searchAssets = async (text, tag = filterTag, sub = subTag) => {
 
     setLoading(true)
 
@@ -79,7 +81,10 @@ export default function SearchPopup({ onClose }) {
 
     const payload = {
       data:{
-        txn: TAG_TXN[tag] || "",
+        txn: (tag === "MF" && SUB_TXN[sub]) || "",
+        // Client 2026-10-09 — "always hide the Direct plans, show only Regular": a distributor
+        // offers Regular plans only, so search never lists a Direct one.
+        plan: "regular",
         count_only: false,
         start: 0,
         length: 100,
@@ -218,21 +223,13 @@ export default function SearchPopup({ onClose }) {
 
       {/* TAGS */}
       <div className="flex flex-wrap gap-2 px-5 pb-4">
-        {[
-          "All",
-          "Stocks",
-          "MF",
-          "ETF",
-          "Growth",
-          "IDCW",
-          "Dividend",
-        ].map((tag) => (
+        {TAGS.map((tag) => (
           <button
             key={tag}
-            title={TAG_TITLE[tag]}
             onClick={() => {
               setFilterTag(tag);
-              if (query.length >= 2) searchAssets(query, tag);
+              setSubTag("");
+              if (query.length >= 2) searchAssets(query, tag, "");
             }}
             className={`
               px-4 py-1.5
@@ -256,6 +253,31 @@ export default function SearchPopup({ onClose }) {
           </button>
         ))}
       </div>
+
+      {/* MF sub-filters — one at a time, a second click clears it. */}
+      {filterTag === "MF" && (
+        <div className="flex flex-wrap gap-2 px-5 pb-4 -mt-2">
+          {Object.keys(SUB_TXN).map((sub) => (
+            <button
+              key={sub}
+              title={SUB_TITLE[sub]}
+              aria-pressed={sub === subTag}
+              onClick={() => {
+                const next = sub === subTag ? "" : sub;
+                setSubTag(next);
+                if (query.length >= 2) searchAssets(query, "MF", next);
+              }}
+              className={`px-3 py-1 rounded-full text-xs border transition ${
+                sub === subTag
+                  ? "bg-green-50 border-green-500 text-green-700 dark:bg-[var(--gray-800)] dark:text-green-400"
+                  : "border-gray-200 text-gray-600 hover:bg-green-50 dark:border-[var(--border-color)] dark:text-[var(--text-secondary)] dark:hover:bg-[var(--gray-800)]"
+              }`}
+            >
+              {sub}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* LOADING BAR */}
       {loading && (
@@ -382,7 +404,12 @@ export default function SearchPopup({ onClose }) {
               ].map((item) => (
                 <button
                   key={item}
-                  onClick={() => searchAssets(item)}
+                  onClick={() => {
+                    // Mostly company names: searched across stocks and funds, not MF alone.
+                    setFilterTag("All");
+                    setSubTag("");
+                    searchAssets(item, "All", "");
+                  }}
                   className="
                     border border-gray-200
                     rounded-xl

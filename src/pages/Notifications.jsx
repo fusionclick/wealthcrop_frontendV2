@@ -188,14 +188,24 @@ const BLANK = { kind: "stock", target: "", label: "", condition: "above", value:
 
 // Audit #65 — what each kind of alert can watch. A market index has no price level an
 // investor sets an alert on, only a day's move; the portfolio has both.
+const PRICE_CONDITIONS = [
+  ["above", "goes above"],
+  ["below", "falls below"],
+  ["pct_up", "rises by %"],
+  ["pct_down", "falls by %"],
+];
 const CONDITIONS = {
+  // Client 2026-10-09 — a stock's day move (≥3 / 5 / 10%) and its 52-week range too.
   stock: [
-    ["above", "goes above"],
-    ["below", "falls below"],
-    ["pct_up", "rises by %"],
-    ["pct_down", "falls by %"],
+    ...PRICE_CONDITIONS,
+    ["day_move", "moves by % in a day (up or down)"],
+    ["day_up", "rises by % in a day"],
+    ["day_down", "falls by % in a day"],
+    ["high_52w", "hits a 52-week high"],
+    ["low_52w", "hits a 52-week low"],
   ],
   portfolio: [
+    ["allocation_drift", "equity allocation drifts from my target (%)"],
     ["day_move", "moves by % in a day (up or down)"],
     ["day_down", "falls by % in a day"],
     ["day_up", "rises by % in a day"],
@@ -208,7 +218,9 @@ const CONDITIONS = {
     ["day_up", "rises by % in a day"],
   ],
 };
-CONDITIONS.scheme = CONDITIONS.stock;
+CONDITIONS.scheme = [...PRICE_CONDITIONS, ["high_52w", "hits a 52-week NAV high"], ["low_52w", "hits a 52-week NAV low"]];
+// A 52-week alert has no level to type: the range is the threshold.
+const NO_LEVEL = new Set(["high_52w", "low_52w"]);
 
 const KIND_LABEL = { stock: "Stock", scheme: "Fund", portfolio: "Portfolio", index: "Market" };
 
@@ -220,8 +232,9 @@ function Alerts({ alerts, setAlerts, reload }) {
   const [fundQuery, setFundQuery] = useState("");
   const [fundMatches, setFundMatches] = useState([]);
   const [fund, setFund] = useState(null);
-  const needsBase = (form.kind === "stock" || form.kind === "scheme") && (form.condition === "pct_up" || form.condition === "pct_down");
-  const isPercent = form.condition.startsWith("pct") || form.condition.startsWith("day");
+  const isDrift = form.condition === "allocation_drift";
+  const needsBase = isDrift || ((form.kind === "stock" || form.kind === "scheme") && (form.condition === "pct_up" || form.condition === "pct_down"));
+  const isPercent = isDrift || form.condition.startsWith("pct") || form.condition.startsWith("day");
 
   useEffect(() => {
     if (form.kind !== "scheme" || fund || fundQuery.trim().length < 3) {
@@ -234,6 +247,7 @@ function Alerts({ alerts, setAlerts, reload }) {
         start: 0,
         length: 8,
         search: fundQuery.trim(),
+        filters: { plan: "regular" },
       });
       if (alive) setFundMatches(Array.isArray(res?.data?.lists) ? res.data.lists : []);
     }, 300);
@@ -264,8 +278,9 @@ function Alerts({ alerts, setAlerts, reload }) {
     e.preventDefault();
     if (form.kind === "stock" && !form.target.trim()) return toastError("Enter an NSE symbol.");
     if (form.kind === "scheme" && !fund) return toastError("Search for the fund by name or ISIN and pick it from the list.");
-    if (!(Number(form.value) > 0)) return toastError(isPercent ? "Enter a percentage above zero." : "Enter a level above zero.");
-    if (needsBase && !(Number(form.base_price) > 0)) return toastError("A percentage alert needs the current price to measure from.");
+    if (!NO_LEVEL.has(form.condition) && !(Number(form.value) > 0)) return toastError(isPercent ? "Enter a percentage above zero." : "Enter a level above zero.");
+    if (isDrift && (form.base_price === "" || Number(form.base_price) < 0 || Number(form.base_price) > 100 || Number(form.value) < 5 || Number(form.value) > 100)) return toastError("Enter a target equity allocation from 0–100% and drift from 5–100 percentage points.");
+    if (needsBase && !isDrift && !(Number(form.base_price) > 0)) return toastError("A percentage alert needs the current price to measure from.");
 
     const target = form.kind === "portfolio" ? "all" : form.kind === "stock" ? form.target.trim().toUpperCase() : form.target;
     setBusy(true);
@@ -273,7 +288,7 @@ function Alerts({ alerts, setAlerts, reload }) {
       ...form,
       target,
       label: form.kind === "stock" ? form.label.trim() || target : form.label.trim() || undefined,
-      value: Number(form.value),
+      value: NO_LEVEL.has(form.condition) ? undefined : Number(form.value),
       base_price: needsBase ? Number(form.base_price) : undefined,
     });
     setBusy(false);
@@ -310,7 +325,7 @@ function Alerts({ alerts, setAlerts, reload }) {
             <option value="stock">A stock (NSE symbol)</option>
             <option value="scheme">A mutual fund</option>
             <option value="portfolio">My whole portfolio</option>
-            <option value="index">The market (Nifty 50 / Sensex)</option>
+            <option value="index">The market (Nifty 50 / Sensex / sectors)</option>
           </select>
 
           {form.kind === "stock" && (
@@ -379,6 +394,10 @@ function Alerts({ alerts, setAlerts, reload }) {
             <select value={form.target} onChange={(e) => setForm({ ...form, target: e.target.value })} className={field} aria-label="Index">
               <option value="NIFTY">Nifty 50</option>
               <option value="SENSEX">Sensex</option>
+              {/* Client 2026-10-09 — sector moves. */}
+              <option value="NIFTYBANK">Nifty Bank</option>
+              <option value="NIFTYIT">Nifty IT</option>
+              <option value="NIFTYPHARMA">Nifty Pharma</option>
             </select>
           )}
 
@@ -390,6 +409,7 @@ function Alerts({ alerts, setAlerts, reload }) {
             ))}
           </select>
 
+          {!NO_LEVEL.has(form.condition) && (
           <input
             type="number"
             step="0.01"
@@ -399,6 +419,7 @@ function Alerts({ alerts, setAlerts, reload }) {
             aria-label="Level"
             className={field}
           />
+          )}
 
           {needsBase && (
             <input
@@ -406,8 +427,8 @@ function Alerts({ alerts, setAlerts, reload }) {
               step="0.01"
               value={form.base_price}
               onChange={(e) => setForm({ ...form, base_price: e.target.value })}
-              placeholder="Price today"
-              aria-label="Price to measure from"
+              placeholder={isDrift ? "Target equity allocation (%)" : "Price today"}
+              aria-label={isDrift ? "Target equity allocation (%)" : "Price to measure from"}
               className={field}
             />
           )}

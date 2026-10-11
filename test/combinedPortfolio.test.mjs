@@ -48,12 +48,12 @@ test("alag code wali schemes kabhi nahi jurti", () => {
   assert.equal(new Set(c.rows.map((r) => r.key)).size, 3);
 });
 
-test("NAV na mile to current = invested, aur unpriced count barhta hai", () => {
+test("missing external NAV cannot become investment cost or zero gain", () => {
   const ext = [{ id: 2, scheme_name: "NO NAV FUND", units: 100, invested_amount: 5000 }];
   const c = combinePortfolio([], ext, () => null);
   assert.equal(c.unpriced, 1);
-  assert.equal(c.totals.current, 5000);
-  assert.equal(c.totals.pnl, 0); // jhoota P&L nahi
+  assert.equal(c.totals.current, null);
+  assert.equal(c.totals.pnl, null);
 });
 
 test("NAV invested/units se 5x door ho to unpriced — jhoota -99% P&L nahi", () => {
@@ -67,11 +67,23 @@ test("NAV invested/units se 5x door ho to unpriced — jhoota -99% P&L nahi", ()
   }];
   const c = combinePortfolio([], ext, (r) => r.nav);
   assert.equal(c.unpriced, 1);
-  assert.equal(c.totals.current, 10000);
-  assert.equal(c.totals.pnl, 0);
+  assert.equal(c.totals.current, null);
+  assert.equal(c.totals.pnl, null);
   assert.equal(c.rows[0].priced, false);
   // published NAV display pe rehti hai; P&L skip
   assert.equal(c.rows[0].nav, 11.04);
+});
+
+test("a missing internal price survives merging with a priced external holding", () => {
+  const internal = [{ scheme_bse_code: "A", inv_amo: 1000, current_value: null, ret_percentage: 0 }];
+  const external = [{ scheme_bse_code: "A", invested_amount: 100, units: 10, nav: 12 }];
+  const c = combinePortfolio(internal, external, navOf);
+  assert.equal(c.rows[0].current, null);
+  assert.equal(c.rows[0].parts[0].current, null);
+  assert.equal(c.internal.pnl, null);
+  assert.equal(c.external.current, 120);
+  assert.equal(c.totals.pnlPct, null);
+  assert.equal(c.unpriced, 1);
 });
 
 test("unpriced har external part ginna hai, merged rows nahi", () => {

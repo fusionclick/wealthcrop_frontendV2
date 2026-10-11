@@ -167,18 +167,13 @@ export default function BasketDetails() {
           <div className="w-48 mx-auto">
             <Chart
               type="pie"
-              data={[
-                details.allocation.Equity ?? 0,
-                details.allocation.Debt ?? 0,
-                details.allocation.Commodity ?? 0,
-              ]}
+              data={Object.values(details.allocation)}
+              labels={Object.keys(details.allocation)}
             />
           </div>
 
           <div className="flex justify-center gap-4 text-xs mt-3">
-            <span>Equity: {details.allocation.Equity ?? 0}%</span>
-            <span>Debt: {details.allocation.Debt ?? 0}%</span>
-            <span>Commodity: {details.allocation.Commodity ?? 0}%</span>
+            {Object.entries(details.allocation).map(([category, weight]) => <span key={category}>{category}: {weight}%</span>)}
           </div>
         </div>
 

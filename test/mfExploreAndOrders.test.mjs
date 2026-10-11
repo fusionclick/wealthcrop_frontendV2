@@ -24,7 +24,10 @@ test("the fund list opens on physical holdings — silently", () => {
   assert.match(explore, /DEFAULT_FILTERS = \{[^}]*plan: "regular"[^}]*\}/);
   assert.match(explore, /DEFAULT_FILTERS = \{[^}]*sip: ""[^}]*\}/);
   assert.match(explore, /DEFAULT_FILTERS = \{[^}]*mode: "physical"[^}]*\}/);
-  assert.match(explore, /useState\(DEFAULT_FILTERS\)/);
+  // Client 2026-10-09 — a footer/menu link may pre-pick a collection or an AMC; everything
+  // else still starts from the same defaults.
+  assert.match(explore, /useState\(\(\) => filtersFromUrl\(params\)\)/);
+  assert.match(explore, /const filtersFromUrl = \(params\) => \(\{\s*\.\.\.DEFAULT_FILTERS,/);
   // Audit #11 — physical stays the default, but no Physical/Demat control, badge or toast
   // reaches the investor any more: the "Held as" dropdown, the PHYSICAL ONLY pill and the
   // "held physically only" toast are all gone.

@@ -423,7 +423,7 @@ const ExploreFO = () => {
                   Ready to trade
                 </p>
                 <p className="text-sm text-gray-500 dark:text-[var(--text-secondary)]">
-                  Contract pe click karke buy/sell lagao. Positions aur orders tabs pe live Kotak data aata hai.
+                  Contract pe click karke buy/sell lagao. Positions aur orders tabs pe aapke broker ka live data aata hai.
                 </p>
               </div>
               <Link

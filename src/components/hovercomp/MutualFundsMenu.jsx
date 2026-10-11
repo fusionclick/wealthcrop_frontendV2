@@ -3,17 +3,45 @@ import {
   TrendingUp,
   Wallet,
   BarChart2,
-  Shield,
-  Layers,
   PieChart,
   Calculator,
   ArrowRight,
+  Target,
+  Rocket,
+  ShoppingBasket,
+  FileUp,
+  HeartPulse,
+  PlusCircle,
+  ShieldCheck,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import mfMenuImg from "../../assets/menu/fundMenu.svg";
 
 import MenuItem from "./MenuItem";
 import { MF_EXPLORE_PATH } from "../../utils/nodeApi";
+import { MF_CATEGORY_MENU } from "../../utils/mfCollections";
+
+// Client 2026-10-09 — Mutual Funds is the first menu, with Goal Based Investing, NFO and
+// Curated Scheme Baskets under Investing, CAS Upload and Portfolio Health-Check under Tools,
+// and the SEBI-category panel. Items both panels share are defined once here, so a page is
+// only ever offered under one name. None of them is a /user/* route — the signed-out panel
+// carries them too (noRedundancy.test pins that rule).
+const INVESTING = [
+  { icon: Target, title: "Goal Based Investing", desc: "Save towards a dated goal.", to: "/goals" },
+  { icon: Rocket, title: "NFO — New Fund Offers", desc: "Schemes open for initial subscription.", to: "/nfo" },
+  { icon: ShoppingBasket, title: "Curated Scheme Baskets", desc: "Several schemes, one order.", to: "/baskets" },
+];
+const CALCULATORS = { icon: Calculator, title: "All calculators", desc: "SIP, lumpsum, SWP and 15 more.", to: "/calculators" };
+
+const panel = `
+  fixed left-0 right-0 top-full z-50
+  bg-white dark:bg-gray-900
+  shadow-md dark:shadow-white/5
+  border-t border-gray-200 dark:border-white/10
+`;
+const column = "space-y-3 pr-6 border-r border-slate-300 dark:border-white/10";
+const heading = "font-semibold text-blue-950 dark:text-gray-100";
+
 const MutualFundsMenu = ({ token }) => {
   const [openMenu, setOpenMenu] = useState(false);
   const navigate = useNavigate();
@@ -27,9 +55,55 @@ const MutualFundsMenu = ({ token }) => {
     if (token) navigate("/user/mutual_fund");
   };
 
+  const isMfActive = location.pathname.startsWith("/user/mutual_fund");
 
-const isStocksActive = location.pathname.startsWith("/user/mutual_fund");
+  const items = (list) =>
+    list.map((i) => <MenuItem key={i.to} icon={i.icon} title={i.title} desc={i.desc} onClick={() => navigate(i.to)} />);
 
+  // The SEBI categories, both panels. Each opens the collection page for that group.
+  const categories = (
+    <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+      {MF_CATEGORY_MENU.map((group) => (
+        <div key={group.id}>
+          <h3 className={heading}>{group.name}</h3>
+          <p className="text-[11px] text-slate-500 dark:text-gray-400 mb-1.5">{group.subtext}</p>
+          <ul className="space-y-1">
+            {group.items.map((it) => (
+              <li key={it.slug}>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/mutual_fund/collections/${it.slug}`)}
+                  className="w-full text-left rounded-md px-1.5 py-1 hover:bg-blue-50/70 dark:hover:bg-[var(--white-5)]"
+                >
+                  <span className="text-[13px] font-medium text-blue-950 dark:text-gray-100">{it.name}</span>
+                  {it.badge && (
+                    <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+                      {it.badge}
+                    </span>
+                  )}
+                  <span className="block text-[11px] text-slate-500 dark:text-gray-400">{it.subtext}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+
+  // Client: "suitable category of schemes based on your risk profile". Worded as a
+  // suitability check, not a recommendation — a distributor may not advise.
+  const riskStrip = (
+    <button
+      type="button"
+      onClick={() => navigate("/risk")}
+      className="mt-6 w-full flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm text-left bg-blue-50 dark:bg-white/5 text-blue-900 dark:text-gray-200 hover:bg-blue-100 dark:hover:bg-white/10"
+    >
+      <ShieldCheck size={16} className="text-blue-700 dark:text-blue-400 shrink-0" />
+      See which scheme categories suit your risk profile
+      <ArrowRight size={14} className="ml-auto" />
+    </button>
+  );
 
   return (
     <div
@@ -38,96 +112,90 @@ const isStocksActive = location.pathname.startsWith("/user/mutual_fund");
       onMouseLeave={() => setOpenMenu(false)}
     >
       {/* NAV ITEM */}
-     <button
-  onClick={redirect}
-  className={`
-    h-16 px-4 font-semibold cursor-pointer transition
-    ${
-      isStocksActive
-        ? "text-blue-600 dark:text-blue-400"
-        : "text-blue-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400"
-    }
-  `}
->
-  Mutual Funds
-</button>
+      <button
+        onClick={redirect}
+        className={`
+          h-16 px-4 font-semibold cursor-pointer transition
+          ${
+            isMfActive
+              ? "text-blue-600 dark:text-blue-400"
+              : "text-blue-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400"
+          }
+        `}
+      >
+        Mutual Funds
+      </button>
 
-
-      {/* PORTFOLIO DROPDOWN — logged in par mega menu ki jagah sirf do options */}
+      {/* SIGNED-IN PANEL — portfolio first, then the shared investing / tools / categories. */}
       {openMenu && token && (
-        <div
-          className="
-            absolute left-0 top-full z-50 w-72 p-2
-            rounded-xl border border-gray-200 dark:border-white/10
-            bg-white dark:bg-gray-900 shadow-lg
-          "
-        >
-          {/* Audit #45 — "Invest → Lumpsum". Signed in, the only road to a one-time order was
-              knowing a fund page has an Invest button. ExploreMF reads no query string, so this
-              opens the catalogue itself; its "Supports: Lumpsum" filter narrows it from there. */}
-          <MenuItem
-            icon={Wallet}
-            title="Invest: Lumpsum"
-            desc="Pick a fund and invest a one-time amount."
-            onClick={() => navigate(MF_EXPLORE_PATH)}
-          />
-          {/* Every other description in the header is English; these three were the only
-              Hinglish ones on the page. */}
-          <MenuItem
-            icon={BarChart2}
-            title="My Investments"
-            desc="Funds bought on this platform."
-            onClick={() => navigate("/user/mutual_fund/investments")}
-          />
-          <MenuItem
-            icon={Layers}
-            title="External Portfolio"
-            desc="Funds bought elsewhere — tracked, not transactable."
-            onClick={() => navigate("/user/mutual_fund/external")}
-          />
-          <MenuItem
-            icon={PieChart}
-            title="Combined Portfolio"
-            desc="Internal and external, in one view."
-            onClick={() => navigate("/user/mutual_fund/combined")}
-          />
+        <div className={panel}>
+          <div className="max-w-[1280px] mx-auto px-10 py-6">
+            <div className="grid grid-cols-[220px_220px_1fr] gap-8 text-sm">
+              <div className={column}>
+                <h3 className={heading}>Investing</h3>
+                {/* Audit #45 — "Invest → Lumpsum". Signed in, the only road to a one-time order
+                    was knowing a fund page has an Invest button. */}
+                <MenuItem
+                  icon={Wallet}
+                  title="Invest: Lumpsum"
+                  desc="Pick a fund and invest a one-time amount."
+                  onClick={() => navigate(MF_EXPLORE_PATH)}
+                />
+                {/* A top-up is "Invest more" on a fund already held — the holdings list carries
+                    that button on every row; the flag only says why they landed there. */}
+                <MenuItem
+                  icon={PlusCircle}
+                  title="Top-up"
+                  desc="Add to a fund you already hold."
+                  onClick={() => navigate("/user/mutual_fund/investments?topup=1")}
+                />
+                {items(INVESTING)}
+              </div>
+
+              <div className={column}>
+                <h3 className={heading}>Portfolio & Tools</h3>
+                <MenuItem
+                  icon={BarChart2}
+                  title="My Investments"
+                  desc="Funds bought on this platform."
+                  onClick={() => navigate("/user/mutual_fund/investments")}
+                />
+                <MenuItem
+                  icon={FileUp}
+                  title="CAS Upload"
+                  desc="Import funds bought elsewhere from your CAS."
+                  onClick={() => navigate("/user/mutual_fund/external?cas=1")}
+                />
+                <MenuItem
+                  icon={HeartPulse}
+                  title="Portfolio Health-Check"
+                  desc="Platform and external folios, in one view."
+                  onClick={() => navigate("/user/mutual_fund/combined")}
+                />
+                {items([CALCULATORS])}
+              </div>
+
+              {categories}
+            </div>
+            {riskStrip}
+          </div>
         </div>
       )}
 
       {/* MEGA MENU */}
       {openMenu && !token && (
-        <div
-          className="
-            fixed left-0 right-0 top-full z-50
-            bg-white dark:bg-gray-900
-            shadow-md dark:shadow-white/5
-            border-t border-gray-200 dark:border-white/10
-          "
-        >
-          <div className="max-w-[1280px] mx-auto px-10 py-8">
-
-            {/* =============== ONE ROW LAYOUT =============== */}
-            <div className="grid grid-cols-[320px_1fr] gap-12">
-
+        <div className={panel}>
+          <div className="max-w-[1280px] mx-auto px-10 py-6">
+            <div className="grid grid-cols-[240px_220px_220px_1fr] gap-8 text-sm">
               {/* ===== LEFT INFO PANEL ===== */}
-              <div className="pr-8 border-r border-slate-300 dark:border-white/10">
-                <div className="w-58 h-28 mb-4 rounded-xl overflow-hidden">
-                  <img
-                    src={mfMenuImg}
-                    alt="Mutual Funds"
-                    className="w-full h-full object-contain"
-                  />
+              <div className="pr-6 border-r border-slate-300 dark:border-white/10">
+                <div className="w-full h-24 mb-3 rounded-xl overflow-hidden">
+                  <img src={mfMenuImg} alt="Mutual Funds" className="w-full h-full object-contain" />
                 </div>
-
-                <h2 className="text-xl font-semibold text-blue-950 dark:text-gray-100 mb-2">
-                  Mutual Funds
-                </h2>
-
+                <h2 className="text-lg font-semibold text-blue-950 dark:text-gray-100 mb-2">Mutual Funds</h2>
                 <p className="text-sm leading-relaxed mb-4 text-slate-600 dark:text-gray-400">
-                  Invest smartly with professionally managed mutual funds
-                  across equity, debt and hybrid categories.
+                  Regular plans across equity, debt and hybrid categories, through an AMFI-registered distributor.
                 </p>
-
                 <button
                   onClick={() => navigate("/user/mutual_fund/explore")}
                   className="
@@ -142,103 +210,46 @@ const isStocksActive = location.pathname.startsWith("/user/mutual_fund");
                 </button>
               </div>
 
-              {/* ===== RIGHT MENU GRID ===== */}
-              <div className="grid grid-cols-3 gap-10 text-sm">
-
-                {/* Investing */}
-                <div className="space-y-4 pr-8 border-r border-slate-300 dark:border-white/10">
-                  <h3 className="font-semibold text-blue-950 dark:text-gray-100">
-                    Investing
-                  </h3>
-
-                  <MenuItem
-                    icon={TrendingUp}
-                    title="SIP Investment"
-                    desc="Build wealth with disciplined investing."
-                    onClick={() => navigate("/sip-investment")}
-                  />
-
-                  <MenuItem
-                    icon={Wallet}
-                    title="One-Time Investment"
-                    desc="Invest lump sum during opportunities."
-                    onClick={() => navigate("/one-time-investment")}
-                  />
-
-                  <MenuItem
-                    icon={BarChart2}
-                    title="Track Funds"
-                    desc="Monitor all investments in one place."
-                    onClick={() => navigate("/track")}
-                  />
-
-                  {/* Internal / External / Combined Portfolio used to be listed here too.
-                      This whole block only renders when there is NO token, and all three
-                      are /user/* routes behind ProtectRoute — so for the only person who
-                      could see them they bounced straight to the login screen. They are
-                      also the exact three items in the signed-in dropdown above, which is
-                      where they belong. */}
-                </div>
-
-                {/* Tools */}
-                <div className="space-y-4 pr-8 border-r border-slate-300 dark:border-white/10">
-                  <h3 className="font-semibold text-blue-950 dark:text-gray-100">
-                    Tools
-                  </h3>
-
-                  <MenuItem
-                    icon={BarChart2}
-                    title="NFOs"
-                    desc="Explore newly launched funds."
-                    onClick={() => navigate("/nfo")}
-                  />
-
-                  {/* SIP Calculator was in this menu AND in More → Calculators, on the
-                      same route, with two different descriptions. Calculators live under
-                      More, which is the tools hub; one link here reaches all 18 instead of
-                      repeating two of them. */}
-                  <MenuItem
-                    icon={Calculator}
-                    title="All calculators"
-                    desc="SIP, lumpsum, SWP and 15 more."
-                    onClick={() => navigate("/calculators")}
-                  />
-                </div>
-
-                {/* Categories */}
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-blue-950 dark:text-gray-100">
-                    Categories
-                  </h3>
-
-                  <MenuItem
-                    icon={Layers}
-                    title="High Return Funds"
-                    desc="Aggressive growth options."
-                    onClick={() =>
-                      navigate("/mutual_fund/collections/high-return")
-                    }
-                  />
-
-                  <MenuItem
-                    icon={Shield}
-                    title="Low Risk Funds"
-                    desc="Stable and safer investments."
-                    onClick={() =>
-                      navigate("/mutual_fund/collections/low_risk")
-                    }
-                  />
-                </div>
-
+              {/* Investing */}
+              <div className={column}>
+                <h3 className={heading}>Investing</h3>
+                <MenuItem
+                  icon={TrendingUp}
+                  title="SIP Investment"
+                  desc="Build wealth with disciplined investing."
+                  onClick={() => navigate("/sip-investment")}
+                />
+                <MenuItem
+                  icon={Wallet}
+                  title="One-Time Investment"
+                  desc="Invest lump sum during opportunities."
+                  onClick={() => navigate("/one-time-investment")}
+                />
+                {items(INVESTING)}
               </div>
+
+              {/* Tools */}
+              <div className={column}>
+                <h3 className={heading}>Tools</h3>
+                {/* /track is the public CAS page: signed in it opens the import, otherwise it
+                    asks the visitor to register first. */}
+                <MenuItem
+                  icon={PieChart}
+                  title="CAS Upload & Portfolio Health-Check"
+                  desc="Bring every folio you hold into one view."
+                  onClick={() => navigate("/track")}
+                />
+                {items([CALCULATORS])}
+              </div>
+
+              {categories}
             </div>
-            {/* ================================================ */}
+            {riskStrip}
           </div>
         </div>
       )}
     </div>
   );
 };
-
 
 export default MutualFundsMenu;

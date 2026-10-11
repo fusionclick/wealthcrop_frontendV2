@@ -7,7 +7,13 @@ import {
 } from "react-router-dom";
 import Footer from "./components/Footer";
 import DistributorIdentity from "./components/DistributorIdentity";
+import WebsiteAccessGate from "./components/WebsiteAccessGate";
+import MutualFundCarousel from "./carousel/MutualFundCarousel";
 import Home from "./pages/Home";
+import AboutSection from "./components/home/AboutSection";
+import GrievanceRedressal from "./pages/GrievanceRedressal";
+import LegalDocument from "./pages/LegalDocument";
+import FloatingContact from "./components/FloatingContact";
 import Portfolio from "./pages/Portfolio";
 import Profile from "./pages/Profile";
 import Login from "./auth/Login";
@@ -106,6 +112,7 @@ import { isPinExpired } from "./utils/pinExpireChecker";
 // PIN gate sirf dashboard par lagta hai. Onboarding (signup -> verify -> KYC) ke
 // beech user ko PIN nahi poochhna — wahan uska PIN hota hi nahi.
 const PIN_FREE_ROUTES = ["/login", "/signup", "/verify-otp", "/kyc", "/reset-password"];
+const PUBLIC_LEGAL_ROUTES = ["/terms", "/privacy", "/investor-charter"];
 
 // Onboarding screens ek viewport me rehni chahiye — footer/disclaimer wahan sirf
 // scroll banate hain. Wahi routes jinme PIN gate nahi lagta.
@@ -248,9 +255,6 @@ const StockDetails = lazy(() => import("./components/StockDetails"));
 // const MutualFundCarousel = lazy(() =>
 //   import("./carousel/MutualFundCarousel")
 // );
-// const DraggableQRCodeCard = lazy(() =>
-//   import("./components/DraggableQRCodeCard")
-// );
 // const IndicesDetails = lazy(() =>
 //   import("./pages/IndicesDetails")
 // );
@@ -346,7 +350,7 @@ useEffect(() => {
   const check = () => {
     const onboarding = PIN_FREE_ROUTES.some((p) => pathname.startsWith(p));
     const needsPin = localStorage.getItem("pin_set") !== "true";
-    setLocked(Boolean(token) && !onboarding && (needsPin || isPinExpired()));
+    setLocked(Boolean(token) && !onboarding && !PUBLIC_LEGAL_ROUTES.includes(pathname) && (needsPin || isPinExpired()));
   };
 
   check();
@@ -380,7 +384,7 @@ useEffect(() => {
       <SocketHandler />
       {locked && <LoginPinModal onSuccess={() => setLocked(false)} />}
       {/* Audit #44 — the KYC pop-up: signed in, off the onboarding routes, never over the PIN modal. */}
-      {token && !locked && !PIN_FREE_ROUTES.some((p) => pathname.startsWith(p)) && <KycPrompt />}
+      {token && !locked && !PIN_FREE_ROUTES.some((p) => pathname.startsWith(p)) && !PUBLIC_LEGAL_ROUTES.includes(pathname) && <KycPrompt />}
       {/*  Always on top of everything */}
       {/* <div className="fixed top-0 left-0 w-full z-[60]">
       <MutualFundCarousel />
@@ -388,8 +392,10 @@ useEffect(() => {
       {/*  Fixed Header */}
       {/*  Large screens (always show OldHeader) */}
       <ScrollToTopButton />
+      <FloatingContact />
       {/* ================= TOP HEADER ================= */}
       {(!token || isLg) && <OldHeader />}
+      {token && !isLg && <MutualFundCarousel />}
 
       {/* Top spacer */}
       {(!token || isLg) && <div className="h-[96px]" />}
@@ -400,6 +406,7 @@ useEffect(() => {
         {/* Ek page ka crash poori app ko safed na kare. Route badalne par khud reset. */}
         <ErrorBoundary resetKey={pathname}>
         <Suspense fallback={<PageLoader />}>
+          <WebsiteAccessGate token={token}>
           <Routes>
             {/* Protected routes */}
             <Route element={<ProtectRoute user={token} />}>
@@ -425,7 +432,9 @@ useEffect(() => {
                 <Route path="investments" element={<DashBoardMF />} />
                 <Route path="external" element={<ExternalMF />} />
                 <Route path="combined" element={<CombinedMF />} />
-                <Route path="sip" element={<SIPs />} />
+                <Route path="systematic-plans" element={<SIPs />} />
+                {/* The tab's old address, kept for bookmarks and notification links. */}
+                <Route path="sip" element={<Navigate to="/user/mutual_fund/systematic-plans" replace />} />
                 <Route path="orders" element={<OrdersMF />} />
                 <Route path="watchlist" element={<WatchlistMF />} />
               </Route>
@@ -477,7 +486,7 @@ useEffect(() => {
 
               {/* Profile Order */}
               <Route path="/user/order" element={<UserOrder />}>
-                <Route index element={<Navigate to="stocks" replace />} />
+                <Route index element={<Navigate to="mutual-funds" replace />} />
                 <Route path="stocks" element={<Stocks />} />
                 <Route
                   path="futures-and-options"
@@ -566,6 +575,8 @@ useEffect(() => {
 
             {/* Public routes */}
             <Route path="/" element={<Home />} />
+            {/* Client 2026-10-09 — About left the homepage for its own page, linked from the footer. */}
+            <Route path="/about" element={<AboutSection />} />
             <Route path="*" element={<ErrorPage notFound />} />
 
             {/* Landing page ka "Invest Now" pehle yahan bhejta tha aur ye route mojood hi
@@ -577,6 +588,11 @@ useEffect(() => {
                 nahi ho sakta. Pehle ProtectRoute ke andar tha, yaani har logged-out
                 visitor seedha /login par phenk diya jata tha. */}
             <Route path="/support" element={<Support />} />
+            {/* Client 2026-10-09 — the escalation matrix, public like any disclosure. */}
+            <Route path="/grievance-redressal" element={<GrievanceRedressal />} />
+            <Route path="/terms" element={<LegalDocument document="terms" />} />
+            <Route path="/privacy" element={<LegalDocument document="privacy" />} />
+            <Route path="/investor-charter" element={<LegalDocument document="investor-charter" />} />
 
             {/* §4.4 — the grievance module. Behind ProtectRoute because a complaint is filed
                 against an account: an anonymous one cannot be traced to an order, answered,
@@ -700,6 +716,7 @@ useEffect(() => {
               />
             ))}
           </Routes>
+          </WebsiteAccessGate>
         </Suspense>
         </ErrorBoundary>
       </main>

@@ -1,20 +1,21 @@
 import React, { useEffect, useState, useMemo } from "react";
 import emptyDashboardImg from "../../assets/mutualFund/emptyDashboard.svg";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getApiWithToken, postApiWithToken } from "../../api/api";
 import FundDashboardSkeleton from "../../components/ui/skeleton/main/FundDashboardSkeleton";
 import { useSelector } from "react-redux";
 import { laravelUrl, nodeUrl, mergePortfolio, fundBuyPath } from "../../utils/nodeApi";
-import { portfolioXirr } from "../../utils/xirr";
+import { portfolioXirr, sipXirr } from "../../utils/xirr";
 import HoldingSheet from "../../components/mutual_fund/HoldingSheet";
 import PortfolioBar from "../../components/mutual_fund/PortfolioBar";
 import usePortfolios, { holdingKey } from "../../hooks/usePortfolios";
 import { History, Split } from "lucide-react";
 import { useActiveSipCount } from "../../hooks/useActiveSipCount";
 import { fetchHoldings } from "../../api/portfolioApi";
-import { allocationByMarketValue, stockValue } from "../../utils/portfolioAnalytics";
+import { allocationByMarketValue, stockValue, fundValue, fundPortfolioValue } from "../../utils/portfolioAnalytics";
 import PortfolioInsights from "../../components/mutual_fund/PortfolioInsights";
+import { titleCase } from "../../utils/schemeName";
 
 const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 
@@ -24,6 +25,8 @@ const DashBoardMF = () => {
   const [portfolioFilter, setPortfolioFilter] = useState("all");
   const [openHolding, setOpenHolding] = useState(null);
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const topup = params.get("topup") === "1";
   const { data: investorData } = useSelector((state) => state.investorData);
   const ucc = investorData?.kyc?.ucc_code;
 
@@ -36,8 +39,8 @@ const DashBoardMF = () => {
   const { data: bseHoldings, isLoading: loadingBse } = useQuery({
     queryKey: ["bsePortfolio", ucc],
     queryFn: () =>
-      postApiWithToken(nodeUrl("/getClientPortfolio"), { data: { ucc } }),
-    select: (res) => res?.data?.holdings || [],
+      postApiWithToken(nodeUrl("/getClientPortfolio"), { data: { ucc } }, { throwOnError: true }),
+    select: (res) => (res?.status === 'success' || res?.status === true) && Array.isArray(res?.data?.holdings) ? res.data.holdings : null,
     enabled: !!ucc,
   });
 
@@ -71,6 +74,7 @@ const DashBoardMF = () => {
           scheme_name: h.scheme_name || null,
           category: h.scheme_category || null,
           units: Number(h.units) || 0,
+          folio: h.folio || null,
         })),
       },
       { silent: true }
@@ -90,21 +94,21 @@ const DashBoardMF = () => {
   const hasInvestments = funds.length > 0;
   const totalInvested = funds.reduce((acc, f) => acc + (Number(f.inv_amo) || 0), 0);
 
-  // Prefer what the units are actually worth. getClientPortfolio now prices each folio off
-  // the AMFI NAV store and sends `current_value`; a scheme it could not price sends null,
-  // and that row falls back to its cost so it neither invents a gain nor disappears from
-  // the total. Deriving everything from `ret_percentage` alone is what made the Returns
-  // tile read a flat ₹0 and handed XIRR a "today's value" identical to the money paid in —
-  // a confident 0% p.a. on every account.
-  const currentValue = funds.reduce(
-    (acc, f) => acc + (Number(f.current_value) || Number(f.inv_amo) || 0),
-    0
-  );
-  const totalReturns = currentValue - totalInvested;
+  // A missing valuation makes aggregate value and returns unknown, not equal to cost.
+  const currentValue = fundPortfolioValue(funds);
+  const unpricedCount = funds.filter((f) => fundValue(f) == null).length;
+  const totalReturns = currentValue == null ? null : currentValue - totalInvested;
   // Every settled purchase and redemption on their real dates, capped by what the units are
   // worth today. null when the orders cannot produce a rate — a brand new account, or one
   // whose history BSE did not return — and the tile says so rather than printing a 0.
-  const xirr = useMemo(() => portfolioXirr(orders || [], currentValue), [orders, currentValue]);
+  const xirr = useMemo(() => currentValue == null ? null : portfolioXirr(orders || [], currentValue), [orders, currentValue]);
+  // Client 2026-10-09 — each scheme's own XIRR and order history. sipXirr is the same engine
+  // narrowed to one scheme code, valued at that holding's current worth.
+  const ordersOf = (fund) => {
+    const want = String(fund?.scheme_bse_code || "").trim().toUpperCase();
+    return (orders || []).filter((o) => want && String(o?.scheme_bse_code || "").trim().toUpperCase() === want);
+  };
+  const xirrOf = (fund) => fundValue(fund) == null ? null : sipXirr(orders || [], fund?.scheme_bse_code, fundValue(fund));
   // QA — "SIP active hai phir bhi dashboard par show ni ho rahi". This counted holdings with a
   // `sip_status` of ACTIVE, but a SIP registration is neither a holding nor an order: it lives in
   // BSE's sxp list. Nothing ever set `sip_status` on a holding, so the tile could only read 0.
@@ -249,17 +253,18 @@ const DashBoardMF = () => {
                   Current value
                 </p>
                 <p className="text-3xl font-semibold mt-1 text-slate-900 dark:text-[var(--text-primary)]">
-                  {money(currentValue)}
+                  {currentValue == null ? "—" : money(currentValue)}
                 </p>
+                {unpricedCount > 0 && <p className="text-xs text-slate-500 mt-1">Valuation unavailable for {unpricedCount} holding{unpricedCount === 1 ? "" : "s"}; totals and XIRR are unavailable.</p>}
               </div>
               <div className="text-right">
                 <p className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-[var(--text-secondary)]">
                   Total P&amp;L
                 </p>
-                <p className={`text-lg font-semibold mt-1 ${totalReturns >= 0 ? "text-emerald-600" : "text-red-500"}`}>
-                  {totalReturns >= 0 ? "+" : "−"}{money(Math.abs(totalReturns))}
+                <p className={`text-lg font-semibold mt-1 ${totalReturns == null ? "" : totalReturns >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                  {totalReturns == null ? "—" : `${totalReturns >= 0 ? "+" : "−"}${money(Math.abs(totalReturns))}`}
                 </p>
-                {totalInvested > 0 && (
+                {totalInvested > 0 && totalReturns != null && (
                   <p className={`text-xs ${totalReturns >= 0 ? "text-emerald-600" : "text-red-500"}`}>
                     {totalReturns >= 0 ? "+" : "−"}
                     {Math.abs((totalReturns / totalInvested) * 100).toFixed(2)}%
@@ -283,7 +288,7 @@ const DashBoardMF = () => {
                   className={`text-sm font-semibold mt-0.5 ${
                     xirr == null ? "" : xirr >= 0 ? "text-emerald-600" : "text-red-500"
                   }`}
-                  title={xirr == null ? "Not enough settled orders yet to work out a rate" : "Money-weighted return p.a., from your order dates"}
+                  title={currentValue == null ? "Current NAV valuation is unavailable" : xirr == null ? "Not enough settled orders yet to work out a rate" : "Money-weighted return p.a., from your order dates"}
                 >
                   {xirr == null ? "—" : `${xirr >= 0 ? "+" : "−"}${Math.abs(xirr).toFixed(2)}% p.a.`}
                 </p>
@@ -341,6 +346,12 @@ const DashBoardMF = () => {
             </div>
           )}
 
+          {/* The menu's "Top-up" lands here: a top-up is Invest more on a fund already held. */}
+          {topup && (
+            <p className="mb-3 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+              Top-up: pick the fund below and press <strong>Invest more</strong>.
+            </p>
+          )}
           <div className="flex justify-between items-center mb-2">
             <p className="text-sm font-semibold">Your Funds</p>
             <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="text-xs border border-slate-200 dark:border-[var(--border-color)] rounded-md p-1">
@@ -368,7 +379,7 @@ const DashBoardMF = () => {
                 >
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-sm leading-snug line-clamp-2 text-slate-900 dark:text-[var(--text-primary)]">
-                      {fund.scheme_name}
+                      {titleCase(fund.scheme_name)}
                     </p>
                     <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)] mt-0.5">
                       {fund.scheme_category || "—"}
@@ -425,14 +436,23 @@ const DashBoardMF = () => {
                   </div>
 
                   <div className="text-right shrink-0">
+                    <p className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-[var(--text-secondary)]">Cost</p>
                     <p className="font-semibold text-sm text-slate-900 dark:text-[var(--text-primary)]">
                       {money(fund.inv_amo)}
                     </p>
                     <p className={`text-xs mt-0.5 ${up ? "text-emerald-600" : "text-red-500"}`}>
-                      {fund.ret_percentage != null && !Number.isNaN(pct)
+                      {fundValue(fund) != null && fund.ret_percentage != null && !Number.isNaN(pct)
                         ? `${up ? "+" : ""}${pct}%`
                         : "—"}
                     </p>
+                    {(() => {
+                      const r = xirrOf(fund);
+                      return (
+                        <p className="text-[11px] mt-0.5 text-slate-500 dark:text-[var(--text-secondary)]" title="Money-weighted return p.a. on this scheme's own orders">
+                          XIRR {r == null ? "—" : `${r >= 0 ? "+" : "−"}${Math.abs(r).toFixed(2)}%`}
+                        </p>
+                      );
+                    })()}
                   </div>
                 </div>
               );
@@ -446,6 +466,8 @@ const DashBoardMF = () => {
             portfolios={portfolios}
             currentPortfolioId={openHolding ? byHolding.get(holdingKey(openHolding))?.id ?? null : null}
             onAssignPortfolio={(id) => assign(id, holdingKey(openHolding))}
+            history={openHolding ? ordersOf(openHolding) : null}
+            xirr={openHolding ? xirrOf(openHolding) : undefined}
           />
         </>
       )}

@@ -83,6 +83,7 @@ const MutualFundInvestPage = ({ fundsList: fundsProp, setBuyModal }) => {
         mem_ord_ref_id,
         scheme_name: name,
         scheme_bse_code: schemeCode,
+        scheme_isin: fundsList?.scheme_isin || fundsList?.isin || isin,
         inv_amo: amount,
         ret_percentage: fundsList?.returns?.["1Y"] ?? 0,
         order_type: orderType,

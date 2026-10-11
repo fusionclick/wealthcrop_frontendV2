@@ -1,42 +1,34 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import HeroSection from "../components/home/HeroSection";
-import AboutSection from "../components/home/AboutSection";
-import FeaturedSection from "../components/home/FeaturedSection";
 import FAQSection from "../components/home/FAQSection";
-import CTASection from "../components/home/CTASection";
 import HomeChart from "../components/home/HomeChart";
-import InvestmentHighlights from "../components/home/InvestmentHighlights";
-import SipCalculator from "./calculators/SipCalculator";
+import {
+  TrustStrip,
+  GuidedJourney,
+  CategoryGrid,
+  TaxShield,
+  ServiceDesk,
+  CasBanner,
+  AppBanner,
+} from "../components/home/HomeSections";
 
-const Home = () => {
-  // const [token, setToken] = useState(() => localStorage.getItem("token"));
-
-  // useEffect(() => {
-  //   const handleStorageChange = () => {
-  //     setToken(localStorage.getItem("token"));
-  //   };
-
-  //   // Listen for changes to the localStorage
-  //   window.addEventListener("storage", handleStorageChange);
-
-  //   return () => {
-  //     window.removeEventListener("storage", handleStorageChange);
-  //   };
-  // }, []); // Empty dependency array, so it runs only once when the component mounts
-
-  // const isTokenValid = token && token.trim() !="";
-return (
+// Client 2026-10-09 — the homepage hierarchy, in the client's order (the ticker and the top
+// navigation sit in the header, the AMFI disclosures in the footer). Gone from here: About
+// (its own page, linked from the footer), the SIP calculator page that brought its own SIP
+// FAQ and "Related Calculators", the "Join Now" banner and the illustrations.
+const Home = () => (
   <div className="w-full">
-        <HeroSection />
-        <InvestmentHighlights />
-        <AboutSection />
-        <FeaturedSection />
-        <SipCalculator/>
-        <HomeChart/>
-        <FAQSection />
-        <CTASection />
+    <HeroSection />
+    <TrustStrip />
+    <GuidedJourney />
+    <HomeChart />
+    <CategoryGrid />
+    <TaxShield />
+    <ServiceDesk />
+    <CasBanner />
+    <AppBanner />
+    <FAQSection />
   </div>
 );
 
-}
 export default Home;

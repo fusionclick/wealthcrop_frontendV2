@@ -101,7 +101,8 @@ test("Watch Video ka dead end hat gaya", () => {
   assert.equal(hero.includes("MdOutlinePlayCircle"), false);
   // Baaki dono CTA waise hi rahen.
   assert.match(hero, /to="\/signup"/);
-  assert.match(hero, /href="#about"/);
+  // Client 2026-10-09 — About is its own page now, not a homepage anchor.
+  assert.match(hero, /to="\/about"/);
 });
 
 // Search box logged-out visitor ke liye poori tarah mara hua tha: popup `token &&` ke
@@ -128,8 +129,10 @@ test("search results par click crash nahi karta", () => {
   assert.match(popup, /const showFundPage[\s\S]*?onClose\(\);/);
   // Bookmark maujooda watchlist helper par jata hai.
   assert.match(popup, /toggleMfWatchlist\(\{ isin, code, name/);
-  // Trending aur suggestion buttons ab search chalate hain.
-  assert.ok((popup.match(/onClick=\{\(\) => searchAssets\(item\)\}/g) || []).length === 2);
+  // Trending aur suggestion buttons ab search chalate hain. Trending company names search
+  // "All" (client 2026-10-09: MF is the default tag now, and Vodafone has no fund).
+  assert.ok((popup.match(/onClick=\{\(\) => searchAssets\(item\)\}/g) || []).length === 1);
+  assert.match(popup, /searchAssets\(item, "All", ""\)/);
 });
 
 // ─────────────── 10 Sep: dusra batch ───────────────
@@ -231,9 +234,13 @@ test("support page par jhoote contact details nahi hain", () => {
   assert.equal(s.includes("investify.com"), false);
   assert.equal(s.includes("1800 123 4567"), false);
   // Jo bacha hai wo click par kaam kare.
-  assert.match(s, /href="mailto:support@wealthcrop\.co/);
-  // Bina onClick ke koi button na reh jaye.
-  const buttons = s.match(/<button(?![^>]*onClick)[^>]*>/g) || [];
+  // Client 2026-10-09 — the addresses moved to .in: support@ for existing investors, invest@
+  // for new ones.
+  assert.match(s, /href="mailto:support@wealthcrop\.in/);
+  assert.match(s, /const INVEST_EMAIL = "invest@wealthcrop\.in"/);
+  assert.equal(s.includes("wealthcrop.co?"), false);
+  // Bina onClick ke koi button na reh jaye (a form's submit button acts through onSubmit).
+  const buttons = s.match(/<button(?![^>]*(onClick|type="submit"))[^>]*>/g) || [];
   assert.deepEqual(buttons, []);
   // Mere hatane se bache hue import na reh jayen.
   assert.equal(/MessageCircle|Phone/.test(s), false);
@@ -250,8 +257,10 @@ test("Track Now button ab kuch karta hai", () => {
   assert.match(src, /setShowLogin\(true\)/);
 });
 
+// Client 2026-10-09 — F&O is a column of the merged "Stocks & F&O" menu now (FOMenu is gone);
+// the same rules hold for it there.
 test("F&O menu: sirf wahi item hain jinka page mojood hai", () => {
-  const src = readCode("../src/components/hovercomp/FOMenu.jsx");
+  const src = readCode("../src/components/hovercomp/StocksMenu.jsx");
   // Ye chaar feature app mein bane hi nahi — menu inhe advertise na kare.
   for (const gone of ["Options Trading", "Option Chain", "Margin Calculator", "Brokerage Estimator"]) {
     assert.equal(src.includes(gone), false, `${gone} abhi tak menu mein hai magar iska koi page nahi`);
@@ -262,13 +271,15 @@ test("F&O menu: sirf wahi item hain jinka page mojood hai", () => {
   const item = readCode("../src/components/hovercomp/MenuItem.jsx");
   assert.match(item, /function MenuItem\(\{ icon: Icon, title, desc, onClick \}\)/);
   assert.match(item, /<div\s+onClick=\{onClick\}/);
-  // 3 = do MenuItem + pehle se mojood "Explore Future & Options" button.
-  assert.equal((src.match(/onClick=\{\(\) => navigate\("\/user\/future_and_options\/explore"\)\}/g) || []).length, 3);
-  // Logged-out par "F&O" label chup chaap mar nahi jata.
+  // Index and stock futures share one page, so one wired item reaches it.
+  assert.equal((src.match(/onClick=\{\(\) => navigate\("\/user\/future_and_options\/explore"\)\}/g) || []).length, 1);
+  // Logged-out par menu label chup chaap mar nahi jata.
   assert.equal(/if \(token\) navigate/.test(src), false);
   // Hataye gaye icon ke import bhi sath jayen.
-  for (const icon of ["CandlestickChart", "LineChart", "Calculator", "BarChart2"]) {
-    assert.equal(src.includes(icon), false, `${icon} ka import ab bekaar hai`);
+  // The merged menu has an "EMI Calculator" item, so only the icon import itself is checked.
+  const icons = (src.match(/import \{([^}]*)\} from "lucide-react"/) || ["", ""])[1];
+  for (const icon of ["LineChart", "Calculator", "BarChart2"]) {
+    assert.equal(new RegExp(`\\b${icon}\\b`).test(icons), false, `${icon} ka import ab bekaar hai`);
   }
 });
 
@@ -432,15 +443,19 @@ test("profile ka KYC badge shared helper se aata hai", () => {
   assert.match(src, /import \{ isKycVerified \} from "\.\.\/\.\.\/utils\/kycVerdict"/);
 });
 
-test("balance page verified user ko dobara KYC par nahi bhejta", () => {
+// Client 2026-10-09 — the balance page is "Margin with Broker": it says only "Broker not yet
+// linked" and offers "Link My Broker" (link an existing Kotak Neo account, or open one first).
+// The old KYC copy went with "remove the rest words"; a verified investor is still never sent
+// back to KYC from here, because nothing here navigates to /kyc at all.
+test("balance page is Margin with Broker and never sends anyone back to KYC", () => {
   const src = readCode("../src/pages/Balance.jsx");
-  assert.match(src, /isKycVerified\(investor\?\.kyc\?\.kyc_status\)/);
-  // "Complete KYC" ab shart ke peeche hai, har haal mein nahi.
-  assert.match(src, /kycDone \?/);
-  assert.match(src, /Your KYC is verified/);
-  // Verified user ke liye KYC par navigate karne wala button nahi hona chahiye.
-  const verifiedBranch = src.split("kycDone ? (")[2] || "";
-  assert.equal(/navigate\("\/kyc"\)/.test(verifiedBranch.split(") : (")[0] || ""), false);
+  assert.match(src, /Margin with Broker/);
+  assert.match(src, /Broker not yet linked/);
+  assert.match(src, /Link My Broker/);
+  assert.match(src, /href=\{KOTAK_SIGNUP_URL\}/, "no account yet: open one through the partner link");
+  assert.match(src, /<KotakLinkForm forceOpen/, "has an account: link it here");
+  assert.equal(/navigate\("\/kyc"\)/.test(src), false);
+  assert.equal(/₹0\.00/.test(src), false, "no invented balance");
 });
 
 test("risk profile ke jawab top level par jate hain, answers ke andar nahi", () => {
@@ -560,16 +575,21 @@ test("stub pages abhi bhi sirf placeholder hain (yaad-dihani)", () => {
 
 // ─────────────── 10 Sep: saatwan batch ───────────────
 
-test("basket filter holdings par chalta hai, khali column par nahi", () => {
+// Client 2026-10-09 — the asset-class chips became the client's category tabs (All /
+// Goal-Based / Thematic / Asset Allocation / Custom), read off the server's `kind`. The old
+// lesson still holds: never filter on the baskets.category column nothing ever fills.
+test("basket tabs filter on the basket's kind, not the empty category column", () => {
   const src = readCode("../src/pages/basket/BasketList.jsx");
-  // `b.category === filter` kabhi match nahi karta tha: baskets.category kabhi set hi
-  // nahi hoti, is liye har chip par "No baskets found".
-  assert.equal(/b\.category === filter/.test(src), false);
-  assert.match(src, /categoriesOf/);
-  // "Equity • Flexi Cap" ka pehla hissa hi chip se milta hai.
-  assert.match(src, /split\("•"\)\[0\]/);
-  // Filter lagne par empty state ka message alag hona chahiye.
-  assert.match(src, /No \$\{filter\} baskets/);
+  assert.equal(/b\.category === /.test(src), false);
+  assert.match(src, /\["goal_based", "Goal-Based"\]/);
+  assert.match(src, /\["custom", "Custom Baskets"\]/);
+  // An investor's own basket (no curated kind) is a Custom one.
+  assert.match(src, /const kindOf = \(b\) => \(b\?\.is_curated && b\?\.kind \? b\.kind : "custom"\)/);
+  // Each tab says what is missing, not "create your first basket" everywhere.
+  assert.match(src, /No \$\{label\} baskets yet/);
+  // The mandatory footnote, with the ARN from the server.
+  assert.match(src, /Mutual Fund Baskets are pre-configured execution tools provided solely for user convenience/);
+  assert.match(src, /info\?\.arn/);
 });
 
 test("create basket fund ki category bhi bhejta hai", () => {

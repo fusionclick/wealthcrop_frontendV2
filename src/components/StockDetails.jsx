@@ -8,6 +8,9 @@ import OrderEntryPage from "../pages/stocks/OrderEntryPage";
 import { fetchFundamentals, fetchStockDetails } from "../api/marketApi";
 import { stockLogoUrl } from "../utils/stockLogo";
 import { normalizeTvSymbol, tradingViewChartUrl } from "../utils/tradingView";
+import { marketStatus } from "../utils/marketStatus";
+import WatchlistPopup from "./WatchlistPopup";
+import { loadWatchlists } from "../utils/watchlists";
 import {
   DASH,
   RATIO_LINES,
@@ -140,7 +143,19 @@ const [activeInfo, setActiveInfo] = useState(null);
     ...asks.map((a) => Number(a.quantity) || 0),
     1
   );
-  const [saved, setSaved] = useState(false);
+  // The buy/sell split bar used to be a hard-coded 33% / 67% whatever the book said.
+  const bidTotal = bids.reduce((acc, c) => acc + (Number(c.quantity) || 0), 0);
+  const askTotal = asks.reduce((acc, c) => acc + (Number(c.quantity) || 0), 0);
+  const bidPct = bidTotal + askTotal > 0 ? Math.round((bidTotal / (bidTotal + askTotal)) * 100) : 50;
+  const status = marketStatus(stockDetails?.priceInfo?.lastTradeTime);
+  const [watchlists, setWatchlists] = useState(() => loadWatchlists());
+  const [watchlistOpen, setWatchlistOpen] = useState(false);
+  const saved = watchlists.some((l) => l.symbols.includes(yahooSymbol));
+
+  const closeWatchlist = () => {
+    setWatchlists(loadWatchlists());
+    setWatchlistOpen(false);
+  };
 
   const [buySellModal, setBuySellModal] = useState({ open: false, type: "buy" });
 
@@ -210,7 +225,9 @@ const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
     <div className="flex md:flex-row md:items-center items-start gap-3">
 
       <button
-        onClick={() => setSaved(!saved)}
+        onClick={() => setWatchlistOpen(true)}
+        aria-label={saved ? "Saved" : "Save"}
+        aria-pressed={saved}
         className={`flex items-center gap-2 px-3 py-2 rounded-xl transition
           ${
             saved
@@ -269,9 +286,16 @@ const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
         </div>
       </div>
 
-      <p className="text-xs text-slate-500 mt-1 dark:text-[var(--text-secondary)]">
-        As of {new Date().toLocaleString()}
-      </p>
+      {/* Client 2026-10-09 — market status off the quote's own last-trade time. This used to
+          print "As of <now>", which claimed every price was current, open or shut. */}
+      {status && (
+        <p className="text-xs mt-1 flex items-center gap-1.5 text-slate-500 dark:text-[var(--text-secondary)]">
+          {status.live && <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />}
+          <span className={status.live ? "font-semibold text-emerald-700 dark:text-emerald-400" : "font-semibold"}>
+            {status.label}
+          </span>
+        </p>
+      )}
     </div>
 
     <div className="flex items-center gap-3 flex-wrap">
@@ -307,6 +331,67 @@ const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
       </div>
     </div>
   </div>
+
+  {/* Client 2026-10-09 — market depth lives with the LTP and the Buy/Sell buttons, folded
+      away by default. The quote feed carries no order book yet, so it says so. */}
+  <details className="mt-4 rounded-xl border border-slate-200 dark:border-[var(--border-color)] px-4 py-2">
+    <summary className="cursor-pointer text-sm font-semibold text-slate-700 dark:text-[var(--text-primary)]">
+      Market Depth
+    </summary>
+    {bids.length === 0 && asks.length === 0 ? (
+      <p className="py-2 text-sm text-slate-500 dark:text-[var(--text-secondary)]">
+        {loading ? "Loading depth…" : "Market depth will appear here once the broker's order-book feed is connected."}
+      </p>
+    ) : (
+    <>
+    <div className="w-full pt-2">
+      <div className="flex justify-between text-sm font-medium text-slate-600 dark:text-[var(--text-secondary)]">
+        <span>Buy order quantity</span>
+        <span>Sell order quantity</span>
+      </div>
+
+      <div className="flex w-full h-2 rounded-full overflow-hidden mt-2 bg-slate-200 dark:bg-[var(--gray-800)]">
+        <div className="bg-emerald-500" style={{ width: `${bidPct}%` }} />
+        <div className="bg-red-500" style={{ width: `${100 - bidPct}%` }} />
+      </div>
+
+      <div className="flex justify-between mt-1 text-sm font-medium">
+        <span className="text-emerald-600">{bidPct}%</span>
+        <span className="text-red-500">{100 - bidPct}%</span>
+      </div>
+    </div>
+
+    <div className="grid grid-cols-2 gap-4 mt-4 pb-2 divide-x dark:divide-[var(--border-color)]">
+      {[["Bid Price", bids, "text-emerald-600", "bg-emerald-100 dark:bg-emerald-500/20", "Bid Total", bidTotal], ["Ask Price", asks, "text-red-500", "bg-red-100 dark:bg-red-500/20", "Ask Total", askTotal]].map(
+        ([title, rows, tone, bar, totalLabel, total], side) => (
+          <div key={title} className={side ? "pl-4" : "pr-4"}>
+            <div className="grid grid-cols-2 text-sm mb-2 text-slate-600 dark:text-[var(--text-secondary)]">
+              <span className="font-medium">{title}</span>
+              <span className="text-right font-medium">Qty</span>
+            </div>
+            {rows.map((r, i) => (
+              <div key={i} className="grid grid-cols-2 items-center text-sm mb-2 relative">
+                <span className="dark:text-[var(--text-primary)]">{Number(r.price).toLocaleString()}</span>
+                <div className="relative text-right">
+                  <span className={`${tone} font-medium relative z-10`}>{Number(r.quantity).toLocaleString()}</span>
+                  <div
+                    className={`absolute right-0 top-1/2 -translate-y-1/2 h-full ${bar} rounded`}
+                    style={{ width: `${(Number(r.quantity) / maxQty) * 100}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+            <div className="flex justify-between mt-3 font-semibold dark:text-[var(--text-primary)]">
+              <span>{totalLabel}</span>
+              <span>{total.toLocaleString()}</span>
+            </div>
+          </div>
+        )
+      )}
+    </div>
+    </>
+    )}
+  </details>
 </div>
 
 
@@ -359,37 +444,8 @@ const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
       </p>
     </div>
 
-    {/* Analyst Rating */}
-    <div
-      className="
-        bg-linear-to-r from-amber-50 to-white
-        p-3 rounded-lg
- dark:border
-
-        dark:from-[var(--white-5)] dark:to-[var(--white-5)] border-[var(--border-color)]
-      "
-    >
-      <p className="text-xs text-slate-500 dark:text-[var(--text-secondary)]">
-        Analyst Rating
-      </p>
-
-      {/* Audit #53 — was a hard-coded "—" over the words "Live market data". */}
-      {analyst?.recommendation ? (
-        <div>
-          <p className="text-base font-semibold text-slate-900 dark:text-[var(--text-primary)]">
-            {RECOMMENDATION[analyst.recommendation] || analyst.recommendation}
-          </p>
-          <p className="text-xs text-slate-600 dark:text-[var(--text-secondary)]">
-            {analyst.analysts ? `${analyst.analysts} analysts` : ""}
-            {analyst.target_mean ? ` · target ${fmtRupee(analyst.target_mean)}` : ""}
-          </p>
-        </div>
-      ) : (
-        <p className="text-sm text-slate-600 dark:text-[var(--text-secondary)]">
-          {fin === undefined ? "Loading…" : "No analyst coverage published"}
-        </p>
-      )}
-    </div>
+    {/* Client 2026-10-09 — the Analyst Rating card that sat here, beside Buy/Sell, moved
+        below Financials as "Analyst consensus", away from the order buttons. */}
 
   </div>
 </aside>
@@ -421,7 +477,9 @@ const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
             </a>
           )}
         </div>
-        <StockLiveChart key={yahooSymbol} symbol={yahooSymbol} height={320} />
+        {/* Client 2026-10-09 — the chart's last candle follows the header LTP, so the two
+            prices on this page cannot disagree. */}
+        <StockLiveChart key={yahooSymbol} symbol={yahooSymbol} height={320} quote={stockDetails?.priceInfo} />
 
         {/* BELOW CHART: keep your Day High / Day Low cards */}
         <div className="mt-4 grid grid-cols-2 gap-3">
@@ -529,7 +587,7 @@ const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
   <aside
     className="
-      lg:col-span-2
+      lg:col-span-3
       bg-white/60 backdrop-blur-sm
       border border-white/40
       rounded-2xl p-4 shadow-md
@@ -587,77 +645,6 @@ const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
     </div>
   </aside>
 
-  {/* ANALYST CONSENSUS — Audit #53 / FR 5.4 */}
-  <aside className="bg-white/60 backdrop-blur-sm border border-white/40 rounded-2xl p-4 shadow-md dark:bg-[var(--white-10)] dark:border-[var(--border-color)]">
-    <h4 className="text-lg font-semibold text-slate-900 dark:text-[var(--text-primary)] mb-3">
-      Analyst consensus
-    </h4>
-    {!analyst ? (
-      <p className="text-sm text-slate-500 dark:text-[var(--text-secondary)]">
-        {fin === undefined ? "Loading…" : "No analyst covering this company has published a rating."}
-      </p>
-    ) : (
-      <div className="space-y-3 text-sm">
-        <div className="flex items-baseline justify-between">
-          <span className="text-base font-semibold text-slate-900 dark:text-[var(--text-primary)]">
-            {RECOMMENDATION[analyst.recommendation] || analyst.recommendation || DASH}
-          </span>
-          <span className="text-xs text-slate-500 dark:text-[var(--text-secondary)]">
-            {analyst.analysts ? `${analyst.analysts} analysts` : ""}
-          </span>
-        </div>
-        {analyst.counts && (
-          <div className="space-y-1">
-            {[
-              ["strong_buy", "Strong buy", "bg-emerald-600"],
-              ["buy", "Buy", "bg-emerald-400"],
-              ["hold", "Hold", "bg-amber-400"],
-              ["sell", "Sell", "bg-rose-400"],
-              ["strong_sell", "Strong sell", "bg-rose-600"],
-            ].map(([key, label, tone]) => {
-              const count = Number(analyst.counts[key] || 0);
-              const total = Object.values(analyst.counts).reduce((a, b) => a + Number(b || 0), 0) || 1;
-              return (
-                <div key={key} className="flex items-center gap-2 text-xs">
-                  <span className="w-20 text-slate-600 dark:text-[var(--text-secondary)]">{label}</span>
-                  <div className="flex-1 h-2 rounded bg-slate-100 dark:bg-[var(--gray-800)] overflow-hidden">
-                    <div className={`h-2 ${tone}`} style={{ width: `${(count / total) * 100}%` }} />
-                  </div>
-                  <span className="w-5 text-right text-slate-700 dark:text-[var(--text-primary)]">{count}</span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        {analyst.target_mean && (
-          <div className="pt-2 border-t border-slate-200 dark:border-[var(--border-color)] text-xs space-y-1">
-            <div className="flex justify-between text-slate-600 dark:text-[var(--text-secondary)]">
-              <span>Target price (mean)</span>
-              <span className="font-semibold text-slate-900 dark:text-[var(--text-primary)]">{fmtRupee(analyst.target_mean)}</span>
-            </div>
-            <div className="flex justify-between text-slate-600 dark:text-[var(--text-secondary)]">
-              <span>Range</span>
-              <span>
-                {fmtRupee(analyst.target_low)} – {fmtRupee(analyst.target_high)}
-              </span>
-            </div>
-            {livePrice > 0 && (
-              <div className="flex justify-between text-slate-600 dark:text-[var(--text-secondary)]">
-                <span>vs today</span>
-                <span className={analyst.target_mean >= livePrice ? "text-emerald-600" : "text-rose-600"}>
-                  {analyst.target_mean >= livePrice ? "+" : ""}
-                  {(((analyst.target_mean - livePrice) / livePrice) * 100).toFixed(1)}%
-                </span>
-              </div>
-            )}
-          </div>
-        )}
-        <p className="text-[11px] text-slate-400 dark:text-[var(--text-secondary)]">
-          Consensus of brokerage analysts as published by Yahoo Finance. Not advice from WealthCrop.
-        </p>
-      </div>
-    )}
-  </aside>
 </section>
 
         {/* FINANCIALS — Audit #53 / FR 5.3: income statement, balance sheet, cash flow, ratios */}
@@ -746,115 +733,82 @@ const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
       </section>
 
 
-        {/* MARKET DEPTH */}
+        {/* ANALYST CONSENSUS — client 2026-10-09: below Fundamentals and Financials, away
+            from the Buy/Sell buttons, with the third-party disclaimer in its header. */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-  {/* MARKET DEPTH */}
-  <div
-    className="
-      lg:col-span-2
-      bg-white/60 backdrop-blur-sm
-      border border-white/40
-      rounded-2xl p-6 shadow-md
-
-      dark:bg-[var(--white-10)]
-      dark:border-[var(--border-color)]
-    "
-  >
-    <h3 className="text-lg font-semibold text-slate-900 dark:text-[var(--text-primary)] mb-4">
-      Market Depth
-    </h3>
-
-    {bids.length === 0 && asks.length === 0 ? (
+  {/* ANALYST CONSENSUS — Audit #53 / FR 5.4 */}
+  <aside className="bg-white/60 backdrop-blur-sm border border-white/40 rounded-2xl p-4 shadow-md dark:bg-[var(--white-10)] dark:border-[var(--border-color)]">
+    <h4 className="text-lg font-semibold text-slate-900 dark:text-[var(--text-primary)]">
+      Analyst consensus
+    </h4>
+    {/* Client 2026-10-09 — mandatory, inside the card header, 11px. */}
+    <p className="mb-3 text-slate-500 dark:text-[var(--text-secondary)]" style={{ fontSize: 11 }}>
+      Third-Party Brokerage Consensus (Source: Yahoo Finance / Refinitiv). Wealthcrop does not provide stock recommendations or price targets.
+    </p>
+    {!analyst ? (
       <p className="text-sm text-slate-500 dark:text-[var(--text-secondary)]">
-        {loading ? "Loading depth…" : "Market depth available when Kotak API is connected."}
+        {fin === undefined ? "Loading…" : "No analyst covering this company has published a rating."}
       </p>
     ) : (
-    <>
-    <div className="w-full">
-      <div className="flex justify-between text-md font-medium text-slate-600 dark:text-[var(--text-secondary)]">
-        <span>Buy order quantity</span>
-        <span>Sell order quantity</span>
-      </div>
-
-      <div className="flex w-full h-2 rounded-full overflow-hidden mt-2 bg-slate-200 dark:bg-[var(--gray-800)]">
-        <div className="bg-emerald-500" style={{ width: "33%" }} />
-        <div className="bg-red-500" style={{ width: "67%" }} />
-      </div>
-
-      <div className="flex justify-between mt-1 text-sm font-medium">
-        <span className="text-emerald-600">33%</span>
-        <span className="text-red-500">67%</span>
-      </div>
-    </div>
-
-    <div className="grid grid-cols-2 gap-4 mt-6 divide-x dark:divide-[var(--border-color)]">
-      {/* BIDS */}
-      <div className="pr-4">
-        <div className="grid grid-cols-2 text-sm mb-2 text-slate-600 dark:text-[var(--text-secondary)]">
-          <span className="font-medium">Bid Price</span>
-          <span className="text-right font-medium">Qty</span>
+      <div className="space-y-3 text-sm">
+        <div className="flex items-baseline justify-between">
+          <span className="text-base font-semibold text-slate-900 dark:text-[var(--text-primary)]">
+            {RECOMMENDATION[analyst.recommendation] || analyst.recommendation || DASH}
+          </span>
+          <span className="text-xs text-slate-500 dark:text-[var(--text-secondary)]">
+            {analyst.analysts ? `${analyst.analysts} analysts` : ""}
+          </span>
         </div>
-
-        {bids.map((b, i) => (
-          <div key={i} className="grid grid-cols-2 items-center text-sm mb-2 relative">
-            <span className="dark:text-[var(--text-primary)]">
-              {Number(b.price).toLocaleString()}
-            </span>
-
-            <div className="relative text-right">
-              <span className="text-emerald-600 font-medium relative z-10">
-                {Number(b.quantity).toLocaleString()}
-              </span>
-              <div
-                className="absolute right-0 top-1/2 -translate-y-1/2 h-full bg-emerald-100 dark:bg-emerald-500/20 rounded"
-                style={{ width: `${(Number(b.quantity) / maxQty) * 100}%` }}
-              />
-            </div>
+        {analyst.counts && (
+          <div className="space-y-1">
+            {[
+              ["strong_buy", "Strong buy", "bg-emerald-600"],
+              ["buy", "Buy", "bg-emerald-400"],
+              ["hold", "Hold", "bg-amber-400"],
+              ["sell", "Sell", "bg-rose-400"],
+              ["strong_sell", "Strong sell", "bg-rose-600"],
+            ].map(([key, label, tone]) => {
+              const count = Number(analyst.counts[key] || 0);
+              const total = Object.values(analyst.counts).reduce((a, b) => a + Number(b || 0), 0) || 1;
+              return (
+                <div key={key} className="flex items-center gap-2 text-xs">
+                  <span className="w-20 text-slate-600 dark:text-[var(--text-secondary)]">{label}</span>
+                  <div className="flex-1 h-2 rounded bg-slate-100 dark:bg-[var(--gray-800)] overflow-hidden">
+                    <div className={`h-2 ${tone}`} style={{ width: `${(count / total) * 100}%` }} />
+                  </div>
+                  <span className="w-5 text-right text-slate-700 dark:text-[var(--text-primary)]">{count}</span>
+                </div>
+              );
+            })}
           </div>
-        ))}
-
-        <div className="flex justify-between mt-3 font-semibold dark:text-[var(--text-primary)]">
-          <span>Bid Total</span>
-          <span>{bids.reduce((acc, c) => acc + (Number(c.quantity) || 0), 0).toLocaleString()}</span>
-        </div>
-      </div>
-
-      {/* ASKS */}
-      <div className="pl-4">
-        <div className="grid grid-cols-2 text-sm mb-2 text-slate-600 dark:text-[var(--text-secondary)]">
-          <span className="font-medium">Ask Price</span>
-          <span className="text-right font-medium">Qty</span>
-        </div>
-
-        {asks.map((a, i) => (
-          <div key={i} className="grid grid-cols-2 items-center text-sm mb-2 relative">
-            <span className="dark:text-[var(--text-primary)]">
-              {Number(a.price).toLocaleString()}
-            </span>
-
-            <div className="relative text-right">
-              <span className="text-red-500 font-medium relative z-10">
-                {Number(a.quantity).toLocaleString()}
-              </span>
-              <div
-                className="absolute right-0 top-1/2 -translate-y-1/2 h-full bg-red-100 dark:bg-red-500/20 rounded"
-                style={{ width: `${(Number(a.quantity) / maxQty) * 100}%` }}
-              />
+        )}
+        {analyst.target_mean && (
+          <div className="pt-2 border-t border-slate-200 dark:border-[var(--border-color)] text-xs space-y-1">
+            <div className="flex justify-between text-slate-600 dark:text-[var(--text-secondary)]">
+              <span>Target price (mean)</span>
+              <span className="font-semibold text-slate-900 dark:text-[var(--text-primary)]">{fmtRupee(analyst.target_mean)}</span>
             </div>
+            <div className="flex justify-between text-slate-600 dark:text-[var(--text-secondary)]">
+              <span>Range</span>
+              <span>
+                {fmtRupee(analyst.target_low)} – {fmtRupee(analyst.target_high)}
+              </span>
+            </div>
+            {livePrice > 0 && (
+              <div className="flex justify-between text-slate-600 dark:text-[var(--text-secondary)]">
+                <span>vs today</span>
+                <span className={analyst.target_mean >= livePrice ? "text-emerald-600" : "text-rose-600"}>
+                  {analyst.target_mean >= livePrice ? "+" : ""}
+                  {(((analyst.target_mean - livePrice) / livePrice) * 100).toFixed(1)}%
+                </span>
+              </div>
+            )}
           </div>
-        ))}
-
-        <div className="flex justify-between mt-3 font-semibold dark:text-[var(--text-primary)]">
-          <span>Ask Total</span>
-          <span>{asks.reduce((acc, c) => acc + (Number(c.quantity) || 0), 0).toLocaleString()}</span>
-        </div>
+        )}
       </div>
-    </div>
-    </>
     )}
-  </div>
-</section>
+  </aside>
+        </section>
 
 
         {/* ABOUT & FOOTER */}
@@ -1061,6 +1015,7 @@ const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
 
 )}
 
+      {watchlistOpen && <WatchlistPopup symbol={yahooSymbol} onClose={closeWatchlist} />}
     </div>
   );
 }

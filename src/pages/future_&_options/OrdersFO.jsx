@@ -43,10 +43,10 @@ const OrdersFO = () => {
       </div>
 
       {loading && orders.length === 0 && (
-        <p className="py-8 text-center text-sm text-slate-500">Loading Kotak F&amp;O orders…</p>
+        <p className="py-8 text-center text-sm text-slate-500">Loading F&amp;O orders…</p>
       )}
       {!loading && orders.length === 0 && (
-        <p className="py-8 text-center text-sm text-slate-500">No Kotak F&amp;O orders found.</p>
+        <p className="py-8 text-center text-sm text-slate-500">No F&amp;O orders found.</p>
       )}
 
       {/* DESKTOP TABLE */}

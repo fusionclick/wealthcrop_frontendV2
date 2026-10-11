@@ -34,10 +34,9 @@ export async function searchCatalogue(schemeName) {
  * naam se link karke DB mein save bhi kar do taake agli baar socket match kare.
  */
 export async function ensureExternalNav(row, navs = {}) {
-  const fromLive = liveNav(
-    { scheme_isin: row.scheme_isin, scheme_bse_code: row.scheme_bse_code, nav: row.nav },
-    navs
-  );
+  const fromLive = liveNav(row, navs);
+  // Keep the dated CAS figure intact; current prices arrive through the NAV feed.
+  if (row.nav_source === "statement" && row.scheme_isin) return { nav: fromLive, patched: false, row };
   if (fromLive != null && row.scheme_isin) {
     return { nav: fromLive, patched: false, row };
   }
@@ -51,6 +50,8 @@ export async function ensureExternalNav(row, navs = {}) {
   const nav = Number(hit.nav);
   const patch = {
     nav,
+    nav_source: "catalogue",
+    nav_date: hit.nav_date || null,
     scheme_isin: hit.scheme_isin || row.scheme_isin || "",
     scheme_bse_code: hit.scheme_bse_code || row.scheme_bse_code || "",
     scheme_category: hit.category || row.scheme_category || "",

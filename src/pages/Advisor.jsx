@@ -362,7 +362,13 @@ export default function Advisor() {
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between gap-3 mb-5">
           <div>
-            <h1 className="text-xl font-semibold text-blue-900 dark:text-white">Asset Allocation</h1>
+            {/* Client 2026-10-09 — renamed, with the client's own one-line description. */}
+            <h1
+              className="text-xl font-semibold text-blue-900 dark:text-white cursor-help"
+              title="Rule-based portfolio rebalancing to maintain optimal risk-adjusted diversification across market cycles."
+            >
+              Wealthcrop Asset Navigator
+            </h1>
             <p className="text-xs text-slate-500 dark:text-[#94a3b8]">
               A few questions, then a plan you can change.
             </p>

@@ -37,7 +37,7 @@ export function liveNav(fund, navs) {
   const isin = String(fund.scheme_isin || "").toUpperCase();
   const code = String(fund.scheme_bse_code || "").toUpperCase();
   const hit = navs[isin] ?? navs[code];
-  const n = (hit && typeof hit === "object" ? hit.nav : hit) ?? fund.nav;
+  const n = (hit && typeof hit === "object" ? hit.nav : hit) ?? (fund.nav_source === "statement" ? null : fund.nav);
   return n != null && n !== "" && Number.isFinite(Number(n)) ? Number(n) : null;
 }
 

@@ -48,7 +48,6 @@ import SwitchAccountModal from "./SwitchAccountModal";
 import MutualFundCarousel from "../carousel/MutualFundCarousel";
 import MutualFundsMenu from "./hovercomp/MutualFundsMenu";
 import StocksMenu from "./hovercomp/StocksMenu";
-import FOMenu from "./hovercomp/FOMenu";
 import MoreMenu from "./hovercomp/MoreMenu";
 import ThemeToggle from "../utils/ThemeToggle";
 
@@ -207,12 +206,12 @@ const email = current?.email
       </Link>
     </div>
 
-    {/* Desktop Navigation */}
+    {/* Desktop Navigation — client 2026-10-09: Mutual Funds first, then Stocks & F&O (one
+        merged menu), then Markets & Insights; the account sits on the right. */}
     <div className="hidden md:flex items-center relative">
-      <StocksMenu token={token} />
       <MutualFundsMenu token={token} />
-      <FOMenu token={token} />
-      {!token && <MoreMenu token={token} />}
+      <StocksMenu />
+      <MoreMenu token={token} />
     </div>
 
     {/* Search (Desktop) */}
@@ -361,36 +360,13 @@ const email = current?.email
   </div>
 
 
-  {/* Balance */}
-  <Link
-    to="/user/balance"
-    className="
-      flex items-center justify-between px-4 py-3 
-      border-b border-gray-100 dark:border-gray-700
-      hover:bg-gray-50 dark:hover:bg-gray-800
-      transition dark:bg-white/5"
-  >
-    <div className="flex items-center gap-2">
-      <IndianRupee size={18} className="text-gray-600 dark:text-gray-300" />
-      <div>
-        <p className="text-gray-900 dark:text-gray-100 font-medium">
-          ₹0.00
-        </p>
-        <p className="text-xs text-gray-500 dark:text-gray-400">
-          Stocks, F&O balance
-        </p>
-      </div>
-    </div>
-    <ChevronRight size={18} className="text-gray-400 dark:text-gray-500" />
-  </Link>
-
   {/* Links — the only part that scrolls, so Log out below stays on screen.
       Adding Calculators, Learning Centre and Community made this list long enough to push
       the footer past the bottom of the viewport, and the whole menu had no height cap, so
       there was nothing to scroll and Log out simply could not be reached. */}
   <div className="py-2 space-y-1 flex-1 min-h-0 overflow-y-auto">
     <Link
-      to="/user/order/stocks"
+      to="/user/order/mutual-funds"
       className="
         flex items-center justify-between px-4 py-2 
         text-gray-800 dark:text-gray-200 
@@ -441,6 +417,25 @@ const email = current?.email
         <ChevronRight size={18} className="text-gray-400 dark:text-gray-500" />
       </Link>
     ))}
+
+    {/* Client 2026-10-09 — "Margin with Broker" replaces the hard-coded "₹0.00 Stocks, F&O
+        balance", and sits after everything mutual-fund: it is only for investors who also
+        want to trade stocks. The page behind it says whether a broker is linked. */}
+    <Link
+      to="/user/balance"
+      className="
+        flex items-center justify-between px-4 py-2 mt-1
+        border-t border-gray-100 dark:border-gray-700
+        text-gray-800 dark:text-gray-200
+        hover:bg-gray-50 dark:hover:bg-gray-800
+        transition dark:bg-white/5"
+    >
+      <div className="flex items-center gap-3">
+        <IndianRupee size={18} className="dark:text-gray-300" />
+        <span>Margin with Broker</span>
+      </div>
+      <ChevronRight size={18} className="text-gray-400 dark:text-gray-500" />
+    </Link>
   </div>
 
   {/* Footer — shrink-0 so Log out is never the thing that gets squeezed out. */}
@@ -513,8 +508,20 @@ const email = current?.email
         <Link to="/user/mutual_fund" className="block text-[var(--text-secondary)]">
           Explore Funds
         </Link>
-        <Link to="/user/mutual_fund/sip" className="block text-[var(--text-secondary)]">
+        <Link to="/sip-investment" className="block text-[var(--text-secondary)]">
           SIP Investment
+        </Link>
+        <Link to="/goals" className="block text-[var(--text-secondary)]">
+          Goal Based Investing
+        </Link>
+        <Link to="/nfo" className="block text-[var(--text-secondary)]">
+          NFO — New Fund Offers
+        </Link>
+        <Link to="/baskets" className="block text-[var(--text-secondary)]">
+          Curated Scheme Baskets
+        </Link>
+        <Link to="/track" className="block text-[var(--text-secondary)]">
+          CAS Upload &amp; Portfolio Health-Check
         </Link>
       </div>
     )}
@@ -528,7 +535,7 @@ const email = current?.email
       text-[var(--text-primary)]
       font-medium"
     >
-      <span>Stocks</span>
+      <span>Stocks &amp; F&amp;O</span>
       <span>{stocksOpen ? "▴" : "▾"}</span>
     </button>
 
@@ -537,6 +544,9 @@ const email = current?.email
         <Link to="/user/stocks" className="block text-[var(--text-secondary)]">
           Stock Dashboard
         </Link>
+        <Link to="/user/future_and_options/explore" className="block text-[var(--text-secondary)]">
+          Futures &amp; Options
+        </Link>
         <Link to="/ipo" className="block text-[var(--text-secondary)]">
           IPO
         </Link>
@@ -544,7 +554,7 @@ const email = current?.email
     )}
   </div>
 
-  {/* ---------------- F&O (mobile dropdown) ---------------- */}
+  {/* ---------------- MARKETS & INSIGHTS (mobile dropdown) ---------------- */}
   <div>
     <button
       onClick={() => setFnoOpen(!fnoOpen)}
@@ -552,20 +562,20 @@ const email = current?.email
       text-[var(--text-primary)]
       font-medium"
     >
-      <span>F&O</span>
+      <span>Markets &amp; Insights</span>
       <span>{fnoOpen ? "▴" : "▾"}</span>
     </button>
 
     {fnoOpen && (
       <div className="pl-4 pt-2 space-y-2 text-sm">
-        <Link to="/user/future_and_options/explore" className="block text-[var(--text-secondary)]">
-          Explore F&O
+        <Link to="/market-news" className="block text-[var(--text-secondary)]">
+          Market News
         </Link>
-        <Link to="/user/future_and_options/positions" className="block text-[var(--text-secondary)]">
-          Positions
+        <Link to="/learning-centre" className="block text-[var(--text-secondary)]">
+          Learning Centre
         </Link>
-        <Link to="/user/future_and_options/orders" className="block text-[var(--text-secondary)]">
-          Orders
+        <Link to="/community" className="block text-[var(--text-secondary)]">
+          Community
         </Link>
       </div>
     )}

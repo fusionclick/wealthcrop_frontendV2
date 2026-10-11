@@ -6,6 +6,7 @@ import { apiErrorMessage, laravelUrl, nodeUrl } from "../../../utils/nodeApi";
 import { approvalRequest } from "../../../utils/approvals";
 import { toastError, toastSuccess } from "../../../utils/notifyCustom";
 import OrderDisclaimers, { useDisclaimers } from "../../../components/mutual_fund/OrderDisclaimers";
+import { titleCase } from "../../../utils/schemeName";
 
 /**
  * Audit #49 — an approved transaction, placed with one click and the details it was held with.
@@ -84,7 +85,7 @@ export default function ApprovedOrders({ onPlaced }) {
           {ready.map((r) => (
             <div key={r.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 p-3">
               <div className="min-w-0">
-                <p className="text-sm font-medium text-slate-800 dark:text-[var(--text-primary)] truncate">{r.scheme_name || r.scheme_code}</p>
+                <p className="text-sm font-medium text-slate-800 dark:text-[var(--text-primary)] truncate">{titleCase(r.scheme_name) || r.scheme_code}</p>
                 <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">
                   {KIND[r.kind] || r.kind} · {money(r.amount)} · {STATE.approved}
                   {r.expires_at ? ` · until ${new Date(r.expires_at).toLocaleString("en-IN")}` : ""}
@@ -106,7 +107,7 @@ export default function ApprovedOrders({ onPlaced }) {
       )}
       {recent.map((r) => (
         <p key={r.id} className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">
-          {r.scheme_name || r.scheme_code} · {KIND[r.kind] || r.kind} · {money(r.amount)} — {STATE[r.state] || r.state}
+          {titleCase(r.scheme_name) || r.scheme_code} · {KIND[r.kind] || r.kind} · {money(r.amount)} — {STATE[r.state] || r.state}
         </p>
       ))}
     </section>

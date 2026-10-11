@@ -8,12 +8,17 @@ const rows = [
 ];
 const navOf = (r) => (r.scheme_isin === "IN1" ? 12 : null);
 
-test("prices what it can and falls back to invested for the rest", () => {
+test("one missing NAV leaves the total valuation and returns unknown", () => {
   const t = externalTotals(rows, navOf);
   assert.equal(t.invested, 3000);
-  assert.equal(t.current, 3200);
-  assert.equal(t.pnl, 200);
+  assert.equal(t.current, null);
+  assert.equal(t.pnl, null);
+  assert.equal(t.pnlPct, null);
   assert.equal(t.priced, 1);
+});
+
+test("fully priced holdings still calculate their actual gain", () => {
+  assert.deepEqual(externalTotals([rows[0]], navOf), { invested: 1000, current: 1200, pnl: 200, pnlPct: 20, priced: 1 });
 });
 
 test("empty list is flat, not NaN", () => {

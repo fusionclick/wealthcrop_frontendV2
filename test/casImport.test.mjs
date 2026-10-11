@@ -14,6 +14,7 @@ const holding = {
   folio: "12345678/90",
   units: 125.178,
   nav: 44.21,
+  nav_date: "2025-03-31",
   statement_value: 5533.62,
   invested_amount: 5095.21,
   purchased_at: "2024-04-02",
@@ -64,6 +65,8 @@ test("the saved body matches what the Add Fund form posts", () => {
     scheme_bse_code: "HDFC123",
     scheme_category: "Debt",
     nav: 44.21,
+    nav_source: "statement",
+    nav_date: "2025-03-31",
     units: 125.178,
     invested_amount: 5095.21,
     folio: "12345678/90",
@@ -163,6 +166,8 @@ test("the statement's own NAV is the one the import keeps", () => {
   assert.equal(row.current_nav, 96.5733, "today's price is shown beside it, not in place of it");
   assert.equal(row.nav_source, "statement");
   assert.equal(casHoldingPayload(row).nav, 110, "and it is what gets saved");
+  assert.equal(casHoldingPayload(row).nav_date, "2025-03-31");
+  assert.equal(casHoldingPayload(row).nav_source, "statement");
 });
 
 test("a statement with no NAV of its own falls back to today's", () => {

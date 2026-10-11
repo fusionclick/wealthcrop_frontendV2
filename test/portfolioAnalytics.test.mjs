@@ -21,7 +21,7 @@ test("allocation is by market value, by asset class, with stocks in it", () => {
       { scheme_category: "Debt Scheme - Liquid Fund", inv_amo: 5000, current_value: 5100 },
       { scheme_category: "Other Scheme - Gold ETF FoF", inv_amo: 3000, current_value: 3300 },
       { scheme_category: "Debt Scheme - Corporate Bond Fund", inv_amo: 4000, current_value: 4100 },
-      // The feed could not price it: it stays at cost rather than vanishing.
+      // Unpriced holdings must not be treated as valued at cost.
       { scheme_category: "Debt", inv_amo: 1000, current_value: null },
     ],
     [{ symbol: "TCS", qty: 10, ltp: 2075 }]
@@ -32,7 +32,7 @@ test("allocation is by market value, by asset class, with stocks in it", () => {
     [
       ["Equity (stocks)", 20750],
       ["Equity funds", 20000],
-      ["Debt", 5100],
+      ["Debt", 4100],
       ["Gold", 3300],
       ["Cash", 5100],
     ]
@@ -115,7 +115,9 @@ test("a fund alert is set by picking a fund by name or ISIN, never by typing a B
 test("portfolio and market alerts are on the form; SMS is excluded and push remains unavailable", () => {
   const page = code("src/pages/Notifications.jsx");
   assert.match(page, /<option value="portfolio">My whole portfolio<\/option>/);
-  assert.match(page, /<option value="index">The market \(Nifty 50 \/ Sensex\)<\/option>/);
+  // Client 2026-10-09 — sector indices joined the market alerts.
+  assert.match(page, /<option value="index">The market \(Nifty 50 \/ Sensex \/ sectors\)<\/option>/);
+  assert.match(page, /<option value="NIFTYBANK">Nifty Bank<\/option>/);
   assert.match(page, /<Preferences \/>/);
   assert.doesNotMatch(page, /unavailable\.sms|>SMS<|SMS \(not available\)/);
   assert.match(page, /type="checkbox" disabled title=\{unavailable\.push\}/);

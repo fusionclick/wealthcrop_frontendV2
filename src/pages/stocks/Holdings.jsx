@@ -113,7 +113,7 @@ const Holdings = () => {
                   onClick={handleSync}
                   className="px-5 py-2 rounded-lg text-sm font-medium transition border border-teal-600 text-teal-700 hover:bg-teal-50 dark:border-teal-500 dark:text-teal-400"
                 >
-                  Import from Kotak
+                  Import from Broker
                 </button>
               </div>
               <KotakLinkForm
@@ -135,7 +135,7 @@ const Holdings = () => {
                 onClick={handleSync}
                 className="text-sm text-teal-700 hover:underline dark:text-teal-400"
               >
-                Refresh from Kotak
+                Refresh from Broker
               </button>
             </div>
 

@@ -5,8 +5,9 @@ import { FaArrowLeft } from "react-icons/fa";
 import { getApiWithToken, postApi, postApiWithToken } from "../../api/api";
 import { apiErrorMessage, nodeUrl, validateInvestorReady } from "../../utils/nodeApi";
 import { splitByPercent } from "../../utils/spread";
-import { toastError } from "../../utils/notifyCustom";
+import { toastError, toastSuccess } from "../../utils/notifyCustom";
 import OrderDisclaimers, { useDisclaimers } from "../../components/mutual_fund/OrderDisclaimers";
+import { basketMinimum } from "../../utils/basketMath";
 
 /**
  * Audit #11 — "Invest in this basket".
@@ -40,6 +41,24 @@ export default function Invest({ baskets }) {
   const [placing, setPlacing] = useState(false);
   const [outcome, setOutcome] = useState(null);
   const [paying, setPaying] = useState(false);
+  // Client 2026-10-09 — the multi-leg order is authorised by an OTP mailed to the investor.
+  // The server spends it once, after every fund's share has passed its checks.
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
+
+  const sendOtp = async () => {
+    setSendingOtp(true);
+    try {
+      const res = await postApiWithToken(`${import.meta.env.VITE_URL}/orders/otp/send`, {}, { silent: true, throwOnError: true });
+      setOtpSent(true);
+      toastSuccess(res?.data?.message || "OTP sent to your registered email.");
+    } catch (e) {
+      toastError(apiErrorMessage(e, "Could not send the OTP. Please try again."));
+    } finally {
+      setSendingOtp(false);
+    }
+  };
 
   // The basket's own codes and weights — what the server splits by.
   useEffect(() => {
@@ -76,6 +95,8 @@ export default function Invest({ baskets }) {
   }, [plan, amount, mins]);
   const notFunds = legs.filter((l) => l.asset_type !== "mutual_fund");
   const short = legs.filter((l) => l.min > 0 && l.amount < l.min);
+  // Client 2026-10-09 — the smallest amount every fund can take its share of (min ÷ weight).
+  const minimum = basketMinimum(legs);
 
   const invest = async () => {
     const ready = validateInvestorReady(investor);
@@ -85,10 +106,12 @@ export default function Invest({ baskets }) {
     try {
       const res = await postApiWithToken(
         nodeUrl("/basketCheckout"),
-        { data: { basket_id: Number(id), amount: Number(amount), acknowledged: disc.acked } },
+        { data: { basket_id: Number(id), amount: Number(amount), acknowledged: disc.acked, otp } },
         { silent: true, throwOnError: true }
       );
       setOutcome({ ok: true, ...res?.data });
+      setOtp("");
+      setOtpSent(false);
     } catch (e) {
       // A refusal up front comes back with the reason on each fund: show those, not a toast.
       const body = e?.response?.data;
@@ -143,6 +166,11 @@ export default function Invest({ baskets }) {
         </label>
 
         <div>
+          {minimum > 0 && (
+            <p className="mb-2 text-sm text-slate-600 dark:text-[var(--text-secondary)]">
+              Minimum to invest in this basket: <strong>{money(minimum)}</strong>
+            </p>
+          )}
           <h3 className="font-semibold mb-2 text-slate-800 dark:text-[var(--text-primary)]">How it is split</h3>
           <ul className="space-y-2">
             {legs.map((l) => (
@@ -169,10 +197,33 @@ export default function Invest({ baskets }) {
 
         <OrderDisclaimers {...disc} schemes={legs} />
 
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="flex-1 min-w-[180px]">
+            <span className="block text-sm font-medium mb-1 text-slate-700 dark:text-[var(--text-secondary)]">OTP to authorise these orders</span>
+            <input
+              inputMode="numeric"
+              maxLength={6}
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              placeholder={otpSent ? "6-digit code from your email" : "Send the OTP first"}
+              disabled={!otpSent}
+              className="w-full border rounded-lg px-3 py-2 tracking-widest dark:bg-[var(--white-5)] dark:border-[var(--border-color)] dark:text-[var(--text-primary)] disabled:opacity-60"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={sendOtp}
+            disabled={sendingOtp}
+            className="px-4 py-2 rounded-lg border border-blue-600 text-blue-700 dark:text-blue-400 text-sm font-medium disabled:opacity-50"
+          >
+            {sendingOtp ? "Sending…" : otpSent ? "Resend OTP" : "Send OTP"}
+          </button>
+        </div>
+
         <button
           type="button"
           onClick={invest}
-          disabled={placing || !disc.ready || !(Number(amount) > 0) || short.length > 0 || notFunds.length > 0}
+          disabled={placing || !disc.ready || !(Number(amount) > 0) || short.length > 0 || notFunds.length > 0 || otp.length !== 6}
           className="w-full py-3 rounded-xl font-medium bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
         >
           {placing ? "Placing one order per fund…" : "Invest in this basket"}

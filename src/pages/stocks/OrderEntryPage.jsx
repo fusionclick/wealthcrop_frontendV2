@@ -3,6 +3,9 @@ import { useParams } from "react-router-dom";
 import { fetchStockQuote } from "../../api/marketApi";
 import { placeStockOrder } from "../../api/portfolioApi";
 import { toastError, toastSuccess } from "../../utils/notifyCustom";
+import { useQuery } from "@tanstack/react-query";
+import { getApi } from "../../api/api";
+import { brokerageFor, equitySegment } from "../../utils/brokerage";
 
 const OrderEntryPage = ({
   symbol: symbolProp,
@@ -69,7 +72,14 @@ const OrderEntryPage = ({
 
   const execPrice = marketPriced ? ltp : price;
   const notionalValue = useMemo(() => quantity * execPrice, [quantity, execPrice]);
-  const brokerage = useMemo(() => Math.min(20, notionalValue * 0.0003), [notionalValue]);
+  // Client 2026-10-09 — the broker's published ratecard (Admin → Brokerage), not a constant.
+  const { data: rates } = useQuery({
+    queryKey: ["brokerageRates"],
+    // getApi hands back the response body: { status, data: { rates, ratecard_url } }.
+    queryFn: () => getApi(`${import.meta.env.VITE_URL}/brokerage-rates`).then((body) => body?.data?.rates || {}),
+    staleTime: 30 * 60 * 1000,
+  });
+  const brokerage = useMemo(() => brokerageFor(rates?.[equitySegment(product)], notionalValue), [rates, product, notionalValue]);
   const taxes = useMemo(() => notionalValue * 0.0005, [notionalValue]);
   const totalCharges = useMemo(
     () => brokerage + taxes,
@@ -122,10 +132,10 @@ const OrderEntryPage = ({
       });
 
       if (res?.status === true || res?.status === 200) {
-        toastSuccess(res?.message || `${side} order placed on Kotak`);
+        toastSuccess(res?.message || `${side} order placed with your broker`);
         onSuccess?.(res);
       } else if (res?.needs_setup) {
-        toastError(res?.message || "Link Kotak MPIN + TOTP in Holdings first");
+        toastError(res?.message || "Link your broker MPIN + TOTP in Holdings first");
       }
       // errors already toasted by postApiWithToken when null
     } finally {

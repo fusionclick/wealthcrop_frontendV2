@@ -10,7 +10,7 @@ import OrderDisclaimers, { useDisclaimers } from "../../components/mutual_fund/O
 import { buildSxpIntent, sxpIntentError, retireReplacedPlan } from "../../utils/sxp";
 import { matchLots, isoDay } from "../../utils/taxlots";
 import { lockinSplit } from "../../utils/lockin";
-import { fmtDate } from "../../utils/schemeName";
+import { fmtDate, titleCase } from "../../utils/schemeName";
 
 // Audit #42 — money leaves only for a verified PAN. The server refuses without it; the page
 // says so first. Same flag the server reads (investor-data's profile.pan_verified).
@@ -73,6 +73,7 @@ export async function submitRedeemOrder({ investorData, holding, redeemAll, rede
           mem_ord_ref_id: memberRefId,
           scheme_name: holding.scheme_name,
           scheme_bse_code: holding.scheme_bse_code,
+          scheme_isin: holding.scheme_isin || holding.isin,
           inv_amo: redeemAll ? holding.inv_amo : Number(redeemAmount),
           folio: holding.folio,
           order_type: "redeem",
@@ -309,7 +310,7 @@ export function RedeemForm({ holding, locked, onCancel, onSuccess, replaceRegNo,
   return (
     <div className="space-y-4">
       <div className="p-3 rounded-xl border border-gray-200 dark:border-[var(--border-color)] bg-gray-50 dark:bg-[var(--white-5)]">
-        <p className="font-medium text-gray-800 dark:text-[var(--text-primary)] text-sm">{holding.scheme_name || "—"}</p>
+        <p className="font-medium text-gray-800 dark:text-[var(--text-primary)] text-sm">{titleCase(holding.scheme_name) || "—"}</p>
         <p className="text-xs text-gray-500 dark:text-[var(--text-secondary)] mt-0.5">
           Invested: ₹{Number(holding.inv_amo || 0).toLocaleString("en-IN")}
           {holding.folio ? ` · Folio ${holding.folio}` : " · Folio missing"}
@@ -496,7 +497,7 @@ const RedeemMF = () => {
                         : "border-gray-200 dark:border-[var(--border-color)]"
                     }`}
                   >
-                    <p className="font-medium text-gray-800 dark:text-[var(--text-primary)] text-sm">{h.scheme_name || "—"}</p>
+                    <p className="font-medium text-gray-800 dark:text-[var(--text-primary)] text-sm">{titleCase(h.scheme_name) || "—"}</p>
                     <p className="text-xs text-gray-500 dark:text-[var(--text-secondary)] mt-0.5">
                       Invested: ₹{Number(h.inv_amo || 0).toLocaleString()}
                       {h.folio ? ` · Folio ${h.folio}` : " · Folio missing"}
