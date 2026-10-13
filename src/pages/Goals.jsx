@@ -432,7 +432,7 @@ function GoalCard({ goal, holdings, sips, otherLinks, suggested, onContribute, o
   // Client 2026-10-09 — when the projection falls short of the target, say by how much the
   // SIP has to rise, and offer the one click that does it: a SIP (top-up / step-up) on the
   // goal's own linked scheme, pre-filled with the gap, through the normal BSE SIP flow.
-  const shortfall = goal.status === "achieved" || goal.on_track ? 0 : Math.max(0, Math.round(Number(goal.required_monthly || 0) - Number(goal.monthly_contribution || 0)));
+  const shortfall = goal.status === "achieved" ? 0 : Math.max(0, Math.round(Number(goal.required_monthly || 0) - Number(goal.monthly_contribution || 0)));
   const stepUp = () => {
     const code = links[0]?.scheme_bse_code;
     navigate(`${code ? fundSipPath("", code) : "/mutual_fund/sip-setup"}?amount=${shortfall}`);
@@ -484,7 +484,7 @@ function GoalCard({ goal, holdings, sips, otherLinks, suggested, onContribute, o
               : "bg-amber-50 text-amber-700 dark:bg-amber-500/15"
           }`}
         >
-          {goal.status === "achieved" ? "Achieved" : goal.on_track ? "On track" : goal.planned_now != null ? "Behind plan" : "Behind"}
+          {goal.status === "achieved" ? "Achieved" : goal.on_track ? (goal.planned_now != null ? "On plan" : "On track") : goal.planned_now != null ? "Behind plan" : "Behind"}
         </span>
       </div>
 

@@ -21,7 +21,7 @@ const assert = require('node:assert/strict');
         if (req.url().includes('xspRegister')) registrations.push(req.url());
         let json = { status: true, data: { data: [] } };
         if (req.url().endsWith('/goals')) json = { status: true, data: [{ id: 1, name: 'Education QA', type: 'education', target_amount: 1000000,
-          target_future: 1338225, inflation_pct: 6, target_date: '2031-10-14', months_left: 60, saved_amount: 0, on_track: false,
+          target_future: 1338225, inflation_pct: 6, target_date: '2031-10-14', months_left: 60, saved_amount: 0, on_track: true, planned_now: 0, plan: { start_date: '2026-10-14' },
           required_monthly: 5000, monthly_contribution: 1000, status: 'active', links: linked ? [{ scheme_bse_code: fund.scheme_bse_code }] : [] }] };
         if (req.url().includes('master-scheme-list')) json = { status: 'success', data: { lists: [fund] } };
         if (req.url().includes('scheme-details')) json = { status: 'success', data: { scheme_info: { minSip: 500 } } };
