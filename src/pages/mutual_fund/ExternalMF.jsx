@@ -172,7 +172,7 @@ const ExternalMF = () => {
 
   return (
     <div className="p-4 min-h-screen bg-slate-50 dark:bg-[var(--app-bg)]">
-      <div className="flex items-start justify-between gap-3 mb-4">
+      <div className="flex flex-col sm:flex-row items-start justify-between gap-3 mb-4">
         <div>
           <h2 className="text-lg font-semibold text-blue-950 dark:text-[var(--text-primary)]">
             External Portfolio
