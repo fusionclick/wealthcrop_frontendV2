@@ -457,10 +457,9 @@ useEffect(() => {
               <Route path="/mutual_fund/manage-swp" element={<ManageSxpPage type="swp" />} />
               <Route path="/mutual_fund/manage-stp" element={<ManageSxpPage type="stp" />} />
               <Route path="/mutual_fund/sip-setup" element={<SIPSetupPage />} />
-              {/* Same page, but the scheme is in the URL — survives a refresh and can be
-                  linked. The bare /sip-setup route above only works while router state
-                  lives, which is why a reload used to drop the fund and post an empty
-                  src_scheme to BSE. Declared before /:isin/:code so the literal segments
+              {/* Scheme URLs preserve the fund across refresh. The bare /sip-setup accepts
+                  a goal amount and asks for a fund before registration.
+                  Declared before /:isin/:code so the literal segments
                   above cannot be swallowed by the dynamic pair. */}
               <Route path="/mutual_fund/:isin/:code/sip" element={<SIPSetupPage />} />
               {/* Audit #1 — the ISIN-only form fundSipPath builds now; the two-segment

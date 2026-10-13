@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { postApi, postApiWithToken } from "../../api/api";
 import { toastError, toastSuccess } from "../../utils/notifyCustom";
 import { useSelector } from "react-redux";
@@ -10,6 +11,7 @@ import OrderDisclaimers, { useDisclaimers } from "../../components/mutual_fund/O
 import EnachAuthorization from "../../components/mutual_fund/EnachAuthorization";
 import SipCalendar from "../../components/sip/SipCalendar";
 import { useEffectiveMinimum } from "../../hooks/usePlatformSettings";
+import Combo from "../../components/ui/Combo";
 
 // The ceiling the server enforces (MANDATE_MAX_LIMIT). Shown, not chosen: the screen must
 // display the same number the backend will accept, or the investor authorises one thing and
@@ -25,6 +27,9 @@ const SIPSetupPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isin, code } = useParams();
+  const [params] = useSearchParams();
+  const requestedAmount = Number(params.get("amount") ?? location.state?.amount);
+  const seedAmount = Number.isFinite(requestedAmount) && requestedAmount > 0 ? requestedAmount : 0;
   const { data: investorData } = useSelector((state) => state.investorData);
 
   // Router state is the fast path (the fund page already has the scheme), but it dies on
@@ -32,14 +37,27 @@ const SIPSetupPage = () => {
   // so fall back to fetching the scheme from the URL.
   const [fund, setFund] = useState(location.state?.fund || {});
 
-  // QA 3.5 — the bare /mutual_fund/sip-setup route can carry no scheme at all: no router
-  // state (a reload drops it) and no :isin/:code to recover one from. The page used to
-  // render anyway and register a SIP with an empty src_scheme, which BSE rejects. Nothing
-  // can be set up without a fund, so send them to pick one rather than fail at submit.
+  // A goal can seed an amount before it has a linked fund; select that fund here.
   const hasScheme = !!(location.state?.fund || isin || code);
+  const pickingScheme = !hasScheme && seedAmount > 0;
   useEffect(() => {
-    if (!hasScheme) navigate("/user/mutual_fund/explore", { replace: true });
-  }, [hasScheme, navigate]);
+    if (!hasScheme && !pickingScheme) navigate("/user/mutual_fund/explore", { replace: true });
+  }, [hasScheme, pickingScheme, navigate]);
+
+  const [schemeText, setSchemeText] = useState("");
+  const [schemeQuery, setSchemeQuery] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setSchemeQuery(schemeText.trim()), 250);
+    return () => clearTimeout(timer);
+  }, [schemeText]);
+  const { data: schemes = [] } = useQuery({
+    queryKey: ["sipSchemeSearch", schemeQuery],
+    queryFn: () => postApi(nodeUrl(import.meta.env.VITE_GET_ALL_FUNDS || "/master-scheme-list"), {
+      start: 0, length: 50, search: schemeQuery, plan: "regular",
+    }),
+    select: (res) => (res?.data?.lists || []).filter((f) => f.sip_allowed === true),
+    enabled: pickingScheme,
+  });
 
   useEffect(() => {
     if (fund.scheme_bse_code || (!isin && !code)) return;
@@ -87,10 +105,9 @@ const SIPSetupPage = () => {
   const currentNav = details?.current_nav ?? fund.nav ?? null;
   // The fund page's return calculator hands over the amount and duration the investor
   // just modelled, so the form opens on those numbers instead of resetting to defaults.
-  const seedAmount = Number(location.state?.amount) || 0;
   const seedYears = Number(location.state?.years) || 10;
 
-  const [amount, setAmount] = useState(Math.max(seedAmount, minSip) || 500);
+  const [amount, setAmount] = useState(seedAmount || minSip || 500);
   const [frequency, setFrequency] = useState("m"); // m=monthly, w=weekly, q=quarterly
   const sipDays = useMemo(() => allowedDays(sipTxn, frequency), [sipTxn, frequency]);
   const [sipDay, setSipDay] = useState(() => smartDefaultDay(FALLBACK_SIP_DAYS));
@@ -188,12 +205,8 @@ const SIPSetupPage = () => {
   // The BSE reference id is generated server-side with the rest of the payload now.
 
   const handleRegister = async () => {
-    // A SIP needs a fund. This page was only ever reachable from a promo link that passed
-    // none, so src_scheme went to BSE empty and every registration failed — send the
-    // investor to pick one instead of posting a request that cannot succeed.
     if (!fund.scheme_bse_code) {
-      toastError("Pick a fund first — open it from Explore and start the SIP there.");
-      navigate("/user/mutual_fund/explore");
+      toastError("Choose a fund before registering the SIP.");
       return;
     }
     if (!installments) {
@@ -298,7 +311,21 @@ const SIPSetupPage = () => {
         </div>
 
         {/* Reached without a fund — say so up front rather than after a failed submit. */}
-        {!fund.scheme_bse_code && (
+        {pickingScheme && (
+          <Combo
+            id="sip-fund"
+            label="Choose a fund for this SIP"
+            value={schemeText}
+            onChange={(text) => {
+              setSchemeText(text);
+              setFund(schemes.find((f) => titleCase(f.name) === text) || {});
+              setDetails(null);
+            }}
+            placeholder="Search Regular-plan funds"
+            options={schemes.map((f) => ({ key: f.scheme_bse_code, label: titleCase(f.name), hint: f.minSip ? `Minimum SIP: ${money(f.minSip)}` : null }))}
+          />
+        )}
+        {!fund.scheme_bse_code && !pickingScheme && (
           <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/30 p-4">
             <p className="text-sm text-amber-800 dark:text-amber-300">
               No fund selected. Open a fund from Explore and start the SIP from there.

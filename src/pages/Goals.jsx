@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Target, Plus, Pencil, Trash2, TrendingUp, Wallet, Link2 } from "lucide-react";
 import { deleteApiWithToken, getApiWithToken, postApiWithToken, putApiWithToken } from "../api/api";
-import { laravelUrl, nodeUrl, mergePortfolio, mapXspToSip, xspItems, fundSipPath, MF_EXPLORE_PATH } from "../utils/nodeApi";
+import { laravelUrl, nodeUrl, mergePortfolio, mapXspToSip, xspItems, fundSipPath } from "../utils/nodeApi";
 import { linkedValue, linksOverlap, planVsActual, splitBudget } from "../utils/goals";
 import { toastError, toastSuccess } from "../utils/notifyCustom";
 import { titleCase } from "../utils/schemeName";
@@ -435,7 +435,7 @@ function GoalCard({ goal, holdings, sips, otherLinks, suggested, onContribute, o
   const shortfall = goal.status === "achieved" || goal.on_track ? 0 : Math.max(0, Math.round(Number(goal.required_monthly || 0) - Number(goal.monthly_contribution || 0)));
   const stepUp = () => {
     const code = links[0]?.scheme_bse_code;
-    navigate(code ? fundSipPath("", code) : MF_EXPLORE_PATH, code ? { state: { amount: shortfall } } : undefined);
+    navigate(`${code ? fundSipPath("", code) : "/mutual_fund/sip-setup"}?amount=${shortfall}`);
   };
 
   // What can be linked: every holding (scheme + folio) and every active SIP (its scheme).

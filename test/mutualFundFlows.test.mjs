@@ -220,7 +220,7 @@ test("SIP date and start date can never be sent out of step", () => {
 test("sip-setup with no fund sends you to pick one instead of posting an empty scheme", () => {
   const src = fs.readFileSync("src/pages/mutual_fund/SIPSetupPage.jsx", "utf8");
   assert.match(src, /const hasScheme = !!\(location\.state\?\.fund \|\| isin \|\| code\)/);
-  assert.match(src, /if \(!hasScheme\) navigate\("\/user\/mutual_fund\/explore", \{ replace: true \}\)/);
+  assert.match(src, /if \(!hasScheme && !pickingScheme\) navigate\("\/user\/mutual_fund\/explore", \{ replace: true \}\)/);
   // The per-fund route must still be able to render, so the guard cannot key off state alone.
   assert.doesNotMatch(src, /if \(!location\.state\?\.fund\) navigate\(/);
 });
