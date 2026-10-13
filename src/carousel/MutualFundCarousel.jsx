@@ -1,7 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useLocation, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { MdOutlineArrowDropDown, MdOutlineArrowDropUp } from "react-icons/md";
+import { MdOutlineArrowDropDown, MdOutlineArrowDropUp, MdPause, MdPlayArrow } from "react-icons/md";
 import { postApi } from "../api/api";
 import { fetchFno, fetchStockList } from "../api/marketApi";
 import { nodeUrl } from "../utils/nodeApi";
@@ -17,6 +17,7 @@ function tickerMode(pathname = "") {
 function MutualFundCarousel() {
   const { pathname } = useLocation();
   const mode = tickerMode(pathname);
+  const [paused, setPaused] = useState(false);
 
   const { data: stockData } = useQuery({
     queryKey: ["ticker-stocks"],
@@ -80,8 +81,9 @@ function MutualFundCarousel() {
   const strip = [...items, ...items];
 
   return (
-    <div className="w-full bg-white dark:bg-gray-900 overflow-hidden border-b border-gray-100 dark:border-white/10" style={{ height: 40 }}>
-      <div className="flex whitespace-nowrap items-center h-full animate-marquee w-max">
+    <div className="flex w-full bg-white dark:bg-gray-900 overflow-hidden border-b border-gray-100 dark:border-white/10" style={{ height: 40 }}>
+      <div className="min-w-0 flex-1 overflow-hidden">
+      <div className="flex whitespace-nowrap items-center h-full animate-marquee w-max" style={{ animationPlayState: paused ? "paused" : "running" }}>
         {strip.map((item, idx) => {
           const up = item.change >= 0;
           const color = up ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400";
@@ -107,6 +109,13 @@ function MutualFundCarousel() {
           );
         })}
       </div>
+      </div>
+      <button type="button" onClick={() => setPaused(!paused)}
+        aria-label={paused ? "Resume market ticker" : "Pause market ticker"}
+        title={paused ? "Resume market ticker" : "Pause market ticker"}
+        className="shrink-0 px-3 text-blue-950 dark:text-white border-l border-gray-100 dark:border-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500">
+        {paused ? <MdPlayArrow aria-hidden="true" /> : <MdPause aria-hidden="true" />}
+      </button>
     </div>
   );
 }

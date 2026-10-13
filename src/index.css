@@ -129,9 +129,8 @@ select option {
   }
 }
 
-/* For marque top header. The strip is rendered twice, so 0 → -50% loops seamlessly.
-   Client 2026-10-09: "smooth 60s loop" — this used to be 18s, and a duplicate 65s block above
-   was silently overridden by it. Paused on hover so a ticker link can actually be clicked. */
+/* The duplicated strip loops seamlessly. Its pause button controls motion explicitly,
+   including when reduced-motion is enabled; hover must not freeze the market strip. */
 @keyframes marquee {
   0% { transform: translateX(0); }
   100% { transform: translateX(-50%); }
@@ -141,13 +140,6 @@ select option {
   animation: marquee 60s linear infinite;
 }
 
-.animate-marquee:hover {
-  animation-play-state: paused;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .animate-marquee { animation: none; }
-}
 
 
 
