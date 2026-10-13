@@ -5,13 +5,13 @@ import { formSchema } from "../utils/FormSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toastSuccess, toastError } from "../utils/notifyCustom";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
-import { motion } from "framer-motion";
+import { motion as Motion } from "framer-motion";
 import { postApi } from "../api/api";
 import { useDispatch } from "react-redux";
 import { saveSession } from "../utils/session";
 import GoogleSignInButton from "../components/GoogleSignInButton";
 
-export default function Register() {
+export default function Register({ embedded = false }) {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
@@ -59,9 +59,9 @@ export default function Register() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-[#020617] px-4">
-      <div className="w-full max-w-md bg-white dark:bg-[#020617] rounded-2xl shadow-sm dark:shadow-none p-8 border border-gray-100 dark:border-white/10">
-        <motion.div
+    <div className={`flex items-center justify-center bg-gray-50 dark:bg-[#020617] ${embedded ? "" : "min-h-screen px-4"}`}>
+      <div className={`w-full max-w-md bg-white dark:bg-[#020617] ${embedded ? "py-4" : "rounded-2xl shadow-sm dark:shadow-none p-8 border border-gray-100 dark:border-white/10"}`}>
+        <Motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
@@ -171,7 +171,7 @@ export default function Register() {
               Login
             </Link>
           </div>
-        </motion.div>
+        </Motion.div>
       </div>
     </div>
   );

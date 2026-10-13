@@ -43,6 +43,8 @@ const faqs = [
 
 const FAQSection = () => {
   const [open, setOpen] = useState(null);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
 
 const navigate = useNavigate()
 const handleRedirect = (url)=>{
@@ -144,6 +146,7 @@ const handleRedirect = (url)=>{
             it. The WhatsApp chat box (FloatingContact) is the chat now. */}
         <a
           href="mailto:support@wealthcrop.in?subject=%5BOther%5D%20Help%20request"
+          onClick={() => setEmailOpen(true)}
           className="
             block text-center
             w-full py-2 rounded-lg font-medium
@@ -154,6 +157,19 @@ const handleRedirect = (url)=>{
         >
           Email Support
         </a>
+        {emailOpen && (
+          <div className="text-sm text-slate-600 dark:text-gray-300" role="status">
+            <p className="break-all">support@wealthcrop.in</p>
+            <p className="mt-1">No mail app opened? Use Gmail or copy the address.</p>
+            <div className="mt-2 flex flex-wrap gap-4">
+              <a className="text-blue-700 dark:text-blue-300 underline" href="https://mail.google.com/mail/?view=cm&fs=1&to=support%40wealthcrop.in&su=%5BOther%5D%20Help%20request" target="_blank" rel="noopener noreferrer">Open Gmail</a>
+              <button type="button" className="text-blue-700 dark:text-blue-300 underline" onClick={async () => {
+                try { await navigator.clipboard.writeText("support@wealthcrop.in"); setCopied(true); }
+                catch { setCopied(false); }
+              }}>{copied ? "Copied" : "Copy email"}</button>
+            </div>
+          </div>
+        )}
       </div>
 
       <hr className="my-6 border-gray-200 dark:border-white/10" />

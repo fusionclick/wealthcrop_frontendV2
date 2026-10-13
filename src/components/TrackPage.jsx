@@ -45,18 +45,19 @@ export default function TrackPage() {
         className="
           bg-white dark:bg-[#020617]
           rounded-2xl shadow-xl dark:shadow-none
-          w-[90%] max-w-xl p-6 relative max-h-[90vh] overflow-auto
+          w-[90%] max-w-xl p-6 relative max-h-[90dvh] overflow-y-auto scrollbar-hidden
           border dark:border-white/10
         "
       >
         <button
           onClick={() => setShowLogin(false)}
+          aria-label="Close registration"
           className="absolute top-3 right-3 text-xl font-bold text-gray-700 dark:text-gray-400 hover:text-black dark:hover:text-white"
         >
           ✕
         </button>
 
-        <Register />
+        <Register embedded />
       </div>
     </div>
   )}

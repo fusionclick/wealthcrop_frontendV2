@@ -487,3 +487,7 @@ html.dark, .dark body {
   :where(button):not(.no-glass) { transition: none; }
   :where(button):not(.no-glass):active { opacity: 1; }
 }
+
+/* The compact registration modal still scrolls on short screens. */
+.scrollbar-hidden { scrollbar-width: none; }
+.scrollbar-hidden::-webkit-scrollbar { display: none; }

@@ -204,7 +204,7 @@ export function ServiceDesk() {
   );
 }
 
-/** External folio consolidation — the public CAS page handles signed-out visitors itself. */
+/** Signed-in investors can open the CAS importer directly. */
 export function CasBanner() {
   return (
     <section className="px-6 py-12 bg-white dark:bg-[#020617]">
@@ -215,7 +215,7 @@ export function CasBanner() {
             Upload your Consolidated Account Statement to see funds held anywhere — overlap, allocation and returns in one view.
           </p>
         </div>
-        <Link to="/track" className="shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-white text-blue-950 dark:bg-blue-500 dark:text-white text-sm font-semibold">
+        <Link to={localStorage.getItem("token") ? "/user/mutual_fund/external?cas=1" : "/track"} className="shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-white text-blue-950 dark:bg-blue-500 dark:text-white text-sm font-semibold">
           <FileUp size={16} /> Upload CAS
         </Link>
       </div>
