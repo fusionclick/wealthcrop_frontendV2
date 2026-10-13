@@ -16,6 +16,7 @@ import {
 import { postApi } from "../api/api";
 import { nodeUrl } from "../utils/nodeApi";
 import { toastError, toastSuccess } from "../utils/notifyCustom";
+import { titleCase } from "../utils/schemeName";
 
 /**
  * SRS FR 6.1 and §12 — what happened, and what should happen next.
@@ -265,7 +266,7 @@ function Alerts({ alerts, setAlerts, reload }) {
 
   const pickFund = (row) => {
     setFund(row);
-    setFundQuery(row.name || row.scheme_name || "");
+    setFundQuery(titleCase(row.name || row.scheme_name));
     setForm((f) => ({
       ...f,
       target: row.scheme_isin || row.isin || row.scheme_bse_code || "",
@@ -371,7 +372,7 @@ function Alerts({ alerts, setAlerts, reload }) {
                         onClick={() => pickFund(row)}
                         className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:bg-transparent dark:hover:bg-white/5"
                       >
-                        <span className="block font-medium text-slate-800 dark:text-[var(--text-primary)]">{row.name || row.scheme_name}</span>
+                        <span className="block font-medium text-slate-800 dark:text-[var(--text-primary)]">{titleCase(row.name || row.scheme_name)}</span>
                         <span className="text-slate-500 dark:text-[var(--text-secondary)]">
                           {row.scheme_isin || "no ISIN"}
                           {row.nav ? ` · NAV ₹${Number(row.nav).toFixed(2)}` : ""}
@@ -383,7 +384,7 @@ function Alerts({ alerts, setAlerts, reload }) {
               )}
               {fund && (
                 <p className="mt-1 text-[11px] text-emerald-700 dark:text-emerald-400">
-                  Watching {fund.name || fund.scheme_name}
+                  Watching {titleCase(fund.name || fund.scheme_name)}
                   {fund.scheme_isin ? ` · ${fund.scheme_isin}` : ""}
                 </p>
               )}
@@ -458,7 +459,7 @@ function Alerts({ alerts, setAlerts, reload }) {
           {alerts.map((a) => (
             <li key={a.id} className="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-[var(--border-color)] p-3">
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{a.description}</p>
+                <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{a.kind === "scheme" && a.label ? a.description.replace(a.label, titleCase(a.label)) : a.description}</p>
                 <p className="text-[11px] text-slate-400">
                   {KIND_LABEL[a.kind] || a.kind}
                   {a.kind === "stock" || a.kind === "scheme" ? ` · ${a.target}` : ""}
