@@ -473,13 +473,17 @@ const email = current?.email
       )}
     </div>
 
-    {/* Mobile Menu Toggle */}
-    <button
-      className="md:hidden text-[var(--text-primary)] text-2xl"
-      onClick={() => setMenuOpen(!menuOpen)}
-    >
-      {menuOpen ? <HiX /> : <HiMenu />}
-    </button>
+    {/* Mobile Menu Toggle. QA 8.2 — the theme toggle above sits in a `hidden md:flex` row,
+        so below 768px (and in the Android app) a signed-out visitor had no way to switch. */}
+    <div className="md:hidden flex items-center gap-3">
+      <ThemeToggle />
+      <button
+        className="text-[var(--text-primary)] text-2xl"
+        onClick={() => setMenuOpen(!menuOpen)}
+      >
+        {menuOpen ? <HiX /> : <HiMenu />}
+      </button>
+    </div>
   </div>
 
  {/* Mobile Dropdown */}
