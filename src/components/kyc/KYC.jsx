@@ -14,7 +14,7 @@ import {
   Lock,
 } from "lucide-react";
 import { BarChart3, Loader2 } from "lucide-react";
-import { getApiWithToken, postApiWithToken } from "../../api/api";
+import { deleteApiWithToken, getApiWithToken, postApiWithToken } from "../../api/api";
 import { toastError, toastSuccess } from "../../utils/notifyCustom";
 import { useQuery } from "@tanstack/react-query";
 import {banks} from "../../utils/bank"
@@ -100,17 +100,17 @@ const [docUploaded, setDocUploaded] = useState({
       const currentStep = userData?.kyc_steps
 
       const saved = userData?.bank_accounts?.[0]
-      const openBank = Boolean(editBank && saved)
+      const openBank = Boolean(editBank && userData)
       if (openBank && !bankEditOpened.current) {
         bankEditOpened.current = true
         setStep(1)
         setKycData((prev) => ({
           ...prev,
           // kyc/bank requires account_holder_name, which the bank step takes from `name`.
-          name: prev.name || saved.account_holder_name || userData?.name || "",
-          bankName: saved.bank_name || "",
-          accountNo: saved.account_number || "",
-          ifsc: saved.ifsc_code || "",
+          name: prev.name || saved?.account_holder_name || userData?.name || "",
+          bankName: saved?.bank_name || "",
+          accountNo: saved?.account_number || "",
+          ifsc: saved?.ifsc_code || "",
         }))
       }
 
@@ -191,6 +191,22 @@ const [docUploaded, setDocUploaded] = useState({
       }
       return next;
     });
+  };
+
+  const removeBank = async () => {
+    const bank = userData?.bank_accounts?.[0];
+    if (!bank || !window.confirm("Remove this bank account? You will need to add and verify a bank account before investing.")) return;
+    setLoadingStep(true);
+    try {
+      const res = await deleteApiWithToken(`${import.meta.env.VITE_URL}/kyc/bank/${bank.id}`);
+      if (!res?.data?.status) return;
+      setKycData((prev) => ({ ...prev, bankName: "", accountNo: "", ifsc: "" }));
+      setCustomBank("");
+      toastSuccess(res.data.message);
+      await refetch();
+    } finally {
+      setLoadingStep(false);
+    }
   };
 
   // Pincode → city + state, from India Post's free keyless endpoint. Fires once per
@@ -317,6 +333,12 @@ const handlePrimaryAction = async () => {
       // then the OLD one was sent to BSE anyway, and the same rejection came back. Pull the
       // fresh record before moving on.
       await refetch();
+
+      if (editBank && step === 1) {
+        toastSuccess(res.message || "Bank details saved");
+        navigate("/profile");
+        return;
+      }
 
       //  move to next step
       if (step < 4) {
@@ -991,6 +1013,11 @@ useEffect(() => {
               {/* {step === 0 && <PANStep data={kycData} onChange={update} />} */}
               {step === 0 && <PersonalStep data={kycData} onChange={update} errors={fieldErrors} panLookupBusy={panLookupBusy} panLocked={panLocked} panChange={panChange} />}
               {step === 1 && <BankStep data={kycData} onChange={update} errors={fieldErrors} customBank={customBank} setCustomBank={setCustomBank} setKycData={setKycData} />}
+              {step === 1 && editBank && userData?.bank_accounts?.[0] && (
+                <button type="button" disabled={loadingStep} onClick={removeBank} className="mt-4 text-sm text-red-600 dark:text-red-400 disabled:opacity-40">
+                  Remove bank account
+                </button>
+              )}
               {step === 2 && <DocsStep data={kycData} onChange={update} errors={fieldErrors} uploadDocument={uploadDocument} />}
               {step === 3 && <NomineeStep data={kycData} onChange={update} errors={fieldErrors} />}
             </motion.div>
@@ -1061,7 +1088,7 @@ useEffect(() => {
   disabled:cursor-not-allowed
 `}
 >
-  {loadingStep ? "Saving..." : "Continue"}
+  {loadingStep ? "Saving..." : editBank && step === 1 ? "Save bank account" : "Continue"}
 </button>
       ) : (
         <button

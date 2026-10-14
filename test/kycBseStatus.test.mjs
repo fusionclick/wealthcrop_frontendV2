@@ -98,7 +98,7 @@ test("a rejected field can actually be corrected", () => {
   // The reason a correction would otherwise appear to do nothing: userData was fetched
   // once and never refreshed, so the UCC payload kept reading the OLD pincode.
   assert.match(kyc, /await refetch\(\);/, "fresh profile after each step submit");
-  assert.equal((kyc.match(/await refetch\(\);/g) || []).length, 2, "step submit and retry");
+  assert.equal((kyc.match(/await refetch\(\);/g) || []).length, 3, "step submit, retry and bank removal");
 });
 
 test("BSE's answer from add_ucc is shown immediately", () => {

@@ -12,6 +12,15 @@ import { readFileSync } from "node:fs";
 
 const src = readFileSync("src/pages/profile/KycDetails.jsx", "utf8");
 
+test("bank management opens for accounts without a saved bank and offers scoped removal", () => {
+  const kyc = readFileSync("src/components/kyc/KYC.jsx", "utf8");
+  assert.match(kyc, /const openBank = Boolean\(editBank && userData\)/);
+  assert.match(kyc, /deleteApiWithToken\(`\$\{import.meta.env.VITE_URL\}\/kyc\/bank\/\$\{bank.id\}`\)/);
+  assert.match(kyc, /window.confirm\(/);
+  assert.match(kyc, /if \(editBank && step === 1\)/);
+  assert.match(kyc, /Save bank account/);
+});
+
 test("the PAN save reads the post-helper body directly, not one level too deep", () => {
   // The save result is used for branching and messages at the TOP level of the body.
   assert.match(src, /const res = await postApiWithToken\(api\("\/kyc\/profile"\)/);
@@ -62,5 +71,5 @@ test("QA 7.3 — Profile → Bank Account opens the KYC bank step with the saved
   // Opened once, before the kyc_steps early return (an investor can have a bank on file with
   // kyc_steps 0), and prefilled — kyc/bank 422s without account_holder_name (= name).
   assert.ok(kyc.indexOf("bankEditOpened.current = true") < kyc.indexOf("if(!currentStep) return"));
-  assert.match(kyc, /name: prev\.name \|\| saved\.account_holder_name/);
+  assert.match(kyc, /name: prev\.name \|\| saved\?\.account_holder_name/);
 });
