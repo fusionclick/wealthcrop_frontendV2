@@ -80,7 +80,7 @@ const Profile = () => {
   
     console.log("User Data", res?.data);
     
-    return res.data;
+    return res.data?.data;
   };
   
   

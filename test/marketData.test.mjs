@@ -56,6 +56,7 @@ test("the stock page reads stats and fundamentals, not the empty NSE fields", ()
   // Client 2026-10-09 — one analyst card, below Financials and away from Buy/Sell, carrying
   // the third-party disclaimer in its header.
   assert.ok(page.search(/>\s*Analyst consensus\s*</) > page.search(/>Financials<\/h3>/), "the analyst card must sit below Financials");
+  assert.match(page, /lg:grid-cols-\[1fr_260px\]/, "depth is beside the quote and Buy/Sell controls on desktop");
   assert.equal((page.match(/RECOMMENDATION\[/g) || []).length, 1, "the header analyst tile beside Buy/Sell is back");
   assert.match(page, /Wealthcrop does not provide stock recommendations or price targets/);
   assert.doesNotMatch(page, /Live market data/, "the hard-coded analyst placeholder is back");

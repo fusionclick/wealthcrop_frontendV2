@@ -67,6 +67,7 @@ test("QA 7.3 — Profile → Bank Account opens the KYC bank step with the saved
   const kyc = readFileSync("src/components/kyc/KYC.jsx", "utf8");
   // Both Profile surfaces (desktop sidebar and mobile list) link to it.
   assert.equal(profile.match(/\/kyc\?step=bank/g)?.length, 2);
+  assert.match(profile, /return res\.data\?\.data;/, "Profile and KYC share the same cached investor object");
   assert.match(kyc, /searchParams\.get\("step"\) === "bank"/);
   // Opened once, before the kyc_steps early return (an investor can have a bank on file with
   // kyc_steps 0), and prefilled — kyc/bank 422s without account_holder_name (= name).

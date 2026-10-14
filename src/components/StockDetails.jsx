@@ -265,7 +265,8 @@ const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
   </div>
 
   {/* PRICE + BUY/SELL */}
-  <div className="mt-5 flex flex-wrap items-center gap-6 justify-between">
+  <div className="mt-5 grid items-start gap-4 lg:grid-cols-[1fr_260px]">
+  <div className="flex flex-wrap items-center gap-6 justify-between">
     <div>
       <div className="flex items-end gap-3">
         <h2 className="text-4xl font-extrabold text-slate-900 dark:text-[var(--text-primary)]">
@@ -334,7 +335,7 @@ const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
 
   {/* Client 2026-10-09 — market depth lives with the LTP and the Buy/Sell buttons, folded
       away by default. The quote feed carries no order book yet, so it says so. */}
-  <details className="mt-4 rounded-xl border border-slate-200 dark:border-[var(--border-color)] px-4 py-2">
+  <details className="rounded-xl border border-slate-200 dark:border-[var(--border-color)] px-4 py-2">
     <summary className="cursor-pointer text-sm font-semibold text-slate-700 dark:text-[var(--text-primary)]">
       Market Depth
     </summary>
@@ -392,6 +393,7 @@ const logoSrc = stockLogoUrl(stockDetails?.info?.symbol ?? name);
     </>
     )}
   </details>
+  </div>
 </div>
 
 

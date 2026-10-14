@@ -8,6 +8,7 @@ import { MF_CATEGORY_MENU } from "../utils/mfCollections";
 // WebView) has no top header, so the Mutual Funds hover menu never appears. Its signed-in
 // entries are repeated here, on the Funds tab, for touch. Keep in step with MutualFundsMenu.
 const MOBILE_MF_LINKS = [
+  { label: "Lumpsum", to: "/user/mutual_fund/explore" },
   { label: "Top-up", to: "/user/mutual_fund/investments?topup=1" },
   { label: "Goal Based Investing", to: "/goals" },
   { label: "NFO — New Fund Offers", to: "/nfo" },
