@@ -1013,6 +1013,17 @@ useEffect(() => {
               {/* {step === 0 && <PANStep data={kycData} onChange={update} />} */}
               {step === 0 && <PersonalStep data={kycData} onChange={update} errors={fieldErrors} panLookupBusy={panLookupBusy} panLocked={panLocked} panChange={panChange} />}
               {step === 1 && <BankStep data={kycData} onChange={update} errors={fieldErrors} customBank={customBank} setCustomBank={setCustomBank} setKycData={setKycData} />}
+              {/* QA 7.3 — the Wealthcrop team marks an account verified in the admin panel after
+                  checking a cancelled cheque or statement; saving changes here sends it back to pending. */}
+              {step === 1 && editBank && userData?.bank_accounts?.[0] && (
+                <p className="mt-4 text-sm text-slate-600 dark:text-[var(--text-secondary)]" role="status">
+                  {Number(userData.bank_accounts[0].is_verified) ? (
+                    <span className="font-medium text-emerald-700 dark:text-emerald-400">✓ Verified by Wealthcrop</span>
+                  ) : (
+                    <><span className="font-medium text-amber-700 dark:text-amber-400">Verification pending</span> — our team will confirm this account. Changing these details resets verification.</>
+                  )}
+                </p>
+              )}
               {step === 1 && editBank && userData?.bank_accounts?.[0] && (
                 <button type="button" disabled={loadingStep} onClick={removeBank} className="mt-4 text-sm text-red-600 dark:text-red-400 disabled:opacity-40">
                   Remove bank account
