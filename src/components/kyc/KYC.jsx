@@ -18,7 +18,7 @@ import { getApiWithToken, postApiWithToken } from "../../api/api";
 import { toastError, toastSuccess } from "../../utils/notifyCustom";
 import { useQuery } from "@tanstack/react-query";
 import {banks} from "../../utils/bank"
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { nodeUrl, laravelUrl } from "../../utils/nodeApi";
 import { validateKycStep } from "../../utils/FormSchema";
 import { PAN_REGEX, bankFromIfsc, lookupPincode, panNameMismatch, readPan } from "../../utils/kycAutofill";
@@ -57,6 +57,13 @@ const [uccErrors, setUccErrors] = useState([]);
 const [retryTick, setRetryTick] = useState(0);
 
 const navigate = useNavigate()
+// QA 7.3 — Profile → Bank Account opens /kyc?step=bank: the bank step, with the saved
+// account filled in, instead of the investor's next unfinished step.
+const [searchParams] = useSearchParams()
+const editBank = searchParams.get("step") === "bank"
+// userData refetches (window focus, after a save) rerun the effect below; open the bank
+// step once and leave navigation to Continue/Back after that.
+const bankEditOpened = useRef(false)
 
 
 const current = JSON.parse(localStorage.getItem("currentAccount"))
@@ -91,9 +98,25 @@ const [docUploaded, setDocUploaded] = useState({
     useEffect(() => {
 
       const currentStep = userData?.kyc_steps
+
+      const saved = userData?.bank_accounts?.[0]
+      const openBank = Boolean(editBank && saved)
+      if (openBank && !bankEditOpened.current) {
+        bankEditOpened.current = true
+        setStep(1)
+        setKycData((prev) => ({
+          ...prev,
+          // kyc/bank requires account_holder_name, which the bank step takes from `name`.
+          name: prev.name || saved.account_holder_name || userData?.name || "",
+          bankName: saved.bank_name || "",
+          accountNo: saved.account_number || "",
+          ifsc: saved.ifsc_code || "",
+        }))
+      }
+
       if(!currentStep) return
 
-      setStep(currentStep < 4 ? currentStep + 1 : currentStep);
+      if (!openBank) setStep(currentStep < 4 ? currentStep + 1 : currentStep);
       setUserStep(currentStep +1 )
 
       setCompletedSteps((prev) => {
@@ -106,7 +129,7 @@ const [docUploaded, setDocUploaded] = useState({
       })
 
       
-    },[userData])
+    },[userData, editBank])
 
     const {data} = useQuery({
       queryKey: ["ucc"],

@@ -1,10 +1,26 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Link, NavLink, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { FaBasketballBall } from 'react-icons/fa'; // Import the basket icon
 import MobileSearchBox from "./MobileSearchBox";
+import { MF_CATEGORY_MENU } from "../utils/mfCollections";
+
+// QA 8.2 — below 1024px a signed-in investor (and the Android app, which is this site in a
+// WebView) has no top header, so the Mutual Funds hover menu never appears. Its signed-in
+// entries are repeated here, on the Funds tab, for touch. Keep in step with MutualFundsMenu.
+const MOBILE_MF_LINKS = [
+  { label: "Top-up", to: "/user/mutual_fund/investments?topup=1" },
+  { label: "Goal Based Investing", to: "/goals" },
+  { label: "NFO — New Fund Offers", to: "/nfo" },
+  { label: "Curated Scheme Baskets", to: "/baskets" },
+  { label: "CAS Upload", to: "/user/mutual_fund/external?cas=1" },
+  { label: "Portfolio Health-Check", to: "/user/mutual_fund/combined" },
+  { label: "Calculators", to: "/calculators" },
+  { label: "Categories for my risk profile", to: "/risk" },
+];
 
 
 const MFDashboard = () => {
+  const navigate = useNavigate();
   const [isSticky, setIsSticky] = useState(false);
   const [activeTab, setActiveTab] = useState("Gainers");
   const [hoveredRow, setHoveredRow] = useState(null);
@@ -192,6 +208,32 @@ const MFDashboard = () => {
     ))}
   </nav>
 </div>
+<nav aria-label="Mutual fund menu" className="mt-2 flex gap-2 overflow-x-auto scrollbar-hide">
+  {MOBILE_MF_LINKS.map((l) => (
+    <Link
+      key={l.to}
+      to={l.to}
+      className="px-3 py-1.5 rounded-full border border-slate-200 dark:border-[var(--border-color)] text-xs font-medium whitespace-nowrap text-slate-700 dark:text-slate-300"
+    >
+      {l.label}
+    </Link>
+  ))}
+</nav>
+<select
+  aria-label="Browse by SEBI category"
+  value=""
+  onChange={(e) => e.target.value && navigate(`/mutual_fund/collections/${e.target.value}`)}
+  className="mt-2 w-full rounded-lg border border-slate-200 dark:border-[var(--border-color)] bg-white dark:bg-[var(--white-5)] px-3 py-2 text-sm text-slate-700 dark:text-slate-300"
+>
+  <option value="">Browse by SEBI category…</option>
+  {MF_CATEGORY_MENU.map((g) => (
+    <optgroup key={g.id} label={g.name}>
+      {g.items.map((it) => (
+        <option key={it.slug} value={it.slug}>{it.name}</option>
+      ))}
+    </optgroup>
+  ))}
+</select>
  </div>
 
     </div>

@@ -52,3 +52,15 @@ test("the PAN lock warning follows the server, not pan_verified", () => {
   assert.match(src, /const panLocked = panVerified \|\| serverLocked/);
   assert.match(src, /\{panLocked && editing &&/);
 });
+
+test("QA 7.3 — Profile → Bank Account opens the KYC bank step with the saved account", () => {
+  const profile = readFileSync("src/pages/Profile.jsx", "utf8");
+  const kyc = readFileSync("src/components/kyc/KYC.jsx", "utf8");
+  // Both Profile surfaces (desktop sidebar and mobile list) link to it.
+  assert.equal(profile.match(/\/kyc\?step=bank/g)?.length, 2);
+  assert.match(kyc, /searchParams\.get\("step"\) === "bank"/);
+  // Opened once, before the kyc_steps early return (an investor can have a bank on file with
+  // kyc_steps 0), and prefilled — kyc/bank 422s without account_holder_name (= name).
+  assert.ok(kyc.indexOf("bankEditOpened.current = true") < kyc.indexOf("if(!currentStep) return"));
+  assert.match(kyc, /name: prev\.name \|\| saved\.account_holder_name/);
+});

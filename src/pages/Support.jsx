@@ -37,10 +37,17 @@ const Support = () => {
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
   // The category is the first thing in the subject, so the desk can sort without opening it.
+  // QA 2026-10-14: the category alone is enough — a blank subject falls back to "Help request".
+  // And mailto: does nothing visible on a machine with no mail app, so after Send the same
+  // Gmail / copy fallback the home FAQ uses is shown with the composed mail.
+  const [sent, setSent] = useState(null);
+  const [copied, setCopied] = useState(false);
   const sendMail = (e) => {
     e.preventDefault();
     const to = form.who === "new" ? INVEST_EMAIL : SUPPORT_EMAIL;
-    const subject = `[${form.category}] ${form.subject.trim()}`;
+    const subject = `[${form.category}] ${form.subject.trim() || "Help request"}`;
+    setSent({ to, subject, body: form.message });
+    setCopied(false);
     window.location.href = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(form.message)}`;
   };
 
@@ -127,8 +134,8 @@ const Support = () => {
           </select>
         </label>
         <label className="text-sm text-gray-700 dark:text-[var(--text-secondary)] sm:col-span-2">
-          Subject
-          <input required value={form.subject} onChange={set("subject")} maxLength={120} className={field} placeholder="e.g. SIP debit did not happen" />
+          Subject (optional)
+          <input value={form.subject} onChange={set("subject")} maxLength={120} className={field} placeholder="e.g. SIP debit did not happen" />
         </label>
         <label className="text-sm text-gray-700 dark:text-[var(--text-secondary)] sm:col-span-2">
           Message
@@ -141,6 +148,32 @@ const Support = () => {
           <span className="text-xs text-gray-500 dark:text-[var(--text-secondary)]">Opens your email app with the subject “[{form.category || "Category"}] …”.</span>
         </div>
       </form>
+      {sent && (
+        <div className="mt-4 text-sm text-slate-600 dark:text-[var(--text-secondary)]" role="status">
+          <p className="break-all">To {sent.to} — {sent.subject}</p>
+          <p className="mt-1">No mail app opened? Use Gmail or copy the address.</p>
+          <div className="mt-2 flex flex-wrap gap-4">
+            <a
+              className="text-blue-700 dark:text-blue-400 underline"
+              href={`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(sent.to)}&su=${encodeURIComponent(sent.subject)}&body=${encodeURIComponent(sent.body)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Open Gmail
+            </a>
+            <button
+              type="button"
+              className="text-blue-700 dark:text-blue-400 underline"
+              onClick={async () => {
+                try { await navigator.clipboard.writeText(sent.to); setCopied(true); }
+                catch { setCopied(false); }
+              }}
+            >
+              {copied ? "Copied" : "Copy email"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   </div>
 

@@ -15,6 +15,7 @@ import {
   User,
   KeyRound,
   Users,
+  Landmark,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { login, logout } from "../redux/authenticationSlice";
@@ -53,6 +54,9 @@ const Profile = () => {
     { name: "Change Password", path: "change-password" },
     { name: "Change PIN", path: "change-pin" },
     { name: "Nominee Details", path: "nominee_details" },
+    // QA 7.3 — one bank account per investor, edited on the KYC bank step (there is no
+    // delete: BSE's UCC needs a bank on file, so removing the only one would break orders).
+    { name: "Bank Account", path: "/kyc?step=bank" },
     // SRS "Compliance" — GDPR access, portability and erasure.
     { name: "Your Data & Privacy", path: "data" },
   ];
@@ -363,6 +367,11 @@ const email = current?.email
     to: "/profile/nominee_details",
     icon: <Users size={18} />,
     label: "Nominee Details",
+  },
+  {
+    to: "/kyc?step=bank",
+    icon: <Landmark size={18} />,
+    label: "Bank Account",
   },
             ].map((item, i) => (
               <Link
