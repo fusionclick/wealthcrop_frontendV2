@@ -19,6 +19,7 @@ import Profile from "./pages/Profile";
 import Login from "./auth/Login";
 import Register from "./auth/Register";
 import VerifyOtp from "./auth/VerifyOtp";
+import AppEntry from "./pages/AppEntry";
 import { Toaster } from "react-hot-toast";
 import { lazy, Suspense, useEffect, useState } from "react";
 import Dashboard from "./components/DashBoard";
@@ -295,6 +296,8 @@ const StockDetails = lazy(() => import("./components/StockDetails"));
 
   const { pathname } = useLocation();
   const { token } = useSelector((state) => state.auth);
+  // The Android app's start screen draws its own full-screen layout and identity line.
+  const appEntry = pathname === "/app";
 
   // SRS §15.2 — routes that render investor data had NO route-level gate at all: a logged
   // out visitor reached the page and only the API refused, which left the form or shell on
@@ -392,13 +395,13 @@ useEffect(() => {
       {/*  Fixed Header */}
       {/*  Large screens (always show OldHeader) */}
       <ScrollToTopButton />
-      <FloatingContact />
+      {!appEntry && <FloatingContact />}
       {/* ================= TOP HEADER ================= */}
-      {(!token || isLg) && <OldHeader />}
+      {!appEntry && (!token || isLg) && <OldHeader />}
       {token && !isLg && <MutualFundCarousel />}
 
       {/* Top spacer */}
-      {(!token || isLg) && <div className="h-[96px]" />}
+      {!appEntry && (!token || isLg) && <div className="h-[96px]" />}
 
 
       {/*  Page Content */}
@@ -607,6 +610,7 @@ useEffect(() => {
               }
             />
 
+            <Route path="/app" element={<AppEntry />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Register />} />
             <Route path="/verify-otp" element={<VerifyOtp />} />
@@ -725,7 +729,7 @@ useEffect(() => {
           deliberately drop the whole footer to stay in one viewport, so they get the line on
           its own rather than an exemption — signup and KYC are exactly where an investor is
           deciding who they are dealing with. */}
-      {CHROME_FREE_ROUTES.some((p) => pathname.startsWith(p)) ? (
+      {appEntry ? null : CHROME_FREE_ROUTES.some((p) => pathname.startsWith(p)) ? (
         <DistributorIdentity className="px-4 pb-6 text-center" />
       ) : (
         <Footer />

@@ -15,7 +15,10 @@ import { saveSession } from "../utils/session";
 import GoogleSignInButton from "../components/GoogleSignInButton";
 
 function LoginPage() {
-  const [loginMode, setLoginMode] = useState("password"); // "password" | "otp"
+  const location = useLocation()
+  // The app start screen (/app) sends the typed mobile here to log in by OTP.
+  const prefillPhone = location.state?.phone || "";
+  const [loginMode, setLoginMode] = useState(prefillPhone ? "otp" : "password"); // "password" | "otp"
   const [otpSent, setOtpSent] = useState(false);
   const [saveOTP, setSaveOTP] = useState("")
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
@@ -29,7 +32,6 @@ function LoginPage() {
 
   const dispatch = useDispatch()
   const navigate = useNavigate()
-  const location = useLocation()
 
   // "Forgot password" ek alag route nahi, sirf is component ki state hai. Header ka
   // "Login / Signup" button /login par hi le jata hai — yaani jab user pehle se /login
@@ -59,7 +61,7 @@ function LoginPage() {
     resolver: loginMode === "password"
       ? zodResolver(passwordLoginSchema)
       : zodResolver(otpLoginSchema),
-    defaultValues: { email: "", password: "", otp: "" },
+    defaultValues: { email: prefillPhone, password: "", otp: "" },
   });
 
   // Handle OTP input changes

@@ -4,7 +4,7 @@ import { usePlatformSettings } from "../hooks/usePlatformSettings";
 export default function WebsiteAccessGate({ token, children }) {
   const { pathname } = useLocation();
   const { data, isLoading } = usePlatformSettings();
-  const essential = pathname === "/" || /^\/(login|signup|verify-otp|reset-password|support|grievance-redressal|profile|kyc|privacy|terms|investor-charter|disclaimer|commission)(\/|$)/.test(pathname);
+  const essential = pathname === "/" || /^\/(app|login|signup|verify-otp|reset-password|support|grievance-redressal|profile|kyc|privacy|terms|investor-charter|disclaimer|commission)(\/|$)/.test(pathname);
   if (essential) return children;
   if (isLoading) return <p className="p-8 text-center">Checking website access…</p>;
   if (data?.[token ? "investor_browsing_enabled" : "guest_browsing_enabled"] !== false) return children;
