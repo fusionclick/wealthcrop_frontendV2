@@ -16,9 +16,9 @@ import GoogleSignInButton from "../components/GoogleSignInButton";
 
 function LoginPage() {
   const location = useLocation()
-  // The app start screen (/app) sends the typed mobile here to log in by OTP.
-  const prefillPhone = location.state?.phone || "";
-  const [loginMode, setLoginMode] = useState(prefillPhone ? "otp" : "password"); // "password" | "otp"
+  // The app start screen (/app) sends the typed email here to log in by OTP.
+  const prefillIdentity = location.state?.identity || "";
+  const [loginMode, setLoginMode] = useState(prefillIdentity ? "otp" : "password"); // "password" | "otp"
   const [otpSent, setOtpSent] = useState(false);
   const [saveOTP, setSaveOTP] = useState("")
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
@@ -61,7 +61,7 @@ function LoginPage() {
     resolver: loginMode === "password"
       ? zodResolver(passwordLoginSchema)
       : zodResolver(otpLoginSchema),
-    defaultValues: { email: prefillPhone, password: "", otp: "" },
+    defaultValues: { email: prefillIdentity, password: "", otp: "" },
   });
 
   // Handle OTP input changes
