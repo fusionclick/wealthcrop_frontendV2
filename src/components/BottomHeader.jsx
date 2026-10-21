@@ -58,7 +58,8 @@ const BottomHeader = () => {
       key: "orders",
       label: "Orders",
       icon: <MdReceiptLong size={20} />,
-      path: "/user/stocks/orders",
+      // All Orders opens on Mutual Funds; /user/stocks/orders sits behind KotakGate.
+      path: "/user/order/mutual-funds",
     },
     {
       key: "profile",

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Link, Outlet } from "react-router-dom";
 import { ExternalLink, ShieldCheck, CandlestickChart } from "lucide-react";
 import { fetchKotakStatus } from "../../api/portfolioApi";
 import KotakLinkForm from "./KotakLinkForm";
@@ -108,7 +108,15 @@ const KotakGate = () => {
                   </li>
                 </ol>
 
-                <p className="mt-6 flex items-center justify-center gap-1.5 border-t border-gray-200/70 pt-4 text-xs text-gray-500 dark:border-white/10 dark:text-gray-400">
+                {/* The gate covers the bottom nav too, so this is the only way out besides Back. */}
+                <Link
+                  to="/user/mutual_fund/explore"
+                  className="mt-5 block text-center text-sm font-medium text-blue-700 hover:underline dark:text-blue-400"
+                >
+                  Not now, back to Mutual Funds
+                </Link>
+
+                <p className="mt-4 flex items-center justify-center gap-1.5 border-t border-gray-200/70 pt-4 text-xs text-gray-500 dark:border-white/10 dark:text-gray-400">
                   <ShieldCheck size={13} /> Stored encrypted, and only used to place your own orders.
                 </p>
               </div>
